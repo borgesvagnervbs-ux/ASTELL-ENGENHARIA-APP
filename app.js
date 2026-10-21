@@ -1,4 +1,4 @@
-// Configuração do Supabase: arquivo config.js (compartilhado com admin.html)
+// Configuração do Supabase: arquivo config.js
 let sb; try { sb = supabase.createClient(new URL(SUPABASE_URL.trim()).origin, SUPABASE_KEY.trim()); } catch (e) { sb = null; }
 const $ = s => document.querySelector(s); let app = $('#app');
 const fail = m => { app.innerHTML = '<div class="card" style="margin:16px"><b>Não foi possível iniciar o Astell Home</b><p class="mute">' + m + '</p></div>'; };
@@ -7,9 +7,8 @@ addEventListener('error', e => { if (!app.innerHTML.trim()) fail('Erro: ' + e.me
 addEventListener('unhandledrejection', e => { if (!app.innerHTML.trim()) fail('Erro: ' + (e.reason?.message || e.reason)); });
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt = d => d ? new Date(d + 'T00:00').toLocaleDateString('pt-BR') : '—';
-const S = { profile: null, res: [], cur: null };
-const staff = () => false; // a gestão dos dados é feita no painel separado (admin.html)
-const isAdmin = () => S.profile?.role === 'admin';
+const S = { profile: null, res: [], cur: null, groups: {} };
+const staff = () => false; // este app é somente de consulta do cliente
 function toast(m, err) { const t = $('#toast'); t.textContent = m; t.className = 'show' + (err ? ' err' : ''); setTimeout(() => t.className = '', 3500); }
 const addMonths = (d, m) => { const x = new Date(d + 'T00:00'); x.setMonth(x.getMonth() + m); return x; };
 function wState(w) { const end = addMonths(w.start_date, w.months), days = (end - new Date()) / 864e5;
@@ -40,7 +39,10 @@ const IC = { home: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z|M9 22V12h6v10
 const TILES = [['estrutura', 'Estrutura', 'Steel Frame', 'home'], ['sistemas', 'Sistemas', 'Elétrica | Hidráulica', 'drop'], ['materiais', 'Materiais', 'Especificações', 'layers'], ['garantias', 'Garantias', 'Prazos e coberturas', 'shield'], ['manutencao', 'Manutenção', 'Cuidados e dicas', 'wrench'], ['assistencia', 'Assistência', 'Suporte e contato', 'phones']];
 const BCAT = { estrutura: 'Estrutura', sistemas: 'Sistemas', materiais: 'Materiais' };
 $('#nav').innerHTML = [['home', 'Início', 'home'], ['casa', 'Casa', 'casa'], ['documentos', 'Documentos', 'doc'], ['mais', 'Perfil', 'user']].map(([h, l, i]) => `<a href="#${h}">${ico(IC[i])}<span>${l}</span></a>`).join('');
-const linkrow = (h, t, s, i) => `<a class="linkrow" href="${h === 'admin' ? 'admin.html' : '#' + h}">${ico(IC[i])}<span><b>${t}</b><small>${s}</small></span>${ico(IC.chev)}</a>`;
+function cld(u, w) { return String(u).replace('/upload/', `/upload/w_${w},c_limit,q_auto,f_auto/`); }
+function grp(key, urls, cls = 'thumbs') { S.groups[key] = urls; return `<div class="${cls}">${urls.map((u, i) => `<img src="${esc(cld(u, cls === 'thumbs' ? 240 : 500))}" alt="Imagem ${i + 1}" loading="lazy" data-lb="${key}|${i}">`).join('')}</div>`; }
+function showLb() { const u = S.groups[S.lb.g], lb = $('#lb'); lb.hidden = false; lb.innerHTML = `<button class="lbx" data-lbx aria-label="Fechar">×</button>${u.length > 1 ? '<button class="lbn l" data-lbn="-1" aria-label="Anterior">‹</button><button class="lbn r" data-lbn="1" aria-label="Próxima">›</button>' : ''}<img src="${esc(cld(u[S.lb.i], 1400))}" alt="Imagem ${S.lb.i + 1} de ${u.length}">`; }
+const linkrow = (h, t, s, i) => `<a class="linkrow" href="#${h}">${ico(IC[i])}<span><b>${t}</b><small>${s}</small></span>${ico(IC.chev)}</a>`;
 async function itemsView(k) {
   const cat = BCAT[k];
   const { data } = await sb.from('building_items').select('*').eq('residence_id', S.cur.id).eq('category', cat).order('created_at');
@@ -75,27 +77,32 @@ async function listView(k) {
   const { data, error } = await sb.from(k).select('*').eq('residence_id', S.cur.id).order(c.order || 'created_at', { ascending: false });
   if (error) return toast('Não foi possível carregar os dados.', 1);
   S.rows = S.rows || {}; S.rows[k] = data;
+  const im = {};
+  if (k === 'maintenance_tasks') { const { data: ii } = await sb.from('images').select('url,ref_id').eq('residence_id', S.cur.id).eq('kind', 'maintenance').order('created_at'); (ii || []).forEach(x => (im[x.ref_id] = im[x.ref_id] || []).push(x.url)); }
   const ed = S.edit && S.edit.k === k ? data.find(r => r.id === S.edit.id) : null;
   const form = !staff() ? '' : ed ? `<form class="card" data-form="edit:${k}" data-id="${ed.id}"><b>Editar</b>${c.f.map(f => fld(f, ed)).join('')}<button>Salvar alterações</button><button type="button" class="ghost2" data-cancel>Cancelar</button></form>` : formOf(k, 'Adicionar', c.f.map(input).join(''));
   const btns = r => !staff() ? '' : `<div class="acts"><button class="link" data-edit="${k}:${r.id}">Editar</button>${'visible' in r ? `<button class="link" data-vis="${k}:${r.id}">${r.visible ? 'Ocultar do cliente' : 'Mostrar ao cliente'}</button>` : ''}${k === 'maintenance_tasks' ? `<button class="link" data-done="${r.id}">Marcar como executada</button>` : ''}<button class="link danger" data-del="${k}:${r.id}">Excluir</button></div>`;
   app.innerHTML = `<h2>${c.label}</h2>` + form +
-    (data.length ? data.map(r => `<div class="card">${c.row(r)}${r.visible === false ? '<p><span class="badge">Oculto do cliente</span></p>' : ''}${btns(r)}</div>`).join('') : '<p class="empty">Nada cadastrado ainda. A Astell publica as informações da sua casa aqui.</p>') +
+    (data.length ? data.map(r => `<div class="card">${c.row(r)}${im[r.id] ? grp('m' + r.id, im[r.id]) : ''}${r.visible === false ? '<p><span class="badge">Oculto do cliente</span></p>' : ''}${btns(r)}</div>`).join('') : '<p class="empty">Nada cadastrado ainda. A Astell publica as informações da sua casa aqui.</p>') +
     (c.note ? `<p class="notice">${c.note}</p>` : '');
 }
 
 const views = {
   async home() {
     const r = S.cur;
+    const { data: hi } = await sb.from('images').select('url').eq('residence_id', r.id).eq('kind', 'residence').order('created_at').limit(1);
+    const hero = hi && hi[0] ? cld(hi[0].url, 1200) : 'img/casa.jpg';
     const { data: m } = await sb.from('maintenance_tasks').select('name,next_due').eq('residence_id', r.id).not('next_due', 'is', null).order('next_due').limit(3);
     app.innerHTML = `<p class="eyebrow">Bem-vindo</p><h1 class="welcome">Sua casa,<br>do seu jeito.</h1>
     <a class="rescard" href="#casa">${ico(IC.home)}<span><b>${esc(r.name)}</b><small>${esc(r.address || r.code)}</small></span>${ico(IC.chev)}</a>
-    <img class="heroimg" src="img/casa.jpg" alt="Fachada da residência">
+    <img class="heroimg" src="${esc(hero)}" alt="Foto da residência" onerror="this.onerror=null;this.src='img/casa.jpg'">
     <div class="tiles">${TILES.map(([h, t, s, i]) => `<a class="tile" href="#${h}">${ico(IC[i])}<b>${t}</b><small>${s}</small></a>`).join('')}</div>
-    ${isAdmin() ? linkrow('admin', 'Painel administrativo', 'Residências, proprietários, documentos e histórico.', 'shield') : ''}<h3>Próximos cuidados</h3>${(m || []).map(x => `<div class="card"><b>${esc(x.name)}</b>${fmt(x.next_due)}</div>`).join('') || '<p class="empty">Nenhum cuidado agendado.</p>'}`;
+    <h3>Próximos cuidados</h3>${(m || []).map(x => `<div class="card"><b>${esc(x.name)}</b>${fmt(x.next_due)}</div>`).join('') || '<p class="empty">Nenhum cuidado agendado.</p>'}`;
   },
-  casa() {
+  async casa() {
+    const { data: im } = await sb.from('images').select('url').eq('residence_id', S.cur.id).eq('kind', 'residence').order('created_at');
     const r = S.cur, rows = [['Código', r.code], ['Endereço', r.address], ['Área construída', r.area_m2 && r.area_m2 + ' m²'], ['Pavimentos', r.floors], ['Sistema construtivo', r.build_system], ['Nº do projeto', r.project_no], ['Início da obra', fmt(r.start_date)], ['Entrega', fmt(r.delivery_date)], ['Responsável técnico', r.tech_lead], ['Observações', r.notes]];
-    app.innerHTML = `<h2>${esc(r.name)}</h2><div class="card">${rows.map(([a, b]) => `<p><span class="mute">${a}</span><br>${esc(b || '—')}</p>`).join('')}</div>`;
+    app.innerHTML = `<h2>${esc(r.name)}</h2><div class="card">${rows.map(([a, b]) => `<p><span class="mute">${a}</span><br>${esc(b || '—')}</p>`).join('')}</div>${(im || []).length ? '<h3>Fotos da residência</h3>' + grp('casa', im.map(x => x.url), 'gallery') : ''}`;
   },
   manutencao: () => listView('maintenance_tasks'), garantias: garantiasView, estrutura: () => itemsView('estrutura'), sistemas: () => itemsView('sistemas'), materiais: () => itemsView('materiais'), equipamentos: () => listView('equipment'),
   historico: () => listView('history_events'), contatos: () => listView('contacts'),
@@ -135,8 +142,7 @@ const views = {
   },
   mais() {
     const l = [['documentos', 'Documentos'], ['garantias', 'Garantias'], ['equipamentos', 'Equipamentos'], ['historico', 'Histórico'], ['contatos', 'Contatos'], ['qr', 'QR Codes'], ['planta', 'Planta técnica']];
-    if (isAdmin()) l.push(['admin', 'Painel administrativo']);
-    app.innerHTML = `<h2>Perfil</h2><div class="card"><b>${esc(S.profile.name || '')}</b><span class="mute">${esc(S.profile.email || '')}</span><button data-out>Sair da conta</button></div><div class="menu">${l.map(([h, t]) => `<a href="${h === 'admin' ? 'admin.html' : '#' + h}">${t}</a>`).join('')}</div><p class="notice">Pendentes nesta versão: camadas construtivas, emergência, auditoria, PWA e notificações.</p>`;
+    app.innerHTML = `<h2>Perfil</h2><div class="card"><b>${esc(S.profile.name || '')}</b><span class="mute">${esc(S.profile.email || '')}</span><button data-out>Sair da conta</button></div><div class="menu">${l.map(([h, t]) => `<a href="#${h}">${t}</a>`).join('')}</div><p class="notice">Pendentes nesta versão: camadas construtivas, emergência, auditoria, PWA e notificações.</p>`;
   },
 };
 
@@ -154,8 +160,6 @@ app.addEventListener('submit', async e => {
   else if (id === 'plan') { const file = f.file.files[0], path = `${rid}/planta_${Date.now()}_${file.name.replace(/[^\w.-]/g, '_')}`;
     r = await sb.storage.from('documents').upload(path, file); if (!r.error) r = await sb.from('floorplans').insert({ residence_id: rid, title: o.title, path }); }
   else if (id === 'pt') { r = await sb.from('plan_points').insert({ ...o, residence_id: rid, floorplan_id: S.planId, x: S.pend.x, y: S.pend.y }); S.pend = null; }
-  else if (id === 'link') r = await sb.rpc('admin_link_cpf', { p_cpf: o.cpf_id, p_res: rid });
-  else if (id === 'cpfnew') { const cpf = cpfDigits(o.cpf); if (!cpfOk(cpf)) return toast('CPF inválido.', 1); r = await sb.rpc('admin_register_cpf', { p_name: o.name, p_cpf: cpf, p_email: o.email || null }); }
   else if (id === 'newres') { r = await sb.from('residences').insert(o).select().single(); if (!r.error) { await loadRes(r.data.id); return toast('Residência cadastrada.'); } }
   else if (id === 'doc') { const file = f.file.files[0], path = `${rid}/${Date.now()}_${file.name.replace(/[^\w.-]/g, '_')}`;
     r = await sb.storage.from('documents').upload(path, file); if (!r.error) { r = await sb.from('documents').insert({ residence_id: rid, title: o.title, category: o.category, version: o.version, description: o.description, path }); } }
@@ -164,16 +168,7 @@ app.addEventListener('submit', async e => {
 });
 app.addEventListener('click', async e => {
   const d = e.target.dataset;
-  if (d.rel && confirm('Liberar este CPF? O acesso atual do cliente será removido e outro cadastro poderá usá-lo.')) { const { error } = await sb.rpc('admin_release_cpf', { p_cpf: d.rel }); error ? toast('Não foi possível liberar.', 1) : toast('CPF liberado.'); route(); }
-  if (d.tab) { S.tab = d.tab; S.edit = null; route(); }
-  if (d.pick) { S.cur = S.res.find(r => r.id === d.pick); $('#resSel').value = d.pick; route(); }
-  if (d.edit) { const [k, id] = d.edit.split(':'); S.edit = { k, id }; route(); }
-  if (d.cancel !== undefined) { S.edit = null; route(); }
-  if (d.hclear !== undefined) { S.hf = {}; route(); }
-  if (d.vis) { const [k, id] = d.vis.split(':'), r = S.rows[k].find(x => x.id === id); const { error } = await sb.from(k).update({ visible: !r.visible }).eq('id', id); error ? toast('Não foi possível alterar.', 1) : toast(r.visible ? 'Oculto do cliente.' : 'Visível ao cliente.'); route(); }
-  if (d.done) { const t = S.rows.maintenance_tasks.find(x => x.id === d.done), today = new Date().toISOString().slice(0, 10), nx = t.interval_months ? addMonths(today, +t.interval_months).toISOString().slice(0, 10) : null;
-    await sb.from('maintenance_tasks').update({ last_done: today, next_due: nx, status: nx ? 'Pendente' : 'Concluída' }).eq('id', t.id);
-    await sb.from('history_events').insert({ residence_id: S.cur.id, category: 'Manutenção', description: 'Manutenção executada: ' + t.name }); toast('Execução registrada.'); route(); }
+  if (d.lb) { const [g, i] = d.lb.split('|'); S.lb = { g, i: +i }; showLb(); }
   if (d.out !== undefined) sb.auth.signOut();
   if (d.print !== undefined) print();
   if (d.place !== undefined) { S.place = !S.place; S.pend = null; route(); }
@@ -190,7 +185,7 @@ function route() {
   const h = location.hash.slice(1) || 'home';
   if (h.startsWith('qr/')) return openQr(h.slice(3));
   document.querySelectorAll('nav a').forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + h));
-  if (!S.cur && h !== 'admin') return app.innerHTML = isAdmin() ? '<p class="empty">Nenhuma residência cadastrada. <a href="admin.html">Abra o painel administrativo</a> para criar a primeira.</p>' : '<p class="empty">Nenhuma residência vinculada à sua conta. Fale com a Astell.</p>';
+  if (!S.cur) return app.innerHTML = '<p class="empty">Nenhuma residência vinculada à sua conta. Fale com a Astell.</p>';
   (views[h] || views.home)();
 }
 addEventListener('hashchange', () => { S.edit = null; route(); });
@@ -300,4 +295,15 @@ app.addEventListener('input', e => {
   const t = e.target;
   if (t.classList && t.classList.contains('cpf')) t.value = cpfMask(t.value);
   if (t.id === 'pw' && $('#pr')) $('#pr').innerHTML = pwList(t.value);
+});
+
+$('#lb').addEventListener('click', e => {
+  const d = e.target.dataset;
+  if (e.target.id === 'lb' || d.lbx !== undefined) $('#lb').hidden = true;
+  if (d.lbn) { const n = S.groups[S.lb.g].length; S.lb.i = (S.lb.i + +d.lbn + n) % n; showLb(); }
+});
+addEventListener('keydown', e => {
+  if ($('#lb').hidden) return;
+  if (e.key === 'Escape') $('#lb').hidden = true;
+  if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { const n = S.groups[S.lb.g].length; S.lb.i = (S.lb.i + (e.key === 'ArrowRight' ? 1 : -1) + n) % n; showLb(); }
 });
