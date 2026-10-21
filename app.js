@@ -41,6 +41,19 @@ const BCAT = { estrutura: 'Estrutura', sistemas: 'Sistemas', materiais: 'Materia
 $('#nav').innerHTML = [['home', 'Início', 'home'], ['casa', 'Casa', 'casa'], ['documentos', 'Documentos', 'doc'], ['mais', 'Perfil', 'user']].map(([h, l, i]) => `<a href="#${h}">${ico(IC[i])}<span>${l}</span></a>`).join('');
 function vsrc(u) { return String(u).replace('/upload/', '/upload/f_mp4,vc_h264,q_auto/').replace(/\.\w+$/, '.mp4'); }
 function vposter(u) { return String(u).replace('/upload/', '/upload/w_480,c_limit,so_0/').replace(/\.\w+$/, '.jpg'); }
+function carousel(urls) {
+  if (!urls.length) return '<img class="heroimg" src="img/casa.jpg" alt="Foto da residência">';
+  S.groups.home = urls;
+  return `<div class="carousel" aria-roledescription="carrossel" aria-label="Fotos recentes da residência"><div class="slides">${urls.map((u, i) => `<img src="${esc(cld(u, 1200))}" alt="Foto ${i + 1} de ${urls.length} da residência" data-lb="home|${i}">`).join('')}</div>${urls.length > 1 ? `<button class="cn l" data-cn="-1" aria-label="Foto anterior">‹</button><button class="cn r" data-cn="1" aria-label="Próxima foto">›</button><div class="dots">${urls.map((_, i) => `<span class="dot ${i ? '' : 'on'}"></span>`).join('')}</div>` : ''}</div>`;
+}
+function initCarousel() {
+  clearInterval(S.carTimer);
+  const el = app.querySelector('.slides'); if (!el || el.children.length < 2) return;
+  const dots = [...app.querySelectorAll('.dot')], idx = () => Math.round(el.scrollLeft / el.clientWidth);
+  el.addEventListener('scroll', () => dots.forEach((d, k) => d.classList.toggle('on', k === idx())));
+  el.addEventListener('touchstart', () => clearInterval(S.carTimer), { passive: true });
+  if (!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) S.carTimer = setInterval(() => { if (!document.contains(el)) return clearInterval(S.carTimer); el.scrollTo({ left: ((idx() + 1) % el.children.length) * el.clientWidth, behavior: 'smooth' }); }, 4500);
+}
 function cld(u, w) { return String(u).replace('/upload/', `/upload/w_${w},c_limit,q_auto,f_auto/`); }
 function grp(key, urls, cls = 'thumbs') { S.groups[key] = urls; return `<div class="${cls}">${urls.map((u, i) => `<img src="${esc(cld(u, cls === 'thumbs' ? 240 : 500))}" alt="Imagem ${i + 1}" loading="lazy" data-lb="${key}|${i}">`).join('')}</div>`; }
 function showLb() { const u = S.groups[S.lb.g], lb = $('#lb'); lb.hidden = false; lb.innerHTML = `<button class="lbx" data-lbx aria-label="Fechar">×</button>${u.length > 1 ? '<button class="lbn l" data-lbn="-1" aria-label="Anterior">‹</button><button class="lbn r" data-lbn="1" aria-label="Próxima">›</button>' : ''}<img src="${esc(cld(u[S.lb.i], 1400))}" alt="Imagem ${S.lb.i + 1} de ${u.length}">`; }
@@ -92,14 +105,15 @@ async function listView(k) {
 const views = {
   async home() {
     const r = S.cur;
-    const { data: hi } = await sb.from('images').select('*').eq('residence_id', r.id).eq('kind', 'residence').order('created_at').limit(20);
-    const h0 = (hi || []).find(x => (x.media_type || 'image') === 'image'), hero = h0 ? cld(h0.url, 1200) : 'img/casa.jpg';
+    const { data: hi } = await sb.from('images').select('*').eq('residence_id', r.id).eq('kind', 'residence').order('created_at', { ascending: false }).limit(30);
+    const pics = (hi || []).filter(x => (x.media_type || 'image') === 'image').sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 5).map(x => x.url);
     const { data: m } = await sb.from('maintenance_tasks').select('name,next_due').eq('residence_id', r.id).not('next_due', 'is', null).order('next_due').limit(3);
     app.innerHTML = `<p class="eyebrow">Bem-vindo</p><h1 class="welcome">Sua casa,<br>do seu jeito.</h1>
     <a class="rescard" href="#casa">${ico(IC.home)}<span><b>${esc(r.name)}</b><small>${esc(r.address || r.code)}</small></span>${ico(IC.chev)}</a>
-    <img class="heroimg" src="${esc(hero)}" alt="Foto da residência" onerror="this.onerror=null;this.src='img/casa.jpg'">
+    ${carousel(pics)}
     <div class="tiles">${TILES.map(([h, t, s, i]) => `<a class="tile" href="#${h}">${ico(IC[i])}<b>${t}</b><small>${s}</small></a>`).join('')}</div>
     <h3>Próximos cuidados</h3>${(m || []).map(x => `<div class="card"><b>${esc(x.name)}</b>${fmt(x.next_due)}</div>`).join('') || '<p class="empty">Nenhum cuidado agendado.</p>'}`;
+    initCarousel();
   },
   async casa() {
     const { data: im0 } = await sb.from('images').select('*').eq('residence_id', S.cur.id).eq('kind', 'residence').order('created_at');
@@ -145,7 +159,7 @@ const views = {
   },
   mais() {
     const l = [['documentos', 'Documentos'], ['garantias', 'Garantias'], ['equipamentos', 'Equipamentos'], ['historico', 'Histórico'], ['contatos', 'Contatos'], ['qr', 'QR Codes'], ['planta', 'Planta técnica']];
-    app.innerHTML = `<h2>Perfil</h2><div class="card"><b>${esc(S.profile.name || '')}</b><span class="mute">${esc(S.profile.email || '')}</span><button data-out>Sair da conta</button></div><div class="menu">${l.map(([h, t]) => `<a href="#${h}">${t}</a>`).join('')}</div><p class="notice">Pendentes nesta versão: camadas construtivas, emergência, auditoria, PWA e notificações.</p>`;
+    app.innerHTML = `<div class="perfil"><h2>Perfil</h2><div class="card"><b>${esc(S.profile.name || '')}</b><span class="mute">${esc(S.profile.email || '')}</span></div><div class="menu">${l.map(([h, t]) => `<a href="#${h}">${t}</a>`).join('')}</div><p class="notice">Pendentes nesta versão: camadas construtivas, emergência, auditoria, PWA e notificações.</p><button class="ghost2 sair" data-out>Sair da conta</button></div>`;
   },
 };
 
@@ -171,6 +185,7 @@ app.addEventListener('submit', async e => {
 });
 app.addEventListener('click', async e => {
   const d = e.target.dataset;
+  if (d.cn) { const el = app.querySelector('.slides'); if (el) { clearInterval(S.carTimer); const n = el.children.length; el.scrollTo({ left: ((Math.round(el.scrollLeft / el.clientWidth) + +d.cn + n) % n) * el.clientWidth, behavior: 'smooth' }); } }
   if (d.lb) { const [g, i] = d.lb.split('|'); S.lb = { g, i: +i }; showLb(); }
   if (d.out !== undefined) sb.auth.signOut();
   if (d.print !== undefined) print();
@@ -185,6 +200,7 @@ app.addEventListener('click', async e => {
 
 function route() {
   if (!S.profile) return;
+  clearInterval(S.carTimer);
   const h = location.hash.slice(1) || 'home';
   if (h.startsWith('qr/')) return openQr(h.slice(3));
   document.querySelectorAll('nav a').forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + h));
