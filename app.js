@@ -39,6 +39,8 @@ const IC = { home: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z|M9 22V12h6v10
 const TILES = [['estrutura', 'Estrutura', 'Steel Frame', 'home'], ['sistemas', 'Sistemas', 'Elétrica | Hidráulica', 'drop'], ['materiais', 'Materiais', 'Especificações', 'layers'], ['garantias', 'Garantias', 'Prazos e coberturas', 'shield'], ['manutencao', 'Manutenção', 'Cuidados e dicas', 'wrench'], ['assistencia', 'Assistência', 'Suporte e contato', 'phones']];
 const BCAT = { estrutura: 'Estrutura', sistemas: 'Sistemas', materiais: 'Materiais' };
 $('#nav').innerHTML = [['home', 'Início', 'home'], ['casa', 'Casa', 'casa'], ['documentos', 'Documentos', 'doc'], ['mais', 'Perfil', 'user']].map(([h, l, i]) => `<a href="#${h}">${ico(IC[i])}<span>${l}</span></a>`).join('');
+function vsrc(u) { return String(u).replace('/upload/', '/upload/f_mp4,vc_h264,q_auto/').replace(/\.\w+$/, '.mp4'); }
+function vposter(u) { return String(u).replace('/upload/', '/upload/w_480,c_limit,so_0/').replace(/\.\w+$/, '.jpg'); }
 function cld(u, w) { return String(u).replace('/upload/', `/upload/w_${w},c_limit,q_auto,f_auto/`); }
 function grp(key, urls, cls = 'thumbs') { S.groups[key] = urls; return `<div class="${cls}">${urls.map((u, i) => `<img src="${esc(cld(u, cls === 'thumbs' ? 240 : 500))}" alt="Imagem ${i + 1}" loading="lazy" data-lb="${key}|${i}">`).join('')}</div>`; }
 function showLb() { const u = S.groups[S.lb.g], lb = $('#lb'); lb.hidden = false; lb.innerHTML = `<button class="lbx" data-lbx aria-label="Fechar">×</button>${u.length > 1 ? '<button class="lbn l" data-lbn="-1" aria-label="Anterior">‹</button><button class="lbn r" data-lbn="1" aria-label="Próxima">›</button>' : ''}<img src="${esc(cld(u[S.lb.i], 1400))}" alt="Imagem ${S.lb.i + 1} de ${u.length}">`; }
@@ -90,8 +92,8 @@ async function listView(k) {
 const views = {
   async home() {
     const r = S.cur;
-    const { data: hi } = await sb.from('images').select('url').eq('residence_id', r.id).eq('kind', 'residence').order('created_at').limit(1);
-    const hero = hi && hi[0] ? cld(hi[0].url, 1200) : 'img/casa.jpg';
+    const { data: hi } = await sb.from('images').select('*').eq('residence_id', r.id).eq('kind', 'residence').order('created_at').limit(20);
+    const h0 = (hi || []).find(x => (x.media_type || 'image') === 'image'), hero = h0 ? cld(h0.url, 1200) : 'img/casa.jpg';
     const { data: m } = await sb.from('maintenance_tasks').select('name,next_due').eq('residence_id', r.id).not('next_due', 'is', null).order('next_due').limit(3);
     app.innerHTML = `<p class="eyebrow">Bem-vindo</p><h1 class="welcome">Sua casa,<br>do seu jeito.</h1>
     <a class="rescard" href="#casa">${ico(IC.home)}<span><b>${esc(r.name)}</b><small>${esc(r.address || r.code)}</small></span>${ico(IC.chev)}</a>
@@ -100,9 +102,10 @@ const views = {
     <h3>Próximos cuidados</h3>${(m || []).map(x => `<div class="card"><b>${esc(x.name)}</b>${fmt(x.next_due)}</div>`).join('') || '<p class="empty">Nenhum cuidado agendado.</p>'}`;
   },
   async casa() {
-    const { data: im } = await sb.from('images').select('url').eq('residence_id', S.cur.id).eq('kind', 'residence').order('created_at');
+    const { data: im0 } = await sb.from('images').select('*').eq('residence_id', S.cur.id).eq('kind', 'residence').order('created_at');
+    const im = (im0 || []).filter(x => (x.media_type || 'image') === 'image'), vids = (im0 || []).filter(x => x.media_type === 'video');
     const r = S.cur, rows = [['Código', r.code], ['Endereço', r.address], ['Área construída', r.area_m2 && r.area_m2 + ' m²'], ['Pavimentos', r.floors], ['Sistema construtivo', r.build_system], ['Nº do projeto', r.project_no], ['Início da obra', fmt(r.start_date)], ['Entrega', fmt(r.delivery_date)], ['Responsável técnico', r.tech_lead], ['Observações', r.notes]];
-    app.innerHTML = `<h2>${esc(r.name)}</h2><div class="card">${rows.map(([a, b]) => `<p><span class="mute">${a}</span><br>${esc(b || '—')}</p>`).join('')}</div>${(im || []).length ? '<h3>Fotos da residência</h3>' + grp('casa', im.map(x => x.url), 'gallery') : ''}`;
+    app.innerHTML = `<h2>${esc(r.name)}</h2><div class="card">${rows.map(([a, b]) => `<p><span class="mute">${a}</span><br>${esc(b || '—')}</p>`).join('')}</div>${im.length ? '<h3>Fotos da residência</h3>' + grp('casa', im.map(x => x.url), 'gallery') : ''}${vids.length ? '<h3>Vídeos da residência</h3><div class="vids">' + vids.map(v => `<video controls playsinline preload="metadata" poster="${esc(vposter(v.url))}" src="${esc(vsrc(v.url))}"></video>`).join('') + '</div>' : ''}`;
   },
   manutencao: () => listView('maintenance_tasks'), garantias: garantiasView, estrutura: () => itemsView('estrutura'), sistemas: () => itemsView('sistemas'), materiais: () => itemsView('materiais'), equipamentos: () => listView('equipment'),
   historico: () => listView('history_events'), contatos: () => listView('contacts'),
