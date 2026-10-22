@@ -1,5 +1,5 @@
 // Configuração do Supabase: arquivo config.js
-const APP_VERSION = '2026.10.21-4'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-5'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 let sb; try { sb = supabase.createClient(new URL(SUPABASE_URL.trim()).origin, SUPABASE_KEY.trim()); } catch (e) { sb = null; }
 const $ = s => document.querySelector(s); let app = $('#app');
 const fail = m => { app.innerHTML = '<div class="card" style="margin:16px"><b>Não foi possível iniciar o Astell Home</b><p class="mute">' + m + '</p></div>'; };
@@ -46,23 +46,26 @@ const isVidUrl = u => /\/video\/upload\//.test(u);
 function carousel(urls) {
   if (!urls.length) return '<img class="heroimg" src="img/casa.jpg" alt="Foto da residência">';
   S.groups.home = urls;
-  return `<div class="carousel" aria-roledescription="carrossel" aria-label="Fotos recentes da residência"><div class="slides">${urls.map((u, i) => `<img src="${esc(cld(u, 1200))}" alt="Foto ${i + 1} de ${urls.length} da residência" data-lb="home|${i}">`).join('')}</div>${urls.length > 1 ? `<button class="cn l" data-cn="-1" aria-label="Foto anterior">‹</button><button class="cn r" data-cn="1" aria-label="Próxima foto">›</button><button class="cp" data-cp aria-label="Pausar a troca automática" aria-pressed="false">❚❚</button><div class="dots">${urls.map((_, i) => `<span class="dot ${i ? '' : 'on'}"></span>`).join('')}</div>` : ''}</div>`;
+  const slide = (u, i, clone) => `<img src="${esc(cld(u, 1200))}" alt="Foto ${i + 1} de ${urls.length} da residência" data-lb="home|${i}"${clone ? ' aria-hidden="true"' : ''}>`, many = urls.length > 1;
+  return `<div class="carousel" aria-roledescription="carrossel" aria-label="Fotos recentes da residência"><div class="slides">${urls.map((u, i) => slide(u, i)).join('')}${many ? slide(urls[0], 0, true) : ''}</div>${many ? `<button class="cn l" data-cn="-1" aria-label="Foto anterior">‹</button><button class="cn r" data-cn="1" aria-label="Próxima foto">›</button><div class="dots">${urls.map((_, i) => `<span class="dot ${i ? '' : 'on'}"></span>`).join('')}</div>` : ''}</div>`;
 }
-// Troca automática a cada 4,5 s. Se o aparelho pede "reduzir movimento", a troca continua, mas sem animação (corte seco).
+// Troca automática a cada 4,5 s, sempre para a direita: depois da última foto vem uma cópia da primeira e,
+// quando ela termina de deslizar, o carrossel volta sem animação para a primeira de verdade (ninguém percebe).
 function initCarousel() {
   clearInterval(S.carTimer);
-  const el = app.querySelector('.slides'); if (!el || el.children.length < 2) return;
-  const n = el.children.length, dots = [...app.querySelectorAll('.dot')], idx = () => Math.round(el.scrollLeft / el.clientWidth);
-  const reduce = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
-  S.carPaused = false; S.carHold = 0;
-  S.carGo = i => el.scrollTo({ left: (((i % n) + n) % n) * el.clientWidth, behavior: reduce ? 'auto' : 'smooth' });
-  S.carIdx = idx;
-  el.addEventListener('scroll', () => dots.forEach((d, k) => d.classList.toggle('on', k === idx())));
+  const el = app.querySelector('.slides'); if (!el || el.children.length < 3) return;
+  const n = el.children.length - 1, dots = [...app.querySelectorAll('.dot')], w = () => el.clientWidth, idx = () => Math.round(el.scrollLeft / w());
+  const reduce = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches), sm = reduce ? 'instant' : 'smooth';
+  const jump = i => el.scrollTo({ left: i * w(), behavior: 'instant' });
+  S.carHold = 0; S.carIdx = idx;
+  S.carGo = i => { if (i < 0) { jump(n); setTimeout(() => el.scrollTo({ left: (n - 1) * w(), behavior: sm }), 30); } else el.scrollTo({ left: Math.min(i, n) * w(), behavior: sm }); };
+  let settle; el.addEventListener('scroll', () => { dots.forEach((d, k) => d.classList.toggle('on', k === idx() % n)); clearTimeout(settle); settle = setTimeout(() => { if (idx() >= n) jump(0); }, 160); });
   const hold = () => { S.carHold = Date.now() + 8000; };   // depois de o usuário mexer, espera 8 s para voltar a trocar
   el.addEventListener('touchstart', hold, { passive: true }); el.addEventListener('pointerdown', hold);
   S.carTimer = setInterval(() => {
     if (!document.contains(el)) return clearInterval(S.carTimer);
-    if (S.carPaused || document.hidden || Date.now() < S.carHold) return;
+    if (document.hidden || Date.now() < S.carHold) return;
+    if (idx() >= n) jump(0);
     S.carGo(idx() + 1);
   }, 4500);
 }
@@ -187,7 +190,7 @@ const views = {
   },
   mais() {
     const l = [['documentos', 'Documentos'], ['garantias', 'Garantias'], ['equipamentos', 'Equipamentos'], ['historico', 'Histórico'], ['contatos', 'Contatos'], ['qr', 'QR Codes'], ['planta', 'Planta técnica']];
-    app.innerHTML = `<div class="perfil"><h2>Perfil</h2><div class="card"><b>${esc(S.profile.name || '')}</b><span class="mute">${esc(S.profile.email || '')}</span></div><div class="menu">${l.map(([h, t]) => `<a href="#${h}">${t}</a>`).join('')}</div><p class="notice">Pendentes nesta versão: camadas construtivas, emergência, auditoria, PWA e notificações.</p><p class="notice ver">Astell Home · versão ${APP_VERSION}</p><button class="ghost2 sair" data-out>Sair da conta</button></div>`;
+    app.innerHTML = `<div class="perfil"><h2>Perfil</h2><div class="card"><b>${esc(S.profile.name || '')}</b><span class="mute">${esc(S.profile.email || '')}</span></div><div class="menu">${l.map(([h, t]) => `<a href="#${h}">${t}</a>`).join('')}</div><p class="notice">Pendentes nesta versão: camadas construtivas, emergência, auditoria, PWA e notificações.</p><p class="notice ver">Astell Home · versão ${APP_VERSION}</p><button class="sair" data-out>Sair da conta</button></div>`;
   },
 };
 
@@ -214,7 +217,6 @@ app.addEventListener('submit', async e => {
 app.addEventListener('click', async e => {
   const d = e.target.dataset;
   if (d.cn && S.carGo) { S.carHold = Date.now() + 8000; S.carGo(S.carIdx() + +d.cn); }
-  if (d.cp !== undefined) { S.carPaused = !S.carPaused; e.target.setAttribute('aria-pressed', S.carPaused); e.target.setAttribute('aria-label', S.carPaused ? 'Retomar a troca automática' : 'Pausar a troca automática'); e.target.textContent = S.carPaused ? '▶' : '❚❚'; }
   if (d.ct) { S.casaTab = d.ct; $('#mb').innerHTML = mediaBlock(); }
   if (d.lb) { const [g, i] = d.lb.split('|'); S.lb = { g, i: +i }; showLb(); }
   if (d.out !== undefined) sb.auth.signOut();
