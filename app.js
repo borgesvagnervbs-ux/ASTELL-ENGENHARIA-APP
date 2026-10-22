@@ -1,4 +1,5 @@
 // Configuração do Supabase: arquivo config.js
+const APP_VERSION = '2026.10.21-4'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 let sb; try { sb = supabase.createClient(new URL(SUPABASE_URL.trim()).origin, SUPABASE_KEY.trim()); } catch (e) { sb = null; }
 const $ = s => document.querySelector(s); let app = $('#app');
 const fail = m => { app.innerHTML = '<div class="card" style="margin:16px"><b>Não foi possível iniciar o Astell Home</b><p class="mute">' + m + '</p></div>'; };
@@ -41,22 +42,49 @@ const BCAT = { estrutura: 'Estrutura', sistemas: 'Sistemas', materiais: 'Materia
 $('#nav').innerHTML = [['home', 'Início', 'home'], ['casa', 'Casa', 'casa'], ['documentos', 'Documentos', 'doc'], ['mais', 'Perfil', 'user']].map(([h, l, i]) => `<a href="#${h}">${ico(IC[i])}<span>${l}</span></a>`).join('');
 function vsrc(u) { return String(u).replace('/upload/', '/upload/f_mp4,vc_h264,q_auto/').replace(/\.\w+$/, '.mp4'); }
 function vposter(u) { return String(u).replace('/upload/', '/upload/w_480,c_limit,so_0/').replace(/\.\w+$/, '.jpg'); }
+const isVidUrl = u => /\/video\/upload\//.test(u);
 function carousel(urls) {
   if (!urls.length) return '<img class="heroimg" src="img/casa.jpg" alt="Foto da residência">';
   S.groups.home = urls;
-  return `<div class="carousel" aria-roledescription="carrossel" aria-label="Fotos recentes da residência"><div class="slides">${urls.map((u, i) => `<img src="${esc(cld(u, 1200))}" alt="Foto ${i + 1} de ${urls.length} da residência" data-lb="home|${i}">`).join('')}</div>${urls.length > 1 ? `<button class="cn l" data-cn="-1" aria-label="Foto anterior">‹</button><button class="cn r" data-cn="1" aria-label="Próxima foto">›</button><div class="dots">${urls.map((_, i) => `<span class="dot ${i ? '' : 'on'}"></span>`).join('')}</div>` : ''}</div>`;
+  return `<div class="carousel" aria-roledescription="carrossel" aria-label="Fotos recentes da residência"><div class="slides">${urls.map((u, i) => `<img src="${esc(cld(u, 1200))}" alt="Foto ${i + 1} de ${urls.length} da residência" data-lb="home|${i}">`).join('')}</div>${urls.length > 1 ? `<button class="cn l" data-cn="-1" aria-label="Foto anterior">‹</button><button class="cn r" data-cn="1" aria-label="Próxima foto">›</button><button class="cp" data-cp aria-label="Pausar a troca automática" aria-pressed="false">❚❚</button><div class="dots">${urls.map((_, i) => `<span class="dot ${i ? '' : 'on'}"></span>`).join('')}</div>` : ''}</div>`;
 }
+// Troca automática a cada 4,5 s. Se o aparelho pede "reduzir movimento", a troca continua, mas sem animação (corte seco).
 function initCarousel() {
   clearInterval(S.carTimer);
   const el = app.querySelector('.slides'); if (!el || el.children.length < 2) return;
-  const dots = [...app.querySelectorAll('.dot')], idx = () => Math.round(el.scrollLeft / el.clientWidth);
+  const n = el.children.length, dots = [...app.querySelectorAll('.dot')], idx = () => Math.round(el.scrollLeft / el.clientWidth);
+  const reduce = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  S.carPaused = false; S.carHold = 0;
+  S.carGo = i => el.scrollTo({ left: (((i % n) + n) % n) * el.clientWidth, behavior: reduce ? 'auto' : 'smooth' });
+  S.carIdx = idx;
   el.addEventListener('scroll', () => dots.forEach((d, k) => d.classList.toggle('on', k === idx())));
-  el.addEventListener('touchstart', () => clearInterval(S.carTimer), { passive: true });
-  if (!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) S.carTimer = setInterval(() => { if (!document.contains(el)) return clearInterval(S.carTimer); el.scrollTo({ left: ((idx() + 1) % el.children.length) * el.clientWidth, behavior: 'smooth' }); }, 4500);
+  const hold = () => { S.carHold = Date.now() + 8000; };   // depois de o usuário mexer, espera 8 s para voltar a trocar
+  el.addEventListener('touchstart', hold, { passive: true }); el.addEventListener('pointerdown', hold);
+  S.carTimer = setInterval(() => {
+    if (!document.contains(el)) return clearInterval(S.carTimer);
+    if (S.carPaused || document.hidden || Date.now() < S.carHold) return;
+    S.carGo(idx() + 1);
+  }, 4500);
 }
 function cld(u, w) { return String(u).replace('/upload/', `/upload/w_${w},c_limit,q_auto,f_auto/`); }
-function grp(key, urls, cls = 'thumbs') { S.groups[key] = urls; return `<div class="${cls}">${urls.map((u, i) => `<img src="${esc(cld(u, cls === 'thumbs' ? 240 : 500))}" alt="Imagem ${i + 1}" loading="lazy" data-lb="${key}|${i}">`).join('')}</div>`; }
-function showLb() { const u = S.groups[S.lb.g], lb = $('#lb'); lb.hidden = false; lb.innerHTML = `<button class="lbx" data-lbx aria-label="Fechar">×</button>${u.length > 1 ? '<button class="lbn l" data-lbn="-1" aria-label="Anterior">‹</button><button class="lbn r" data-lbn="1" aria-label="Próxima">›</button>' : ''}<img src="${esc(cld(u[S.lb.i], 1400))}" alt="Imagem ${S.lb.i + 1} de ${u.length}">`; }
+function grp(key, urls, cls = 'thumbs') {
+  S.groups[key] = urls;
+  return `<div class="${cls}">${urls.map((u, i) => isVidUrl(u) ? `<span class="vt"><img src="${esc(vposter(u))}" alt="Vídeo ${i + 1}" loading="lazy" data-lb="${key}|${i}"><i>▶</i></span>` : `<img src="${esc(cld(u, cls === 'thumbs' ? 240 : 500))}" alt="Imagem ${i + 1}" loading="lazy" data-lb="${key}|${i}">`).join('')}</div>`;
+}
+function showLb() {
+  const u = S.groups[S.lb.g], cur = u[S.lb.i], lb = $('#lb'); lb.hidden = false;
+  const media = isVidUrl(cur) ? `<video controls autoplay playsinline src="${esc(vsrc(cur))}" poster="${esc(vposter(cur))}"></video>` : `<img src="${esc(cld(cur, 1400))}" alt="Imagem ${S.lb.i + 1} de ${u.length}">`;
+  lb.innerHTML = `<button class="lbx" data-lbx aria-label="Fechar">×</button>${u.length > 1 ? '<button class="lbn l" data-lbn="-1" aria-label="Anterior">‹</button><button class="lbn r" data-lbn="1" aria-label="Próxima">›</button>' : ''}${media}`;
+}
+// Menu Casa: abas Todos / Imagens / Vídeos
+function mediaBlock() {
+  const m = S.media || []; if (!m.length) return '';
+  const isV = x => x.media_type === 'video' || isVidUrl(x.url), vids = m.filter(isV), imgs = m.filter(x => !isV(x)), tab = S.casaTab || 'all';
+  const list = ({ all: m, img: imgs, vid: vids }[tab] || m).map(x => x.url);
+  const tabs = [['all', 'Todos', m.length], ['img', 'Imagens', imgs.length], ['vid', 'Vídeos', vids.length]];
+  return `<h3>Fotos e vídeos</h3><div class="tabs three" role="tablist">${tabs.map(([k, l, c]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? 'on' : ''}" data-ct="${k}">${l} (${c})</button>`).join('')}</div>` +
+    (list.length ? grp('casa-' + tab, list, 'gallery') : `<p class="empty">${tab === 'img' ? 'Nenhuma imagem cadastrada.' : 'Nenhum vídeo cadastrado.'}</p>`);
+}
 const linkrow = (h, t, s, i) => `<a class="linkrow" href="#${h}">${ico(IC[i])}<span><b>${t}</b><small>${s}</small></span>${ico(IC.chev)}</a>`;
 async function itemsView(k) {
   const cat = BCAT[k];
@@ -117,9 +145,9 @@ const views = {
   },
   async casa() {
     const { data: im0 } = await sb.from('images').select('*').eq('residence_id', S.cur.id).eq('kind', 'residence').order('created_at');
-    const im = (im0 || []).filter(x => (x.media_type || 'image') === 'image'), vids = (im0 || []).filter(x => x.media_type === 'video');
+    S.media = im0 || []; S.casaTab = 'all';
     const r = S.cur, rows = [['Código', r.code], ['Endereço', r.address], ['Área construída', r.area_m2 && r.area_m2 + ' m²'], ['Pavimentos', r.floors], ['Sistema construtivo', r.build_system], ['Nº do projeto', r.project_no], ['Início da obra', fmt(r.start_date)], ['Entrega', fmt(r.delivery_date)], ['Responsável técnico', r.tech_lead], ['Observações', r.notes]];
-    app.innerHTML = `<h2>${esc(r.name)}</h2><div class="card">${rows.map(([a, b]) => `<p><span class="mute">${a}</span><br>${esc(b || '—')}</p>`).join('')}</div>${im.length ? '<h3>Fotos da residência</h3>' + grp('casa', im.map(x => x.url), 'gallery') : ''}${vids.length ? '<h3>Vídeos da residência</h3><div class="vids">' + vids.map(v => `<video controls playsinline preload="metadata" poster="${esc(vposter(v.url))}" src="${esc(vsrc(v.url))}"></video>`).join('') + '</div>' : ''}`;
+    app.innerHTML = `<h2>${esc(r.name)}</h2><div class="card">${rows.map(([a, b]) => `<p><span class="mute">${a}</span><br>${esc(b || '—')}</p>`).join('')}</div><div id="mb">${mediaBlock()}</div>`;
   },
   manutencao: () => listView('maintenance_tasks'), garantias: garantiasView, estrutura: () => itemsView('estrutura'), sistemas: () => itemsView('sistemas'), materiais: () => itemsView('materiais'), equipamentos: () => listView('equipment'),
   historico: () => listView('history_events'), contatos: () => listView('contacts'),
@@ -159,7 +187,7 @@ const views = {
   },
   mais() {
     const l = [['documentos', 'Documentos'], ['garantias', 'Garantias'], ['equipamentos', 'Equipamentos'], ['historico', 'Histórico'], ['contatos', 'Contatos'], ['qr', 'QR Codes'], ['planta', 'Planta técnica']];
-    app.innerHTML = `<div class="perfil"><h2>Perfil</h2><div class="card"><b>${esc(S.profile.name || '')}</b><span class="mute">${esc(S.profile.email || '')}</span></div><div class="menu">${l.map(([h, t]) => `<a href="#${h}">${t}</a>`).join('')}</div><p class="notice">Pendentes nesta versão: camadas construtivas, emergência, auditoria, PWA e notificações.</p><button class="ghost2 sair" data-out>Sair da conta</button></div>`;
+    app.innerHTML = `<div class="perfil"><h2>Perfil</h2><div class="card"><b>${esc(S.profile.name || '')}</b><span class="mute">${esc(S.profile.email || '')}</span></div><div class="menu">${l.map(([h, t]) => `<a href="#${h}">${t}</a>`).join('')}</div><p class="notice">Pendentes nesta versão: camadas construtivas, emergência, auditoria, PWA e notificações.</p><p class="notice ver">Astell Home · versão ${APP_VERSION}</p><button class="ghost2 sair" data-out>Sair da conta</button></div>`;
   },
 };
 
@@ -185,7 +213,9 @@ app.addEventListener('submit', async e => {
 });
 app.addEventListener('click', async e => {
   const d = e.target.dataset;
-  if (d.cn) { const el = app.querySelector('.slides'); if (el) { clearInterval(S.carTimer); const n = el.children.length; el.scrollTo({ left: ((Math.round(el.scrollLeft / el.clientWidth) + +d.cn + n) % n) * el.clientWidth, behavior: 'smooth' }); } }
+  if (d.cn && S.carGo) { S.carHold = Date.now() + 8000; S.carGo(S.carIdx() + +d.cn); }
+  if (d.cp !== undefined) { S.carPaused = !S.carPaused; e.target.setAttribute('aria-pressed', S.carPaused); e.target.setAttribute('aria-label', S.carPaused ? 'Retomar a troca automática' : 'Pausar a troca automática'); e.target.textContent = S.carPaused ? '▶' : '❚❚'; }
+  if (d.ct) { S.casaTab = d.ct; $('#mb').innerHTML = mediaBlock(); }
   if (d.lb) { const [g, i] = d.lb.split('|'); S.lb = { g, i: +i }; showLb(); }
   if (d.out !== undefined) sb.auth.signOut();
   if (d.print !== undefined) print();
@@ -318,11 +348,11 @@ app.addEventListener('input', e => {
 
 $('#lb').addEventListener('click', e => {
   const d = e.target.dataset;
-  if (e.target.id === 'lb' || d.lbx !== undefined) $('#lb').hidden = true;
+  if (e.target.id === 'lb' || d.lbx !== undefined) { $('#lb').hidden = true; $('#lb').innerHTML = ''; }
   if (d.lbn) { const n = S.groups[S.lb.g].length; S.lb.i = (S.lb.i + +d.lbn + n) % n; showLb(); }
 });
 addEventListener('keydown', e => {
   if ($('#lb').hidden) return;
-  if (e.key === 'Escape') $('#lb').hidden = true;
+  if (e.key === 'Escape') { $('#lb').hidden = true; $('#lb').innerHTML = ''; }
   if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { const n = S.groups[S.lb.g].length; S.lb.i = (S.lb.i + (e.key === 'ArrowRight' ? 1 : -1) + n) % n; showLb(); }
 });
