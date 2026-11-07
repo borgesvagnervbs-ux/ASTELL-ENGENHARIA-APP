@@ -1,5 +1,5 @@
 // Configuração do Supabase: arquivo config.js
-const APP_VERSION = '2026.10.21-6'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-7'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 let sb; try { sb = supabase.createClient(new URL(SUPABASE_URL.trim()).origin, SUPABASE_KEY.trim()); } catch (e) { sb = null; }
 const $ = s => document.querySelector(s); let app = $('#app');
 const fail = m => { app.innerHTML = '<div class="card" style="margin:16px"><b>Não foi possível iniciar o Astell Home</b><p class="mute">' + m + '</p></div>'; };
@@ -163,7 +163,7 @@ const views = {
   },
   async planta() {
     const rid = S.cur.id;
-    const [{ data: fp }, { data: pts }] = await Promise.all([sb.from('floorplans').select('*').eq('residence_id', rid).order('created_at'), sb.from('plan_points').select('*').eq('residence_id', rid)]);
+    const [{ data: fp }, { data: pts }] = await Promise.all([sb.from('floorplans').select('*').eq('residence_id', rid).not('path', 'is', null).order('created_at'), sb.from('plan_points').select('*').eq('residence_id', rid)]);
     const up = staff() ? formOf('plan', 'Enviar planta (imagem PNG ou JPG)', '<label>Título<input name="title" required></label><label>Imagem<input name="file" type="file" accept="image/*" required></label>', 'Enviar') : '';
     if (!(fp || []).length) return app.innerHTML = `<h2>Planta técnica</h2>${up}<p class="empty">Nenhuma planta cadastrada ainda. <a href="#assistencia">Solicite informações à Astell</a>.</p>`;
     const cur = fp.find(p => p.id === S.planId) || fp[0]; S.planId = cur.id;
