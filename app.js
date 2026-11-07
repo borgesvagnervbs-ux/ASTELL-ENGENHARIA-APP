@@ -1,5 +1,5 @@
 // Configuração do Supabase: arquivo config.js
-const APP_VERSION = '2026.10.21-5'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-6'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 let sb; try { sb = supabase.createClient(new URL(SUPABASE_URL.trim()).origin, SUPABASE_KEY.trim()); } catch (e) { sb = null; }
 const $ = s => document.querySelector(s); let app = $('#app');
 const fail = m => { app.innerHTML = '<div class="card" style="margin:16px"><b>Não foi possível iniciar o Astell Home</b><p class="mute">' + m + '</p></div>'; };
@@ -24,16 +24,11 @@ const T = {
     row: r => { const st = r.status || 'Pendente', late = r.next_due && new Date(r.next_due + 'T00:00') < new Date() && !['Concluída', 'Cancelada'].includes(st); return `<b>${esc(r.name)}</b> <span class="badge ${late ? 'bad' : st === 'Concluída' ? 'ok' : ''}">${late ? 'Atrasada' : st}</span><p class="mute">${esc(r.system)} · ${esc(r.frequency)}</p>Última: ${fmt(r.last_done)} · Próxima: ${fmt(r.next_due)}<p class="mute">${esc(r.instructions)}</p>`; } },
   equipment: { label: 'Equipamentos', f: [['name','Nome'],['category','Categoria'],['maker','Fabricante'],['model','Modelo'],['serial','Nº de série'],['location','Localização']],
     row: r => `<b>${esc(r.name)}</b><span class="mute">${esc(r.category)} · ${esc(r.location)}</span><p>${esc(r.maker)} ${esc(r.model)} ${r.serial ? '· Série ' + esc(r.serial) : ''}</p>` },
-  history_events: { label: 'Histórico da residência', order: 'event_date', f: [['event_date','Data','date'],['category','Categoria'],['description','Descrição','textarea']],
-    row: r => `<b>${fmt(r.event_date)}</b><span class="mute">${esc(r.category)}</span><p>${esc(r.description)}</p>` },
-  contacts: { label: 'Contatos', f: [['name','Nome / empresa'],['specialty','Especialidade'],['phone','Telefone'],['whatsapp','WhatsApp'],['email','E-mail'],['hours','Horário de atendimento'],['notes','Instruções','textarea']],
-    row: r => `<b>${esc(r.name)}</b><span class="mute">${esc(r.specialty)}</span><p>${esc(r.phone)} ${esc(r.whatsapp)} ${esc(r.email)}</p><span class="mute">${esc(r.hours)} ${esc(r.notes)}</span>` },
 };
 const REQ_CATS = ['Elétrica','Hidráulica','Cobertura','Esquadrias','Revestimentos','Pintura','Steel Frame','Equipamentos','Outros'];
 const STATUS = ['Recebida','Em análise','Aguardando informações','Agendada','Em atendimento','Concluída','Encerrada'];
 const DOC_CATS = ['Projeto arquitetônico','Projeto estrutural','Projeto elétrico','Projeto hidráulico','Projeto sanitário','Climatização','Cobertura','Memorial descritivo','Manuais','Notas e comprovantes','Termo de entrega','Garantia','Outros'];
 
-const QR_T = { 'Minha casa': 'casa', 'Documentos e manuais': 'documentos', 'Equipamentos': 'equipamentos', 'Manutenção': 'manutencao', 'Planta técnica': 'planta', 'Assistência técnica': 'assistencia' };
 const PT_CATS = ['Elétrica','Hidráulica','Gás','Climatização','Estrutura','Paredes','Equipamentos'];
 const ico = (d, c = '') => `<svg class="ico ${c}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d.split('|').map(p => `<path d="${p}"/>`).join('')}</svg>`;
 const IC = { home: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z|M9 22V12h6v10', casa: 'M4 21V8l8-5 8 5v13|M9 21v-6h6v6', drop: 'M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z', layers: 'M12 2L2 7l10 5 10-5-10-5z|M2 17l10 5 10-5|M2 12l10 5 10-5', shield: 'M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z|M9 12l2 2 4-4', wrench: 'M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z', phones: 'M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3', doc: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z|M14 2v6h6|M8 13h8|M8 17h8', user: 'M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2|M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', chev: 'M9 18l6-6-6-6', check: 'M22 11.08V12a10 10 0 1 1-5.93-9.14|M22 4L12 14.01l-3-3' };
@@ -153,7 +148,6 @@ const views = {
     app.innerHTML = `<h2>${esc(r.name)}</h2><div class="card">${rows.map(([a, b]) => `<p><span class="mute">${a}</span><br>${esc(b || '—')}</p>`).join('')}</div><div id="mb">${mediaBlock()}</div>`;
   },
   manutencao: () => listView('maintenance_tasks'), garantias: garantiasView, estrutura: () => itemsView('estrutura'), sistemas: () => itemsView('sistemas'), materiais: () => itemsView('materiais'), equipamentos: () => listView('equipment'),
-  historico: () => listView('history_events'), contatos: () => listView('contacts'),
   async documentos() {
     const { data } = await sb.from('documents').select('*').eq('residence_id', S.cur.id).order('created_at', { ascending: false });
     S.rows = S.rows || {}; S.rows.documents = data;
@@ -166,14 +160,6 @@ const views = {
     app.innerHTML = `<h2>Assistência técnica</h2><p class="notice">Esta é uma solicitação formal. Em risco imediato (gás, fogo, choque), afaste-se e ligue 193 ou 192.</p>${f}` +
       ((data || []).map(r => `<div class="card"><b>${esc(r.protocol)}</b> <span class="badge">${esc(r.status)}</span><p>${esc(r.category)} · ${esc(r.place)} · ${esc(r.urgency)}</p><p>${esc(r.description)}</p>${r.staff_note ? `<p class="mute">Astell: ${esc(r.staff_note)}</p>` : ''}
       ${staff() ? `<form data-form="upd" data-id="${r.id}">${sel('status', 'Situação', STATUS).replace(`<option>${r.status}`, `<option selected>${r.status}`)}<label>Comentário<input name="staff_note" value="${esc(r.staff_note || '')}"></label><button>Atualizar</button></form>` : ''}</div>`).join('') || '<p class="empty">Você ainda não abriu solicitações.</p>');
-  },
-  async qr() {
-    const { data } = await sb.from('qr_codes').select('*').eq('residence_id', S.cur.id).order('created_at');
-    const base = location.href.split('#')[0];
-    const svg = t => { const q = qrcode(0, 'M'); q.addData(base + '#qr/' + t); q.make(); return q.createSvgTag(5, 0); };
-    app.innerHTML = '<h2>QR Codes</h2>' + (staff() ? formOf('qr', 'Novo QR Code', `<label>Nome da etiqueta<input name="label" required></label>${sel('target', 'Ao ler, abre', Object.keys(QR_T))}`, 'Gerar') + '<button data-print>Imprimir etiquetas</button>' : '') +
-      '<div class="grid">' + ((data || []).map(q => `<div class="card qr">${svg(q.token)}<b>${esc(q.label)}</b><span class="mute">Astell Home · ${esc(S.cur.code)}</span>${staff() ? `<button class="link" data-del="qr_codes:${q.id}">Excluir</button>` : ''}</div>`).join('') || '<p class="empty">Nenhum QR Code gerado ainda.</p>') + '</div>' +
-      '<p class="notice">O QR Code só leva a um link. Para ver qualquer informação, quem lê precisa entrar com a conta vinculada à casa.</p>';
   },
   async planta() {
     const rid = S.cur.id;
@@ -189,7 +175,7 @@ const views = {
       '<p class="notice">Os pontos são cadastrados pela Astell a partir dos projetos da obra. Em caso de dúvida, consulte os projetos oficiais em Documentos.</p>';
   },
   mais() {
-    const l = [['documentos', 'Documentos'], ['garantias', 'Garantias'], ['equipamentos', 'Equipamentos'], ['historico', 'Histórico'], ['contatos', 'Contatos'], ['qr', 'QR Codes'], ['planta', 'Planta técnica']];
+    const l = [['documentos', 'Documentos'], ['garantias', 'Garantias'], ['equipamentos', 'Equipamentos'], ['planta', 'Planta técnica']];
     app.innerHTML = `<div class="perfil"><h2>Perfil</h2><div class="card"><b>${esc(S.profile.name || '')}</b><span class="mute">${esc(S.profile.email || '')}</span></div><div class="menu">${l.map(([h, t]) => `<a href="#${h}">${t}</a>`).join('')}</div><p class="notice">Pendentes nesta versão: camadas construtivas, emergência, auditoria, PWA e notificações.</p><p class="notice ver">Astell Home · versão ${APP_VERSION}</p><button class="sair" data-out>Sair da conta</button></div>`;
   },
 };
@@ -197,14 +183,12 @@ const views = {
 // Eventos
 app.addEventListener('submit', async e => {
   e.preventDefault(); const f = e.target, id = f.dataset.form, o = clean(Object.fromEntries(new FormData(f))), rid = S.cur?.id; let r;
-  if (id === 'hf') { S.hf = o; return route(); }
   if (id.startsWith('edit:')) { r = await sb.from(id.slice(5)).update(o).eq('id', f.dataset.id); S.edit = null; }
   else if (id === 'editres') { r = await sb.from('residences').update(o).eq('id', rid); if (!r.error) { await loadRes(rid); return toast('Dados da residência salvos.'); } }
   else if (T[id]) r = await sb.from(id).insert({ ...o, residence_id: rid });
   else if (id === 'req') r = await sb.from('service_requests').insert({ ...o, residence_id: rid, protocol: 'AST-' + Date.now().toString(36).toUpperCase() });
   else if (id === 'upd') { r = await sb.from('service_requests').update(o).eq('id', f.dataset.id); if (!r.error) await sb.from('history_events').insert({ residence_id: rid, category: 'Assistência', description: 'Solicitação atualizada: ' + o.status }); }
   else if (id === 'bitem') r = await sb.from('building_items').insert({ ...o, residence_id: rid });
-  else if (id === 'qr') r = await sb.from('qr_codes').insert({ residence_id: rid, label: o.label, target_hash: QR_T[o.target] });
   else if (id === 'plan') { const file = f.file.files[0], path = `${rid}/planta_${Date.now()}_${file.name.replace(/[^\w.-]/g, '_')}`;
     r = await sb.storage.from('documents').upload(path, file); if (!r.error) r = await sb.from('floorplans').insert({ residence_id: rid, title: o.title, path }); }
   else if (id === 'pt') { r = await sb.from('plan_points').insert({ ...o, residence_id: rid, floorplan_id: S.planId, x: S.pend.x, y: S.pend.y }); S.pend = null; }
@@ -234,7 +218,6 @@ function route() {
   if (!S.profile) return;
   clearInterval(S.carTimer);
   const h = location.hash.slice(1) || 'home';
-  if (h.startsWith('qr/')) return openQr(h.slice(3));
   document.querySelectorAll('nav a').forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + h));
   if (!S.cur) return app.innerHTML = '<p class="empty">Nenhuma residência vinculada à sua conta. Fale com a Astell.</p>';
   (views[h] || views.home)();
@@ -313,6 +296,13 @@ function cpfScreen(notice) {
   $('#so').onclick = () => sb.auth.signOut();
 }
 
+// logo cadastrada no painel (menu Logo); sem ela, continua o texto ASTELL
+async function loadLogo() {
+  try {
+    const { data } = await sb.from('app_settings').select('value').eq('key', 'logo_url').maybeSingle(); if (!data || !data.value) return;
+    document.querySelectorAll('.logo').forEach(el => { const sp = (/<span[\s\S]*<\/span>/.exec(el.innerHTML) || [''])[0]; el.innerHTML = `<img class="logoimg" src="${esc(String(data.value).replace('/upload/', '/upload/w_360,c_limit,q_auto,f_auto/'))}" alt="Astell">${sp}`; });
+  } catch (e) { /* sem logo: fica o texto */ }
+}
 async function start(session) {
   if (!session) { S.profile = null; S.cur = null; return loginScreen(); }
   const { data } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
@@ -327,19 +317,13 @@ async function start(session) {
     }
   }
   $('#top').hidden = $('#nav').hidden = false;
+  loadLogo();
   await loadRes();
 }
 sb.auth.getSession().then(({ data }) => start(data.session));
 sb.auth.onAuthStateChange((ev, s) => { if (ev === 'SIGNED_IN' && S.profile && s && S.profile.id === s.user.id) return;
   if (ev === 'SIGNED_IN' || ev === 'SIGNED_OUT') setTimeout(() => start(s), 0); });
 
-async function openQr(t) {
-  const { data } = await sb.from('qr_codes').select('*').eq('token', t).maybeSingle();
-  if (!data) return app.innerHTML = '<p class="empty">Este QR Code não existe ou a sua conta não tem acesso a ele. Entre com a conta vinculada à casa.</p>';
-  const r = S.res.find(x => x.id === data.residence_id);
-  if (r) { S.cur = r; $('#resSel').value = r.id; }
-  location.hash = '#' + data.target_hash;
-}
 app.addEventListener('change', e => { if (e.target.id === 'planSel') { S.planId = e.target.value; route(); } });
 
 app.addEventListener('input', e => {
