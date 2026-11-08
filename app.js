@@ -1,5 +1,5 @@
 // Configuração do Supabase: arquivo config.js
-const APP_VERSION = '2026.10.21-17'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-19'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 let sb; try { sb = supabase.createClient(new URL(SUPABASE_URL.trim()).origin, SUPABASE_KEY.trim()); } catch (e) { sb = null; }
 const $ = s => document.querySelector(s); let app = $('#app');
 const fail = m => { app.innerHTML = '<div class="card" style="margin:16px"><b>Não foi possível iniciar o Astell Home</b><p class="mute">' + m + '</p></div>'; };
@@ -132,10 +132,22 @@ async function garantiasView() {
   const { data } = await sb.from('warranties').select('*').eq('residence_id', S.cur.id).order('start_date');
   const per = m => m % 12 ? `${m} meses` : `${m / 12} ${m === 12 ? 'ano' : 'anos'}`;
   app.innerHTML = `<div class="gtitle">${ico(IC.shield, 'big')}<h1>Garantias</h1><p class="mute">Mais segurança para o seu investimento.</p></div>
-  <div class="card"><b>Resumo da garantia</b><p class="mute">Sua casa conta com garantia de acordo com o contrato e a legislação vigente.</p></div>` +
+  <div class="card gsum"><b>Resumo da garantia</b><div id="gs"></div><p class="mute">Sua casa conta com garantia de acordo com o contrato e a legislação vigente.</p></div>` +
     (staff() ? formOf('warranties', 'Adicionar garantia', T.warranties.f.map(input).join('')) : '') +
-    `<h3>Prazos por sistema</h3>${(data || []).map(warCard).join('') || '<p class="empty">Nenhuma garantia cadastrada ainda.</p>'}` +
+    `<h3>Prazos por sistema</h3><div id="gl"></div>` +
     linkrow('assistencia', 'Solicitar assistência', 'Precisa de suporte? Fale com a nossa equipe.', 'phones') + `<p class="notice">${T.warranties.note}</p>`;
+  S.gw = (data || []).map(r => ({ r, k: wInfo(r).kind })); S.gf = null; gaPaint();
+}
+function gaPaint() {   // resumo (números = filtros) + lista filtrada
+  const all = S.gw || [], n = k => all.filter(x => x.k === k).length, two = v => String(v).padStart(2, '0'), f = S.gf;
+  const box = (k, v, l, c) => `<button type="button" class="gnum ${c}${f === k ? ' on' : ''}" data-gf="${k || 'all'}" aria-pressed="${f === k}"><b>${two(v)}</b><span>${l}</span></button>`;
+  const tot = all.length, pc = v => tot ? (v / tot * 100).toFixed(2) : 0;
+  const gs = $('#gs'), gl = $('#gl'); if (!gs || !gl) return;
+  gs.innerHTML = `<div class="gnums">${box('ok', n('ok'), 'Garantias vigentes', 'n-ok')}${box('warn', n('warn'), 'Próximas do vencimento', 'n-warn')}${box('bad', n('bad'), 'Garantias expiradas', 'n-bad')}${box(null, tot, 'Total de garantias', 'n-all')}</div>
+  <h4>Distribuição das garantias</h4><div class="gdist" role="img" aria-label="Distribuição das garantias">${tot ? `<i class="gok" style="width:${pc(n('ok'))}%"></i><i class="gwarn" style="width:${pc(n('warn'))}%"></i><i class="gbad" style="width:${pc(n('bad'))}%"></i>` : ''}</div>
+  <div class="gleg"><span><u class="gok"></u>Vigentes</span><span><u class="gwarn"></u>Próximas do vencimento</span><span><u class="gbad"></u>Expiradas</span></div>`;
+  const rows = all.filter(x => !f || x.k === f);
+  gl.innerHTML = rows.map(x => warCard(x.r)).join('') || `<p class="empty">${all.length ? 'Nenhuma garantia neste status.' : 'Nenhuma garantia cadastrada ainda.'}</p>`;
 }
 const DEFREQ = ['system', 'name', 'description', 'months', 'start_date', 'event_date'];
 const fld = ([k, l, t = 'text', req], v = {}) => {
@@ -271,6 +283,7 @@ app.addEventListener('submit', async e => {
 app.addEventListener('click', async e => {
   const d = e.target.dataset;
   if (d.cn && S.carGo) { S.carHold = Date.now() + 8000; S.carGo(S.carIdx() + +d.cn); }
+  if (d.gf) { const k = d.gf === 'all' ? null : d.gf; S.gf = S.gf === k ? null : k; gaPaint(); }
   if (d.cal && S.cal) { const x = new Date(S.cal.y, S.cal.m + +d.cal, 1); S.cal.y = x.getFullYear(); S.cal.m = x.getMonth(); calPaint(); }
   if (d.ct) { S.casaTab = d.ct; $('#mb').innerHTML = mediaBlock(); }
   if (d.lb) { const [g, i] = d.lb.split('|'); S.lb = { g, i: +i }; showLb(); }
