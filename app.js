@@ -1,5 +1,5 @@
 // Configuração do Supabase: arquivo config.js
-const APP_VERSION = '2026.10.21-8'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-9'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 let sb; try { sb = supabase.createClient(new URL(SUPABASE_URL.trim()).origin, SUPABASE_KEY.trim()); } catch (e) { sb = null; }
 const $ = s => document.querySelector(s); let app = $('#app');
 const fail = m => { app.innerHTML = '<div class="card" style="margin:16px"><b>Não foi possível iniciar o Astell Home</b><p class="mute">' + m + '</p></div>'; };
@@ -63,6 +63,15 @@ function initCarousel() {
     if (idx() >= n) jump(0);
     S.carGo(idx() + 1);
   }, 4500);
+}
+const CLD_NAME = typeof CLOUDINARY_CLOUD_NAME !== 'undefined' ? String(CLOUDINARY_CLOUD_NAME).trim() : '';
+const CLD_PRESET = typeof CLOUDINARY_UPLOAD_PRESET !== 'undefined' ? String(CLOUDINARY_UPLOAD_PRESET).trim() : (typeof CLOUDINARY_PRESET !== 'undefined' ? String(CLOUDINARY_PRESET).trim() : '');
+const CLOUD_OK = !!(CLD_NAME && CLD_PRESET) && !/COLE_AQUI/.test(CLD_NAME + CLD_PRESET);
+const REQ_ST = { 'Recebida': 's-pend', 'Em análise': 's-ana', 'Agendada': 's-agd', 'Em atendimento': 's-and', 'Concluída': 's-conc' }, REQ_UR = { 'Crítica': 'u-crit', 'Alta': 'u-alta', 'Média': 'u-med', 'Baixa': 'u-baixa' };
+async function cldPost(file, folder) {
+  const fd = new FormData(); fd.append('file', file); fd.append('upload_preset', CLD_PRESET); fd.append('folder', folder);
+  const resp = await fetch(`https://api.cloudinary.com/v1_1/${CLD_NAME}/auto/upload`, { method: 'POST', body: fd });
+  const j = await resp.json(); if (!resp.ok) throw new Error((j.error && j.error.message) || 'erro no envio'); return j;
 }
 function cld(u, w) { return String(u).replace('/upload/', `/upload/w_${w},c_limit,q_auto,f_auto/`); }
 function grp(key, urls, cls = 'thumbs') {
@@ -156,10 +165,10 @@ const views = {
   },
   async assistencia() {
     const { data } = await sb.from('service_requests').select('*').eq('residence_id', S.cur.id).order('created_at', { ascending: false });
-    const f = formOf('req', 'Nova solicitação', `${sel('category', 'Categoria', REQ_CATS)}<label>Local da casa<input name="place" required></label><label>Descrição<textarea name="description" rows="4" required></textarea></label>${sel('urgency', 'Urgência percebida', ['Baixa', 'Média', 'Alta'])}<label>Melhor horário para contato<input name="contact_time"></label>`, 'Enviar solicitação');
+    const f = formOf('req', 'Nova solicitação', `${sel('category', 'Categoria', REQ_CATS)}<label>Local da casa<input name="place" required></label><label>Descreva a assistência de que você precisa<textarea name="description" rows="6" required placeholder="Conte o que aconteceu, onde, desde quando e qualquer detalhe que ajude a equipe."></textarea></label>${CLOUD_OK ? '<label>Fotos do problema (opcional)<input name="photos" type="file" accept="image/*" multiple></label><p class="mute">Até 8 fotos, de até 10 MB cada.</p>' : ''}<label>Melhor horário para contato<input name="contact_time"></label>`, 'Enviar solicitação');
     app.innerHTML = `<h2>Assistência técnica</h2><p class="notice">Esta é uma solicitação formal. Em risco imediato (gás, fogo, choque), afaste-se e ligue 193 ou 192.</p>${f}` +
-      ((data || []).map(r => `<div class="card"><b>${esc(r.protocol)}</b> <span class="badge">${esc(r.status)}</span><p>${esc(r.category)} · ${esc(r.place)} · ${esc(r.urgency)}</p><p>${esc(r.description)}</p>${r.staff_note ? `<p class="mute">Astell: ${esc(r.staff_note)}</p>` : ''}
-      ${staff() ? `<form data-form="upd" data-id="${r.id}">${sel('status', 'Situação', STATUS).replace(`<option>${r.status}`, `<option selected>${r.status}`)}<label>Comentário<input name="staff_note" value="${esc(r.staff_note || '')}"></label><button>Atualizar</button></form>` : ''}</div>`).join('') || '<p class="empty">Você ainda não abriu solicitações.</p>');
+      ((data || []).map(r => { const fotos = (r.media || []).filter(x => x.url).map(x => x.url); return `<div class="card"><b>${esc(r.protocol)}</b> <span class="badge ${REQ_ST[r.status] || ''}">${esc(r.status)}</span> <span class="badge ${REQ_UR[r.urgency] || 'u-med'}">${esc(r.urgency || 'Média')}</span><p>${esc(r.category)} · ${esc(r.place)}</p><p>${esc(r.description)}</p>${fotos.length ? grp('req' + r.id, fotos) : ''}${r.staff_note ? `<div class="astnote"><span class="lbl">Assistência que será feita</span><p>${esc(r.staff_note)}</p></div>` : ''}
+      ${staff() ? `<form data-form="upd" data-id="${r.id}">${sel('status', 'Situação', STATUS).replace(`<option>${r.status}`, `<option selected>${r.status}`)}<label>Comentário<input name="staff_note" value="${esc(r.staff_note || '')}"></label><button>Atualizar</button></form>` : ''}</div>`; }).join('') || '<p class="empty">Você ainda não abriu solicitações.</p>');
   },
   async planta() {
     const rid = S.cur.id;
@@ -186,7 +195,15 @@ app.addEventListener('submit', async e => {
   if (id.startsWith('edit:')) { r = await sb.from(id.slice(5)).update(o).eq('id', f.dataset.id); S.edit = null; }
   else if (id === 'editres') { r = await sb.from('residences').update(o).eq('id', rid); if (!r.error) { await loadRes(rid); return toast('Dados da residência salvos.'); } }
   else if (T[id]) r = await sb.from(id).insert({ ...o, residence_id: rid });
-  else if (id === 'req') r = await sb.from('service_requests').insert({ ...o, residence_id: rid, protocol: 'AST-' + Date.now().toString(36).toUpperCase() });
+  else if (id === 'req') {
+    const fotos = f.photos ? [...f.photos.files].filter(x => x.size) : []; delete o.photos;
+    if (fotos.length > 8) return toast('Envie no máximo 8 fotos.', 1);
+    for (const x of fotos) { if (!/^image\//.test(x.type)) return toast(`"${x.name}" não é uma imagem.`, 1); if (x.size > 10 * 1048576) return toast(`"${x.name}" é maior que 10 MB.`, 1); }
+    const media = [], btn = f.querySelector('button:not([type])'); if (btn) btn.disabled = true;
+    try { for (let i = 0; i < fotos.length; i++) { toast(`Enviando foto ${i + 1} de ${fotos.length}…`); const j = await cldPost(fotos[i], 'astell-home/assistencia'); media.push({ url: j.secure_url, type: 'image', name: fotos[i].name, public_id: j.public_id }); } }
+    catch (err) { if (btn) btn.disabled = false; return toast('Não foi possível enviar as fotos: ' + err.message, 1); }
+    r = await sb.from('service_requests').insert({ ...o, urgency: 'Média', media, residence_id: rid, protocol: 'AST-' + Date.now().toString(36).toUpperCase() }); if (btn) btn.disabled = false;
+  }
   else if (id === 'upd') { r = await sb.from('service_requests').update(o).eq('id', f.dataset.id); if (!r.error) await sb.from('history_events').insert({ residence_id: rid, category: 'Assistência', description: 'Solicitação atualizada: ' + o.status }); }
   else if (id === 'bitem') r = await sb.from('building_items').insert({ ...o, residence_id: rid });
   else if (id === 'plan') { const file = f.file.files[0], path = `${rid}/planta_${Date.now()}_${file.name.replace(/[^\w.-]/g, '_')}`;

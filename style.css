@@ -109,3 +109,8 @@ button.ghost2{background:transparent;color:var(--ink);border:1px solid var(--lin
 #lb button{z-index:5}
 #lb video,#lb img{position:relative;z-index:1}
 .logoimg{display:block;height:34px;width:auto;max-width:200px;object-fit:contain;margin:0 auto}
+
+/* ---- assistência técnica (cliente): situação, urgência e retorno da Astell */
+.badge.s-pend{background:#8d99a6;color:#0b1623}.badge.s-ana{background:#3b82c4}.badge.s-agd{background:#8e6bd1}.badge.s-and{background:#e0b020;color:#1b1409}.badge.s-conc{background:#2a9a62}
+.badge.u-crit{background:#fde2e2;color:#d92d20;font-weight:700}.badge.u-alta{background:#fde5d6;color:#a3471f;font-weight:700}.badge.u-med{background:#dcecfd;color:#1f6fd6;font-weight:700}.badge.u-baixa{background:#d6f2df;color:#17803d;font-weight:700}
+.astnote{background:#0b1623;border:1px solid var(--line);border-left:3px solid #d9b48a;border-radius:10px;padding:10px 12px;margin:8px 0}.astnote p{margin:4px 0 0;white-space:pre-wrap}
