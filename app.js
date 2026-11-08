@@ -1,5 +1,5 @@
 // Configuração do Supabase: arquivo config.js
-const APP_VERSION = '2026.10.21-10'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-11'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 let sb; try { sb = supabase.createClient(new URL(SUPABASE_URL.trim()).origin, SUPABASE_KEY.trim()); } catch (e) { sb = null; }
 const $ = s => document.querySelector(s); let app = $('#app');
 const fail = m => { app.innerHTML = '<div class="card" style="margin:16px"><b>Não foi possível iniciar o Astell Home</b><p class="mute">' + m + '</p></div>'; };
@@ -38,10 +38,17 @@ const DOC_CATS = ['Projeto arquitetônico','Projeto estrutural','Projeto elétri
 
 const PT_CATS = ['Elétrica','Hidráulica','Gás','Climatização','Estrutura','Paredes','Equipamentos'];
 const ico = (d, c = '') => `<svg class="ico ${c}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d.split('|').map(p => `<path d="${p}"/>`).join('')}</svg>`;
-const IC = { home: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z|M9 22V12h6v10', casa: 'M4 21V8l8-5 8 5v13|M9 21v-6h6v6', drop: 'M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z', layers: 'M12 2L2 7l10 5 10-5-10-5z|M2 17l10 5 10-5|M2 12l10 5 10-5', shield: 'M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z|M9 12l2 2 4-4', wrench: 'M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z', phones: 'M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3', doc: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z|M14 2v6h6|M8 13h8|M8 17h8', user: 'M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2|M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', chev: 'M9 18l6-6-6-6', check: 'M22 11.08V12a10 10 0 1 1-5.93-9.14|M22 4L12 14.01l-3-3' };
-const TILES = [['estrutura', 'Estrutura', 'Steel Frame', 'home'], ['sistemas', 'Sistemas', 'Elétrica | Hidráulica', 'drop'], ['materiais', 'Materiais', 'Especificações', 'layers'], ['garantias', 'Garantias', 'Prazos e coberturas', 'shield'], ['manutencao', 'Manutenção', 'Cuidados e dicas', 'wrench'], ['assistencia', 'Assistência', 'Suporte e contato', 'phones']];
+const IC = { home: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z|M9 22V12h6v10', casa: 'M4 21V8l8-5 8 5v13|M9 21v-6h6v6', drop: 'M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z', layers: 'M12 2L2 7l10 5 10-5-10-5z|M2 17l10 5 10-5|M2 12l10 5 10-5', shield: 'M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z|M9 12l2 2 4-4', wrench: 'M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z', phones: 'M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3', doc: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z|M14 2v6h6|M8 13h8|M8 17h8', user: 'M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2|M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', chev: 'M9 18l6-6-6-6', check: 'M22 11.08V12a10 10 0 1 1-5.93-9.14|M22 4L12 14.01l-3-3', bell: 'M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9|M10.3 21a1.94 1.94 0 0 0 3.4 0', pin: 'M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0|M12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5', chevd: 'M6 9l6 6 6-6', bolt: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z', image: 'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z|M8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3|M21 15l-5-5L5 21', calendar: 'M8 2v4|M16 2v4|M3 10h18|M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z|M8 14h.01|M12 14h.01|M16 14h.01|M8 18h.01|M12 18h.01', dl: 'M12 3v12|M7 11l5 5 5-5|M5 21h14', folder: 'M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z', usr: 'M20 21a8 8 0 0 0-16 0|M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8', tick: 'M5 12.5l4.5 4.5L19 7.5' };
+const TILES = [['estrutura', 'Estrutura', 'Steel Frame', 'layers'], ['sistemas', 'Instalações', 'Elétrica e hidráulica', 'bolt'], ['garantias', 'Garantias', 'Prazos e condições', 'shield'], ['manutencao', 'Manutenção', 'Cuidados da sua casa', 'wrench']];
 const BCAT = { estrutura: 'Estrutura', sistemas: 'Sistemas', materiais: 'Materiais' };
-$('#nav').innerHTML = [['home', 'Início', 'home'], ['casa', 'Casa', 'casa'], ['documentos', 'Documentos', 'doc'], ['mais', 'Perfil', 'user']].map(([h, l, i]) => `<a href="#${h}">${ico(IC[i])}<span>${l}</span></a>`).join('');
+const NAV = [['home', 'Início', 'home', ['home']], ['casa', 'Minha Casa', 'layers', ['casa', 'estrutura', 'sistemas', 'materiais', 'garantias', 'manutencao', 'equipamentos', 'planta']], ['documentos', 'Documentos', 'folder', ['documentos']], ['assistencia', 'Suporte', 'phones', ['assistencia']]];
+$('#nav').innerHTML = NAV.map(([h, l, i, g]) => `<a href="#${h}" data-g="${g.join(' ')}">${ico(IC[i])}<span>${l}</span></a>`).join('');
+$('#top .bico').innerHTML = ico(IC.casa, 'brandico'); $('#bell').innerHTML = ico(IC.bell); $('#avatar').innerHTML = ico(IC.usr);
+async function refreshBell() {   // número de solicitações de assistência ainda em andamento
+  const b = $('#bell'); if (!b || !S.cur) return;
+  const { data } = await sb.from('service_requests').select('status').eq('residence_id', S.cur.id), n = (data || []).filter(x => !['Concluída', 'Encerrada'].includes(x.status)).length;
+  b.innerHTML = ico(IC.bell) + (n ? `<i class="bdg">${n > 9 ? '9+' : n}</i>` : '');
+}
 function vsrc(u) { return String(u).replace('/upload/', '/upload/f_mp4,vc_h264,q_auto/').replace(/\.\w+$/, '.mp4'); }
 function vposter(u) { return String(u).replace('/upload/', '/upload/w_480,c_limit,so_0/').replace(/\.\w+$/, '.jpg'); }
 const isVidUrl = u => /\/video\/upload\//.test(u);
@@ -147,14 +154,26 @@ async function listView(k) {
 const views = {
   async home() {
     const r = S.cur;
-    const { data: hi } = await sb.from('images').select('*').eq('residence_id', r.id).eq('kind', 'residence').order('created_at', { ascending: false }).limit(30);
+    const [{ data: hi }, { data: m }, { data: docs }] = await Promise.all([
+      sb.from('images').select('*').eq('residence_id', r.id).eq('kind', 'residence').order('created_at', { ascending: false }).limit(30),
+      sb.from('maintenance_tasks').select('name,next_due,frequency,status').eq('residence_id', r.id).not('next_due', 'is', null).order('next_due').limit(10),
+      sb.from('documents').select('title,category,path').eq('residence_id', r.id).order('created_at', { ascending: false })]);
     const pics = (hi || []).filter(x => (x.media_type || 'image') === 'image').sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 5).map(x => x.url);
-    const { data: m } = await sb.from('maintenance_tasks').select('name,next_due').eq('residence_id', r.id).not('next_due', 'is', null).order('next_due').limit(3);
-    app.innerHTML = `<p class="eyebrow">Bem-vindo</p><h1 class="welcome">Sua casa,<br>do seu jeito.</h1>
-    <a class="rescard" href="#casa">${ico(IC.home)}<span><b>${esc(r.name)}</b><small>${esc(r.address || r.code)}</small></span>${ico(IC.chev)}</a>
-    ${carousel(pics)}
-    <div class="tiles">${TILES.map(([h, t, s, i]) => `<a class="tile" href="#${h}">${ico(IC[i])}<b>${t}</b><small>${s}</small></a>`).join('')}</div>
-    <h3>Próximos cuidados</h3>${(m || []).map(x => `<div class="card"><b>${esc(x.name)}</b>${fmt(x.next_due)}</div>`).join('') || '<p class="empty">Nenhum cuidado agendado.</p>'}`;
+    const nx = (m || []).find(x => !['Concluída', 'Cancelada'].includes(x.status || 'Pendente'));
+    const hr = new Date().getHours(), sau = hr < 12 ? 'Bom dia' : hr < 18 ? 'Boa tarde' : 'Boa noite', nome = String((S.profile && S.profile.name) || '').trim().split(/\s+/)[0];
+    const man = (docs || []).find(d => d.category === 'Manuais'), prj = (docs || []).find(d => /^Projeto/.test(d.category || ''));
+    const chip = (d, t) => d ? `<button type="button" class="dchip" data-open="${esc(d.path)}">${ico(IC.doc)}<span>${t}</span>${ico(IC.dl)}</button>` : `<a class="dchip" href="#documentos">${ico(IC.doc)}<span>${t}</span>${ico(IC.dl)}</a>`;
+    const sec = (t, s, extra = '') => `<div class="sec"><i class="sbar"></i><div><h2>${t}</h2><p>${s}</p></div>${extra}</div>`;
+    app.innerHTML = `<h1 class="greet">${sau}${nome ? `, <span>${esc(nome)}!</span>` : '!'}</h1><p class="greetsub">Sua casa, sempre ao seu alcance.</p><i class="gline"></i>
+    <div class="rescard2">${ico(IC.casa)}<span><b>${esc(r.name)}</b><small>${ico(IC.pin)}${esc(r.address || r.code)}</small></span>${ico(IC.chevd, 'cd')}${S.res.length > 1 ? `<select id="homeSel" aria-label="Trocar de residência">${S.res.map(x => `<option value="${x.id}" ${x.id === r.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select>` : ''}</div>
+    <div class="hero2">${carousel(pics)}<div class="hbar"><span class="hok"><i>${ico(IC.tick)}</i>Residência cadastrada</span>${r.build_system ? `<span class="hsep"></span><span class="hsys">${esc(r.build_system)}</span>` : ''}<a class="hdet" href="#casa">${ico(IC.image)}Ver detalhes</a></div></div>
+    ${sec('Sua casa', 'Acesse tudo sobre sua residência')}
+    <div class="tiles2">${TILES.map(([h, t, s, i]) => `<a class="tile2" href="#${h}">${ico(IC[i], 'tico')}<span><b>${t}</b><small>${s}</small></span>${ico(IC.chev)}</a>`).join('')}</div>
+    <div class="assist">${ico(IC.phones, 'aico')}<i class="vsep"></i><span><b>Precisa de assistência?</b><small>Estamos aqui para ajudar com sua residência.</small></span><a class="abtn" href="#assistencia"><span>SOLICITAR<br>ATENDIMENTO</span>${ico(IC.chev)}</a></div>
+    ${sec('Manutenção preventiva', 'Mantenha sua casa sempre em perfeito estado')}
+    <div class="prev">${ico(IC.calendar, 'pico')}<span>${nx ? `<small>Próxima recomendação:</small><b>${esc(nx.name)}</b><small>${nx.frequency ? 'Periodicidade: ' + esc(nx.frequency) : 'Data prevista: ' + fmt(nx.next_due)}</small>` : '<small>Próxima recomendação:</small><b>Nenhum cuidado agendado</b>'}</span><a class="pbtn" href="#manutencao">Ver cronograma${ico(IC.chev)}</a></div>
+    ${sec('Documentos importantes', 'Acesse seus documentos sempre que precisar', `<a class="seall" href="#documentos">Ver todos${ico(IC.chev)}</a>`)}
+    <div class="dchips">${chip(man, 'Manual do Proprietário')}${chip(prj, 'Projetos da Residência')}</div>`;
     initCarousel();
   },
   async casa() {
@@ -242,7 +261,8 @@ function route() {
   if (!S.profile) return;
   clearInterval(S.carTimer);
   const h = location.hash.slice(1) || 'home';
-  document.querySelectorAll('nav a').forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + h));
+  document.querySelectorAll('nav a').forEach(a => a.classList.toggle('on', (a.dataset.g || '').split(' ').includes(h)));
+  $('#avatar').classList.toggle('on', h === 'mais'); refreshBell();
   if (!S.cur) return app.innerHTML = '<p class="empty">Nenhuma residência vinculada à sua conta. Fale com a Astell.</p>';
   (views[h] || views.home)();
 }
@@ -250,11 +270,9 @@ addEventListener('hashchange', () => { S.edit = null; route(); });
 
 async function loadRes(selectId) {
   const { data } = await sb.from('residences').select('*').order('created_at');
-  S.res = data || []; $('#resSel').hidden = S.res.length < 2; S.cur = S.res.find(r => r.id === selectId) || S.res.find(r => r.id === S.cur?.id) || S.res[0] || null;
-  $('#resSel').innerHTML = S.res.map(r => `<option value="${r.id}" ${r.id === S.cur?.id ? 'selected' : ''}>${esc(r.name)} — ${esc(r.code)}</option>`).join('');
+  S.res = data || []; S.cur = S.res.find(r => r.id === selectId) || S.res.find(r => r.id === S.cur?.id) || S.res[0] || null;
   route();
 }
-$('#resSel').onchange = e => { S.cur = S.res.find(r => r.id === e.target.value); route(); };
 
 const GOOGLE_SVG = '<svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"/><path fill="#FBBC05" d="M10.5 28.7a14.5 14.5 0 0 1 0-9.4l-7.9-6.1a24 24 0 0 0 0 21.6l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.8 2.3-8.4 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>';
 function cpfDigits(v) { return String(v || '').replace(/\D/g, '').slice(0, 11); }
@@ -324,7 +342,7 @@ function cpfScreen(notice) {
 async function loadLogo() {
   try {
     const { data } = await sb.from('app_settings').select('value').eq('key', 'logo_url').maybeSingle(); if (!data || !data.value) return;
-    document.querySelectorAll('.logo').forEach(el => { const sp = (/<span[\s\S]*<\/span>/.exec(el.innerHTML) || [''])[0]; el.innerHTML = `<img class="logoimg" src="${esc(String(data.value).replace('/upload/', '/upload/w_360,c_limit,q_auto,f_auto/'))}" alt="Astell">${sp}`; });
+    $('#top').classList.add('haslogo'); document.querySelectorAll('.logo').forEach(el => { const sp = (/<span[\s\S]*<\/span>/.exec(el.innerHTML) || [''])[0]; el.innerHTML = `<img class="logoimg" src="${esc(String(data.value).replace('/upload/', '/upload/w_360,c_limit,q_auto,f_auto/'))}" alt="Astell">${sp}`; });
   } catch (e) { /* sem logo: fica o texto */ }
 }
 async function start(session) {
@@ -348,7 +366,7 @@ sb.auth.getSession().then(({ data }) => start(data.session));
 sb.auth.onAuthStateChange((ev, s) => { if (ev === 'SIGNED_IN' && S.profile && s && S.profile.id === s.user.id) return;
   if (ev === 'SIGNED_IN' || ev === 'SIGNED_OUT') setTimeout(() => start(s), 0); });
 
-app.addEventListener('change', e => { if (e.target.id === 'planSel') { S.planId = e.target.value; route(); } });
+app.addEventListener('change', e => { if (e.target.id === 'planSel') { S.planId = e.target.value; route(); } if (e.target.id === 'homeSel') { S.cur = S.res.find(r => r.id === e.target.value) || S.cur; route(); } });
 
 app.addEventListener('input', e => {
   const t = e.target;

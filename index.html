@@ -4,19 +4,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Astell Home</title>
-<link rel="stylesheet" href="style.css?v=2026.10.21-10">
+<link rel="stylesheet" href="style.css?v=2026.10.21-11">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 </head>
-<body>
+<body class="app">
 <header id="top" hidden>
-  <strong class="logo">ASTELL<span>HOME</span></strong>
-  <select id="resSel" aria-label="Residência" hidden></select>
+  <div class="hin">
+    <a class="brand" href="#home" aria-label="Início"><span class="bico"></span><strong class="logo">ASTELL<span>HOME</span></strong></a>
+    <div class="hact"><a class="bell" id="bell" href="#assistencia" aria-label="Solicitações de assistência"></a><a class="avatar" id="avatar" href="#mais" aria-label="Perfil"></a></div>
+  </div>
 </header>
 <main id="app"></main>
 <nav id="nav" hidden></nav>
 <div id="lb" hidden></div>
 <div id="toast" role="status"></div>
-<script src="config.js?v=2026.10.21-10"></script>
-<script src="app.js?v=2026.10.21-10"></script>
+<script src="config.js?v=2026.10.21-11"></script>
+<script src="app.js?v=2026.10.21-11"></script>
 </body>
 </html>
