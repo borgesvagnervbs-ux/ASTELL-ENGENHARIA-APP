@@ -193,3 +193,11 @@ body.app nav a.on{color:var(--gold)}body.app nav a.on::after{content:"";position
 body.app nav .ico{width:24px;height:24px}
 body.app #toast{bottom:96px}
 @media(max-width:380px){.tiles2,.dchips{grid-template-columns:1fr}.hero2 .slides img{height:250px}}
+/* Estrutura / Instalações do cliente */
+.ptitle{margin:4px 0 14px;font-size:1.6rem;color:#fff}.pre{white-space:pre-line}
+.item .gallery{margin:12px 0}
+.bdocs{display:grid;gap:10px;margin:12px 0}
+.bdoc{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px;border:1px solid #ffffff1f;border-radius:14px;background:#0b1623aa}
+.bdoc>.ico{width:26px;height:26px;color:var(--gold);flex:none}.bdoc span{flex:1;min-width:140px;overflow-wrap:anywhere}.bdoc b{display:block;margin:0;font-size:.9rem}.bdoc small{color:var(--mute)}
+.bdoc button{margin:0;min-height:38px;padding:0 14px;font-size:.85rem}
+#lb model-viewer{width:min(96vw,900px);height:80vh;background:#0d1a27;border-radius:12px;--poster-color:transparent}

@@ -1,5 +1,5 @@
 // Configuração do Supabase: arquivo config.js
-const APP_VERSION = '2026.10.21-11'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-12'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 let sb; try { sb = supabase.createClient(new URL(SUPABASE_URL.trim()).origin, SUPABASE_KEY.trim()); } catch (e) { sb = null; }
 const $ = s => document.querySelector(s); let app = $('#app');
 const fail = m => { app.innerHTML = '<div class="card" style="margin:16px"><b>Não foi possível iniciar o Astell Home</b><p class="mute">' + m + '</p></div>'; };
@@ -13,7 +13,7 @@ const staff = () => false; // este app é somente de consulta do cliente
 function toast(m, err) { const t = $('#toast'); t.textContent = m; t.className = 'show' + (err ? ' err' : ''); setTimeout(() => t.className = '', 3500); }
 const addMonths = (d, m) => { const x = new Date(d + 'T00:00'); x.setMonth(x.getMonth() + m); return x; };
 function wState(w) { const start = new Date(w.start_date + 'T00:00'), end = addMonths(w.start_date, w.months), left = end - new Date(), total = end - start;   // vigente; próxima do vencimento = resta 1/4 do prazo ou menos; expirada
-  return left <= 0 ? ['Encerrada', 'bad', end] : left <= total / 4 ? ['Próxima do vencimento', 'warn', end] : ['Vigente', 'ok', end]; }
+  return left <= 0 ? ['Expirada', 'bad', end] : left <= total / 4 ? ['Próxima do vencimento', 'warn', end] : ['Vigente', 'ok', end]; }
 function wInfo(w) {   // tudo que o cartão da garantia mostra: tempo restante (meses e dias), % da barra e frase de alerta
   const [s, c, end] = wState(w), start = new Date(w.start_date + 'T00:00'), now = new Date(), total = end - start, left = Math.max(0, end - now), from = now < start ? start : now;
   let m = 0, d = 0; if (left > 0) { m = (end.getFullYear() - from.getFullYear()) * 12 + end.getMonth() - from.getMonth(); let t = new Date(from); t.setMonth(t.getMonth() + m); if (t > end) { m--; t = new Date(from); t.setMonth(t.getMonth() + m); } d = Math.floor((end - t) / 864e5); }
@@ -107,12 +107,23 @@ function mediaBlock() {
     (list.length ? grp('casa-' + tab, list, 'gallery') : `<p class="empty">${tab === 'img' ? 'Nenhuma imagem cadastrada.' : 'Nenhum vídeo cadastrado.'}</p>`);
 }
 const linkrow = (h, t, s, i) => `<a class="linkrow" href="#${h}">${ico(IC[i])}<span><b>${t}</b><small>${s}</small></span>${ico(IC.chev)}</a>`;
+const PL_VIEW = ['glb', 'gltf'], plExt = n => (String(n).split('.').pop() || '').toLowerCase(), plSize = n => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+const MV_SRC = 'https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js';
+function loadMV() { if (window.__mvLoading) return; window.__mvLoading = true; const sc = document.createElement('script'); sc.type = 'module'; sc.src = MV_SRC; document.head.appendChild(sc); }
+const mtype = x => ['image', 'video', 'pdf', '3d'].includes(x.type) ? x.type : /^image\//.test(x.type || '') ? 'image' : x.type === 'application/pdf' ? 'pdf' : x.url && isVidUrl(x.url) ? 'video' : x.url ? 'image' : 'file';
 async function itemsView(k) {
   const cat = BCAT[k];
   const { data } = await sb.from('building_items').select('*').eq('residence_id', S.cur.id).eq('category', cat).order('created_at');
-  app.innerHTML = (k === 'estrutura' ? '<div class="banner"><img src="img/estrutura.jpg" alt="Ilustração de estrutura em Steel Frame"><small>Imagem ilustrativa</small></div>' : '') + `<p class="eyebrow">${cat}</p>` +
+  const rows = (data || []).filter(r => staff() || r.visible !== false);
+  app.innerHTML = (k === 'estrutura' ? '<div class="banner"><img src="img/estrutura.jpg" alt="Ilustração de estrutura em Steel Frame"><small>Imagem ilustrativa</small></div>' : '') + `<h1 class="ptitle">${k === 'sistemas' ? 'Instalações' : cat}</h1>` +
     (staff() ? formOf('bitem', 'Adicionar item', `<input type="hidden" name="category" value="${cat}"><label>Título<input name="title" required></label><label>Descrição<textarea name="description" rows="3"></textarea></label><label>Destaques (um por linha)<textarea name="highlights" rows="4"></textarea></label>`) : '') +
-    ((data || []).map(r => `<section class="item"><h2>${esc(r.title)}</h2><p class="mute">${esc(r.description)}</p><ul class="checks">${(r.highlights || '').split('\n').filter(Boolean).map(h => `<li>${ico(IC.check)}${esc(h)}</li>`).join('')}</ul>${staff() ? `<button class="link" data-del="building_items:${r.id}">Excluir</button>` : ''}</section>`).join('') || '<p class="empty">A Astell ainda não publicou as informações desta seção.</p>') +
+    (rows.map(r => {
+      const med = (r.media || []).filter(x => x.visible !== false).map(x => ({ ...x, t: mtype(x) })), vis = med.filter(x => x.t === 'image' || x.t === 'video' && x.url), docs = med.filter(x => (x.t === 'pdf' || x.t === '3d') && x.path);
+      return `<section class="item"><h2>${esc(r.title)}</h2>${r.description ? `<p class="mute pre">${esc(r.description)}</p>` : ''}<ul class="checks">${(r.highlights || '').split('\n').filter(Boolean).map(h => `<li>${ico(IC.check)}${esc(h)}</li>`).join('')}</ul>` +
+        (vis.length ? grp('bi-' + r.id, vis.map(x => x.url), 'gallery') : '') +
+        (docs.length ? `<div class="bdocs">${docs.map(x => `<div class="bdoc">${ico(x.t === '3d' ? IC.layers : IC.doc)}<span><b>${x.t === '3d' ? 'Modelo 3D' : 'PDF'} · ${esc(x.name || 'arquivo')}</b>${x.size ? `<small>${plSize(x.size)}</small>` : ''}</span>${x.t === 'pdf' ? `<button type="button" data-open="${esc(x.path)}">Abrir</button>` : PL_VIEW.includes(plExt(x.name)) ? `<button type="button" data-v3d="${esc(x.path)}|${esc(x.name)}">Ver em 3D</button>` : ''}<button type="button" class="ghost2" data-dl="${esc(x.path)}|${esc(x.name || 'arquivo')}">Baixar</button></div>`).join('')}</div>` : '') +
+        `${staff() ? `<button class="link" data-del="building_items:${r.id}">Excluir</button>` : ''}</section>`;
+    }).join('') || '<p class="empty">A Astell ainda não publicou as informações desta seção.</p>') +
     linkrow('documentos', 'Documentação técnica', 'Confira os documentos da sua casa.', 'doc') + linkrow('planta', 'Ver planta técnica', 'Pontos e detalhes da planta.', 'doc');
 }
 async function garantiasView() {
@@ -121,7 +132,7 @@ async function garantiasView() {
   app.innerHTML = `<div class="gtitle">${ico(IC.shield, 'big')}<h1>Garantias</h1><p class="mute">Mais segurança para o seu investimento.</p></div>
   <div class="card"><b>Resumo da garantia</b><p class="mute">Sua casa conta com garantia de acordo com o contrato e a legislação vigente.</p></div>` +
     (staff() ? formOf('warranties', 'Adicionar garantia', T.warranties.f.map(input).join('')) : '') +
-    `<h3>Prazos por sistema</h3><div class="card rows">${(data || []).map(w => { const [s, c, end] = wState(w), wi = wInfo(w); return `<div class="row"><span>${esc(w.system)}<br>${wi.kind === 'warn' ? `<span class="wwarn">Garantia próxima do vencimento - faltam ${wi.txt}</span><br>` : ''}<span class="wbar sm w-${wi.kind}"><i style="width:${wi.pct.toFixed(1)}%"></i></span><br><span class="badge ${c}">${s}</span> <small class="mute">até ${end.toLocaleDateString('pt-BR')}</small>${w.coverage ? `<br><small class="mute">${esc(w.coverage)}</small>` : ''}${staff() ? `<br><button class="link" data-del="warranties:${w.id}">Excluir</button>` : ''}</span><b>${per(w.months)}</b></div>`; }).join('') || '<p class="empty">Nenhuma garantia cadastrada ainda.</p>'}</div>` +
+    `<h3>Prazos por sistema</h3>${(data || []).map(r => { const w = wInfo(r); return `<div class="card"><b>${esc(r.system)}</b><div class="wbox w-${w.kind}">${w.kind === 'warn' ? `<p class="wwarn">Garantia próxima do vencimento - faltam ${w.txt}</p>` : w.kind === 'bad' ? `<p class="wexp">Garantia expirada em ${w.end.toLocaleDateString('pt-BR')}</p>` : ''}<div class="wfig"><div><span class="wnum wtot">${w.total}</span><span class="wlbl">Prazo total</span></div><div><span class="wnum wrem">${w.kind === 'bad' ? 'Expirada' : w.big}</span><span class="wlbl">${w.kind === 'bad' ? 'Vencida' : 'Restantes'}</span></div></div><div class="wbar" role="img" aria-label="Tempo restante da garantia"><i style="width:${w.pct.toFixed(1)}%"></i></div><span class="wpill">${w.s}</span></div>${r.coverage ? `<p>${esc(r.coverage)}</p>` : ''}<span class="mute">${fmt(r.start_date)} até ${w.end.toLocaleDateString('pt-BR')}</span>${r.notes ? `<p class="mute">${esc(r.notes)}</p>` : ''}${staff() ? `<button class="link" data-del="warranties:${r.id}">Excluir</button>` : ''}</div>`; }).join('') || '<p class="empty">Nenhuma garantia cadastrada ainda.</p>'}` +
     linkrow('assistencia', 'Solicitar assistência', 'Precisa de suporte? Fale com a nossa equipe.', 'phones') + `<p class="notice">${T.warranties.note}</p>`;
 }
 const DEFREQ = ['system', 'name', 'description', 'months', 'start_date', 'event_date'];
@@ -252,6 +263,8 @@ app.addEventListener('click', async e => {
   if (d.plan && S.place) { const b = e.target.getBoundingClientRect(); S.pend = { x: +((e.clientX - b.left) / b.width * 100).toFixed(2), y: +((e.clientY - b.top) / b.height * 100).toFixed(2) };
     $('#ptbox').innerHTML = `<form class="card" data-form="pt"><b>Novo ponto</b>${sel('category', 'Categoria', PT_CATS)}<label>Identificação<input name="label" required></label><label>Detalhes<textarea name="description" rows="3"></textarea></label><button>Salvar ponto</button></form>`; }
   if (d.pt) { const p = S.pts.find(x => x.id === d.pt); $('#ptbox').innerHTML = `<div class="card"><b>${esc(p.label)}</b><span class="mute">${esc(p.category)}</span><p>${esc(p.description)}</p>${staff() ? `<button class="link" data-del="plan_points:${p.id}">Excluir ponto</button>` : ''}</div>`; }
+  if (d.dl) { const [p, n] = d.dl.split('|'), { data, error } = await sb.storage.from('documents').createSignedUrl(p, 60, { download: n || true }); error ? toast('Acesso negado.', 1) : window.open(data.signedUrl, '_blank', 'noopener'); }
+  if (d.v3d) { const [p, n] = d.v3d.split('|'), { data, error } = await sb.storage.from('documents').createSignedUrl(p, 3600); if (error) return toast('Acesso negado.', 1); loadMV(); const lb = $('#lb'); lb.hidden = false; lb.innerHTML = `<button class="lbx" data-lbx aria-label="Fechar">×</button><model-viewer src="${esc(data.signedUrl)}" alt="${esc(n)}" camera-controls touch-action="pan-y" shadow-intensity="1" auto-rotate></model-viewer>`; }
   if (d.open) { const { data, error } = await sb.storage.from('documents').createSignedUrl(d.open, 60); error ? toast('Acesso negado.', 1) : window.open(data.signedUrl, '_blank', 'noopener'); }
   if (d.del && confirm('Excluir este registro?')) { const [t, id] = d.del.split(':'); await sb.from(t).delete().eq('id', id); route(); }
   if (d.deldoc && confirm('Excluir este documento?')) { const [id, p] = d.deldoc.split('|'); await sb.storage.from('documents').remove([p]); await sb.from('documents').delete().eq('id', id); route(); }
