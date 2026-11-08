@@ -1,4 +1,4 @@
-:root{--navy:#0b1623;--teal:#1f6f78;--teal2:#2c8b95;--bg:#0a121c;--card:#101b28;--ink:#e8eef2;--mute:#8a9aa6;--line:#1f2f3f;--gold:#d9b48a;--ok:#2a8a5a;--warn:#c58a14;--bad:#b3392f;font-family:"Segoe UI",system-ui,sans-serif}
+:root{--navy:#0b1623;--teal:#1f6f78;--teal2:#2c8b95;--bg:#0a121c;--card:#101b28;--ink:#e8eef2;--mute:#8a9aa6;--line:#1f2f3f;--gold:#3dc08c;--ok:#2a8a5a;--warn:#c58a14;--bad:#b3392f;font-family:"Segoe UI",system-ui,sans-serif}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);padding-bottom:72px}
 header{position:sticky;top:0;z-index:5;display:flex;gap:10px;align-items:center;background:var(--navy);color:#fff;padding:10px 14px}
 .logo{letter-spacing:.14em;font-weight:600}.logo span{color:#8fc6cc;font-weight:300}
@@ -13,7 +13,7 @@ h2{margin:6px 0 14px;font-weight:600}h3{margin:18px 0 8px;font-size:1rem}
 .hero p{margin:4px 0;color:#b9d3d8}
 label{display:block;font-size:.85rem;color:var(--mute);margin:10px 0 4px}.login label{color:#9fb5c1}
 input,select,textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;font:inherit;background:var(--card);color:var(--ink)}
-button{min-height:44px;padding:0 18px;border:0;border-radius:10px;background:var(--gold);color:#1b1409;font:inherit;font-weight:600;cursor:pointer;margin-top:12px}
+button{min-height:44px;padding:0 18px;border:0;border-radius:10px;background:var(--gold);color:#04231a;font:inherit;font-weight:600;cursor:pointer;margin-top:12px}
 button:hover{filter:brightness(1.08)}button.ghost{background:transparent;border:1px solid #2a4157;margin:0;min-height:36px}
 button.link{background:none;color:var(--bad);min-height:32px;padding:0;margin:6px 0 0}
 a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #8fc6cc;outline-offset:2px}
@@ -74,7 +74,7 @@ nav a{display:flex;flex-direction:column;align-items:center;gap:3px}nav a.on{col
 
 .tabs{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin-bottom:10px}
 .tabs button{flex:none;min-height:38px;margin:0;padding:0 14px;background:var(--card);color:var(--ink);border:1px solid var(--line)}
-.tabs button.on{background:var(--gold);color:#1b1409;border-color:var(--gold)}
+.tabs button.on{background:var(--gold);color:#04231a;border-color:var(--gold)}
 #adminbody>h2:first-child{display:none}
 .acts{display:flex;gap:6px 18px;flex-wrap:wrap;margin-top:6px}.acts .link{color:var(--gold)}.acts .danger{color:var(--bad)}
 button.ghost2{background:transparent;color:var(--ink);border:1px solid var(--line)}
@@ -111,9 +111,9 @@ button.ghost2{background:transparent;color:var(--ink);border:1px solid var(--lin
 .logoimg{display:block;height:34px;width:auto;max-width:200px;object-fit:contain;margin:0 auto}
 
 /* ---- assistência técnica (cliente): situação, urgência e retorno da Astell */
-.badge.s-pend{background:#8d99a6;color:#0b1623}.badge.s-ana{background:#3b82c4}.badge.s-agd{background:#8e6bd1}.badge.s-and{background:#e0b020;color:#1b1409}.badge.s-conc{background:#2a9a62}
+.badge.s-pend{background:#8d99a6;color:#0b1623}.badge.s-ana{background:#3b82c4}.badge.s-agd{background:#8e6bd1}.badge.s-and{background:#e0b020;color:#04231a}.badge.s-conc{background:#2a9a62}
 .badge.u-crit{background:#fde2e2;color:#d92d20;font-weight:700}.badge.u-alta{background:#fde5d6;color:#a3471f;font-weight:700}.badge.u-med{background:#dcecfd;color:#1f6fd6;font-weight:700}.badge.u-baixa{background:#d6f2df;color:#17803d;font-weight:700}
-.astnote{background:#0b1623;border:1px solid var(--line);border-left:3px solid #d9b48a;border-radius:10px;padding:10px 12px;margin:8px 0}.astnote p{margin:4px 0 0;white-space:pre-wrap}
+.astnote{background:#0b1623;border:1px solid var(--line);border-left:3px solid #3dc08c;border-radius:10px;padding:10px 12px;margin:8px 0}.astnote p{margin:4px 0 0;white-space:pre-wrap}
 
 /* ---- garantias: prazo total, tempo restante e barra de vigência */
 .wbox{--wc:#2fbf71;--wp:#d6f2df;--wpx:#17803d;margin:10px 0 8px}
@@ -131,7 +131,7 @@ button.ghost2{background:transparent;color:var(--ink);border:1px solid var(--lin
 .wbar.sm{height:7px;margin:6px 0;width:100%;max-width:220px}
 .wbar.sm.w-ok{--wc:#2fbf71}.wbar.sm.w-warn{--wc:#f08a3c}.wbar.sm.w-bad{--wc:#e5534b}
 .wpill{display:inline-block;margin-top:10px;padding:3px 12px;border-radius:999px;font-size:.82rem;font-weight:700;background:var(--wp);color:var(--wpx)}
-.stf-lar{--c:#f08a3c;--cx:#1b1409}
+.stf-lar{--c:#f08a3c;--cx:#04231a}
 
 /* ===== Layout Home (app do cliente) — escopo body.app ===== */
 body.app{background:radial-gradient(120% 60% at 50% -10%,#16314a 0%,#0a121c 55%) fixed,#0a121c;padding-bottom:104px}
@@ -174,15 +174,15 @@ body.app main{padding:18px 18px 8px}
 .tile2{display:flex;align-items:center;gap:10px;padding:14px 12px;min-height:84px;background:#0f1d2bcc;border:1px solid #ffffff1f;border-radius:16px;color:var(--ink);text-decoration:none}
 .tile2 .tico{width:32px;height:32px;color:var(--gold);flex:none}.tile2 span{flex:1;min-width:0}.tile2 b{display:block;color:#fff;font-size:.98rem}
 .tile2 small{display:block;color:var(--mute);font-size:.76rem;margin-top:2px;line-height:1.25}.tile2>.ico:last-child{width:18px;height:18px;color:var(--gold);flex:none}
-.assist{display:flex;align-items:center;gap:12px;margin:18px 0 0;padding:16px;border:1px solid #d9b48a55;border-radius:18px;background:linear-gradient(135deg,#142638,#0e1a28);flex-wrap:wrap}
+.assist{display:flex;align-items:center;gap:12px;margin:18px 0 0;padding:16px;border:1px solid #3dc08c55;border-radius:18px;background:linear-gradient(135deg,#142638,#0e1a28);flex-wrap:wrap}
 .assist .aico{width:40px;height:40px;color:var(--gold);flex:none}.vsep{width:1px;align-self:stretch;background:#ffffff26}
 .assist span{flex:1;min-width:150px}.assist b{display:block;color:#fff;font-size:1.02rem}.assist small{display:block;color:#b3c0ca;font-size:.8rem;margin-top:3px}
-.abtn{display:flex;align-items:center;gap:6px;margin-left:auto;padding:11px 14px;border-radius:12px;background:var(--gold);color:#1b1409;text-decoration:none;font-weight:700;font-size:.78rem;letter-spacing:.06em;line-height:1.15}
-.abtn span{flex:none;min-width:0;color:#1b1409}.abtn .ico{width:16px;height:16px}
+.abtn{display:flex;align-items:center;gap:6px;margin-left:auto;padding:11px 14px;border-radius:12px;background:var(--gold);color:#04231a;text-decoration:none;font-weight:700;font-size:.78rem;letter-spacing:.06em;line-height:1.15}
+.abtn span{flex:none;min-width:0;color:#04231a}.abtn .ico{width:16px;height:16px}
 .prev{display:flex;align-items:center;gap:14px;padding:16px;background:#0f1d2bcc;border:1px solid #ffffff1f;border-radius:18px;flex-wrap:wrap}
 .prev .pico{width:42px;height:42px;color:var(--gold);flex:none}.prev span{flex:1;min-width:150px}.prev small{display:block;color:#aab8c2;font-size:.85rem}
 .prev b{display:block;color:#fff;font-size:1.35rem;font-weight:600;margin:4px 0}
-.pbtn{display:flex;align-items:center;gap:4px;margin-left:auto;padding:10px 14px;border:1px solid #d9b48a88;border-radius:12px;color:var(--gold);text-decoration:none;font-weight:600;font-size:.88rem}.pbtn .ico{width:16px;height:16px}
+.pbtn{display:flex;align-items:center;gap:4px;margin-left:auto;padding:10px 14px;border:1px solid #3dc08c88;border-radius:12px;color:var(--gold);text-decoration:none;font-weight:600;font-size:.88rem}.pbtn .ico{width:16px;height:16px}
 .dchips{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .dchip{display:flex;align-items:center;gap:8px;margin:0;min-height:62px;padding:10px 12px;background:#0f1d2bcc;border:1px solid #ffffff1f;border-radius:16px;color:#fff;text-decoration:none;text-align:left;font-weight:500;font-size:.85rem;line-height:1.2}
 .dchip span{flex:1;min-width:0}.dchip .ico{width:24px;height:24px;color:var(--gold);flex:none}.dchip .ico:last-child{width:20px;height:20px}
@@ -204,7 +204,7 @@ body.app #toast{bottom:96px}
 /* Caminho de navegação */
 .crumbs{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;list-style:none;margin:0 0 14px;padding:0;font-size:.82rem;color:var(--mute)}
 .crumbs a{color:var(--gold);text-decoration:none}.crumbs li[aria-current]{color:#fff;font-weight:600}.crumbs .sep{color:#6b7c88}
-.newreq{display:block;text-align:center;margin:6px 0 16px;padding:14px;border-radius:14px;background:var(--gold);color:#1b1409;font-weight:700;text-decoration:none}
+.newreq{display:block;text-align:center;margin:6px 0 16px;padding:14px;border-radius:14px;background:var(--gold);color:#04231a;font-weight:700;text-decoration:none}
 .btn-cancel{display:block;text-align:center;margin-top:12px;color:var(--gold);text-decoration:none}
 /* Minha Casa: cartões e cronograma */
 .cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin:14px 0}
@@ -215,12 +215,12 @@ body.app #toast{bottom:96px}
 .calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
 .cwd{text-align:center;color:var(--mute);font-size:.78rem;padding:4px 0}
 .cday{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:3px;min-height:52px;padding:6px 0;border:1px solid var(--line);border-radius:10px;background:var(--card)}
-.cday b{font-weight:500;font-size:.9rem}.cday.hoje{border-color:var(--gold);background:var(--gold);color:#1b1409}.cday.hoje b{font-weight:800}
+.cday b{font-weight:500;font-size:.9rem}.cday.hoje{border-color:var(--gold);background:var(--gold);color:#04231a}.cday.hoje b{font-weight:800}
 .dots2{display:flex;gap:3px}.calgrid u,.callegend u,.calnote u{display:inline-block;width:8px;height:8px;border-radius:50%;text-decoration:none}
-.cm{background:#d9b48a}.ca{background:#4aa3ff}.cg{background:#f08a3c}.cday.hoje .cm{background:#1b1409}
+.cm{background:#3dc08c}.ca{background:#4aa3ff}.cg{background:#f08a3c}.cday.hoje .cm{background:#04231a}
 .callegend{display:flex;flex-wrap:wrap;gap:6px 16px;margin:12px 0;color:var(--mute);font-size:.82rem}.callegend span{display:flex;align-items:center;gap:6px}
 .calnote{display:flex;gap:10px;align-items:flex-start;padding:12px}.calnote u{margin-top:6px;flex:none}.calnote p{margin:0}
 .calnote b{display:inline;margin:0}
-.pbtn{background:var(--gold);color:#1b1409;border-color:var(--gold)}
+.pbtn{background:var(--gold);color:#04231a;border-color:var(--gold)}
 a.calnote{color:var(--ink);text-decoration:none;align-items:center}a.calnote p{flex:1}a.calnote>.ico{width:18px;height:18px;color:var(--gold);flex:none}
 .sched{display:flex;align-items:center;gap:8px;color:var(--gold)}.sched .ico{width:18px;height:18px;flex:none}.sched span{color:var(--ink)}
