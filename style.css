@@ -204,3 +204,5 @@ body.app #toast{bottom:96px}
 /* Caminho de navegação */
 .crumbs{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;list-style:none;margin:0 0 14px;padding:0;font-size:.82rem;color:var(--mute)}
 .crumbs a{color:var(--gold);text-decoration:none}.crumbs li[aria-current]{color:#fff;font-weight:600}.crumbs .sep{color:#6b7c88}
+.newreq{display:block;text-align:center;margin:6px 0 16px;padding:14px;border-radius:14px;background:var(--gold);color:#1b1409;font-weight:700;text-decoration:none}
+.btn-cancel{display:block;text-align:center;margin-top:12px;color:var(--gold);text-decoration:none}

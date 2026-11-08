@@ -1,5 +1,5 @@
 // Configuração do Supabase: arquivo config.js
-const APP_VERSION = '2026.10.21-13'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-14'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 let sb; try { sb = supabase.createClient(new URL(SUPABASE_URL.trim()).origin, SUPABASE_KEY.trim()); } catch (e) { sb = null; }
 const $ = s => document.querySelector(s); let app = $('#app');
 const fail = m => { app.innerHTML = '<div class="card" style="margin:16px"><b>Não foi possível iniciar o Astell Home</b><p class="mute">' + m + '</p></div>'; };
@@ -179,7 +179,7 @@ const views = {
     <div class="hero2">${carousel(pics)}<div class="hbar"><span class="hok"><i>${ico(IC.tick)}</i>Residência cadastrada</span>${r.build_system ? `<span class="hsep"></span><span class="hsys">${esc(r.build_system)}</span>` : ''}<a class="hdet" href="#casa">${ico(IC.image)}Ver detalhes</a></div></div>
     ${sec('Sua casa', 'Acesse tudo sobre sua residência')}
     <div class="tiles2">${TILES.map(([h, t, s, i]) => `<a class="tile2" href="#${h}">${ico(IC[i], 'tico')}<span><b>${t}</b><small>${s}</small></span>${ico(IC.chev)}</a>`).join('')}</div>
-    <div class="assist">${ico(IC.phones, 'aico')}<i class="vsep"></i><span><b>Precisa de assistência?</b><small>Estamos aqui para ajudar com sua residência.</small></span><a class="abtn" href="#assistencia"><span>SOLICITAR<br>ATENDIMENTO</span>${ico(IC.chev)}</a></div>
+    <div class="assist">${ico(IC.phones, 'aico')}<i class="vsep"></i><span><b>Precisa de assistência?</b><small>Estamos aqui para ajudar com sua residência.</small></span><a class="abtn" href="#assistencia?nova"><span>SOLICITAR<br>ATENDIMENTO</span>${ico(IC.chev)}</a></div>
     ${sec('Manutenção preventiva', 'Mantenha sua casa sempre em perfeito estado')}
     <div class="prev">${ico(IC.calendar, 'pico')}<span>${nx ? `<small>Próxima recomendação:</small><b>${esc(nx.name)}</b><small>${nx.frequency ? 'Periodicidade: ' + esc(nx.frequency) : 'Data prevista: ' + fmt(nx.next_due)}</small>` : '<small>Próxima recomendação:</small><b>Nenhum cuidado agendado</b>'}</span><a class="pbtn" href="#manutencao">Ver cronograma${ico(IC.chev)}</a></div>
     ${sec('Documentos importantes', 'Acesse seus documentos sempre que precisar', `<a class="seall" href="#documentos">Ver todos${ico(IC.chev)}</a>`)}
@@ -200,9 +200,10 @@ const views = {
     app.innerHTML = `<h2>Documentos</h2>${up}` + ((data || []).map(d => `<div class="card"><b>${esc(d.title)}</b><span class="mute">${esc(d.category)} · v${esc(d.version || '1')} · ${fmt(d.created_at.slice(0, 10))}</span><p>${esc(d.description)}</p><button data-open="${esc(d.path)}">Abrir</button>${staff() ? `<button class="link" data-vis="documents:${d.id}">${d.visible ? 'Ocultar do cliente' : 'Mostrar ao cliente'}</button> <button class="link" data-deldoc="${d.id}|${esc(d.path)}">Excluir</button>` : ''}</div>`).join('') || '<p class="empty">Nenhum documento disponível ainda.</p>');
   },
   async assistencia() {
+    const fields = `${sel('category', 'Categoria', REQ_CATS)}<label>Local da casa<input name="place" required></label><label>Descreva a assistência de que você precisa<textarea name="description" rows="6" required placeholder="Conte o que aconteceu, onde, desde quando e qualquer detalhe que ajude a equipe."></textarea></label>${CLOUD_OK ? '<label>Fotos e vídeos do problema (opcional)<input name="photos" type="file" accept="image/*,video/*" multiple></label><p class="mute">Até 8 arquivos: imagens de até 10 MB e vídeos de até 100 MB cada.</p>' : ''}<label>Melhor horário para contato<input name="contact_time"></label>`;
+    if (S.nova) { app.innerHTML = `<h2>Nova solicitação de assistência</h2><p class="notice">Esta é uma solicitação formal. Em risco imediato (gás, fogo, choque), afaste-se e ligue 193 ou 192.</p><form class="card" data-form="req">${fields}<button>Enviar solicitação</button><a class="btn-cancel" href="#assistencia">Cancelar</a></form>`; return; }
     const { data } = await sb.from('service_requests').select('*').eq('residence_id', S.cur.id).order('created_at', { ascending: false });
-    const f = formOf('req', 'Nova solicitação', `${sel('category', 'Categoria', REQ_CATS)}<label>Local da casa<input name="place" required></label><label>Descreva a assistência de que você precisa<textarea name="description" rows="6" required placeholder="Conte o que aconteceu, onde, desde quando e qualquer detalhe que ajude a equipe."></textarea></label>${CLOUD_OK ? '<label>Fotos do problema (opcional)<input name="photos" type="file" accept="image/*" multiple></label><p class="mute">Até 8 fotos, de até 10 MB cada.</p>' : ''}<label>Melhor horário para contato<input name="contact_time"></label>`, 'Enviar solicitação');
-    app.innerHTML = `<h2>Assistência técnica</h2><p class="notice">Esta é uma solicitação formal. Em risco imediato (gás, fogo, choque), afaste-se e ligue 193 ou 192.</p>${f}` +
+    app.innerHTML = `<h2>Assistência técnica</h2><p class="notice">Esta é uma solicitação formal. Em risco imediato (gás, fogo, choque), afaste-se e ligue 193 ou 192.</p><a class="newreq" href="#assistencia?nova">+ Nova solicitação</a>` +
       ((data || []).map(r => { const fotos = (r.media || []).filter(x => x.url).map(x => x.url); return `<div class="card"><b>${esc(r.protocol)}</b> <span class="badge ${REQ_ST[r.status] || ''}">${esc(r.status)}</span> <span class="badge ${REQ_UR[r.urgency] || 'u-med'}">${esc(r.urgency || 'Média')}</span><p>${esc(r.category)} · ${esc(r.place)}</p><p>${esc(r.description)}</p>${fotos.length ? grp('req' + r.id, fotos) : ''}${r.staff_note ? `<div class="astnote"><span class="lbl">Assistência que será feita</span><p>${esc(r.staff_note)}</p></div>` : ''}
       ${staff() ? `<form data-form="upd" data-id="${r.id}">${sel('status', 'Situação', STATUS).replace(`<option>${r.status}`, `<option selected>${r.status}`)}<label>Comentário<input name="staff_note" value="${esc(r.staff_note || '')}"></label><button>Atualizar</button></form>` : ''}</div>`; }).join('') || '<p class="empty">Você ainda não abriu solicitações.</p>');
   },
@@ -233,11 +234,11 @@ app.addEventListener('submit', async e => {
   else if (T[id]) r = await sb.from(id).insert({ ...o, residence_id: rid });
   else if (id === 'req') {
     const fotos = f.photos ? [...f.photos.files].filter(x => x.size) : []; delete o.photos;
-    if (fotos.length > 8) return toast('Envie no máximo 8 fotos.', 1);
-    for (const x of fotos) { if (!/^image\//.test(x.type)) return toast(`"${x.name}" não é uma imagem.`, 1); if (x.size > 10 * 1048576) return toast(`"${x.name}" é maior que 10 MB.`, 1); }
+    if (fotos.length > 8) return toast('Envie no máximo 8 arquivos.', 1);
+    for (const x of fotos) { const v = /^video\//.test(x.type); if (!v && !/^image\//.test(x.type)) return toast(`"${x.name}" não é imagem nem vídeo.`, 1); if (x.size > (v ? 100 : 10) * 1048576) return toast(`"${x.name}" é maior que ${v ? 100 : 10} MB.`, 1); }
     const media = [], btn = f.querySelector('button:not([type])'); if (btn) btn.disabled = true;
-    try { for (let i = 0; i < fotos.length; i++) { toast(`Enviando foto ${i + 1} de ${fotos.length}…`); const j = await cldPost(fotos[i], 'astell-home/assistencia'); media.push({ url: j.secure_url, type: 'image', name: fotos[i].name, public_id: j.public_id }); } }
-    catch (err) { if (btn) btn.disabled = false; return toast('Não foi possível enviar as fotos: ' + err.message, 1); }
+    try { for (let i = 0; i < fotos.length; i++) { toast(`Enviando arquivo ${i + 1} de ${fotos.length}…`); const j = await cldPost(fotos[i], 'astell-home/assistencia'); media.push({ url: j.secure_url, type: /^video\//.test(fotos[i].type) ? 'video' : 'image', name: fotos[i].name, public_id: j.public_id }); } }
+    catch (err) { if (btn) btn.disabled = false; return toast('Não foi possível enviar os arquivos: ' + err.message, 1); }
     r = await sb.from('service_requests').insert({ ...o, urgency: 'Média', media, residence_id: rid, protocol: 'AST-' + Date.now().toString(36).toUpperCase() }); if (btn) btn.disabled = false;
   }
   else if (id === 'upd') { r = await sb.from('service_requests').update(o).eq('id', f.dataset.id); if (!r.error) await sb.from('history_events').insert({ residence_id: rid, category: 'Assistência', description: 'Solicitação atualizada: ' + o.status }); }
@@ -249,7 +250,8 @@ app.addEventListener('submit', async e => {
   else if (id === 'doc') { const file = f.file.files[0], path = `${rid}/${Date.now()}_${file.name.replace(/[^\w.-]/g, '_')}`;
     r = await sb.storage.from('documents').upload(path, file); if (!r.error) { r = await sb.from('documents').insert({ residence_id: rid, title: o.title, category: o.category, version: o.version, description: o.description, path }); } }
   if (r?.error) return toast('Não foi possível salvar: ' + r.error.message, 1);
-  toast('Salvo com sucesso.'); route();
+  if (id === 'req') history.replaceState(null, '', '#assistencia');
+  toast(id === 'req' ? 'Solicitação enviada.' : 'Salvo com sucesso.'); route();
 });
 app.addEventListener('click', async e => {
   const d = e.target.dataset;
@@ -272,7 +274,7 @@ app.addEventListener('click', async e => {
 function route() {
   if (!S.profile) return;
   clearInterval(S.carTimer);
-  const h = location.hash.slice(1) || 'home';
+  const [h, q] = (location.hash.slice(1) || 'home').split('?'); S.nova = q === 'nova';
   document.querySelectorAll('nav a').forEach(a => a.classList.toggle('on', (a.dataset.g || '').split(' ').includes(h)));
   $('#avatar').classList.toggle('on', h === 'mais'); refreshBell();
   if (!S.cur) return app.innerHTML = '<p class="empty">Nenhuma residência vinculada à sua conta. Fale com a Astell.</p>';
@@ -282,7 +284,7 @@ function route() {
 // Caminho de navegação (breadcrumb) no alto de todas as telas, exceto o Início
 const CR = { casa: [['casa', 'Minha Casa']], estrutura: [['casa', 'Minha Casa'], ['', 'Estrutura']], sistemas: [['casa', 'Minha Casa'], ['', 'Instalações']], materiais: [['casa', 'Minha Casa'], ['', 'Materiais']], garantias: [['casa', 'Minha Casa'], ['', 'Garantias']], manutencao: [['casa', 'Minha Casa'], ['', 'Manutenção']], equipamentos: [['casa', 'Minha Casa'], ['', 'Equipamentos']], planta: [['casa', 'Minha Casa'], ['', 'Planta técnica']], documentos: [['documentos', 'Documentos']], assistencia: [['assistencia', 'Suporte']], mais: [['mais', 'Perfil']] };
 function crumbs(h) {
-  const c = CR[h]; if (!c || !app.firstElementChild || app.querySelector('.crumbs')) return;
+  const c = h === 'assistencia' && S.nova ? [['assistencia', 'Suporte'], ['', 'Nova solicitação']] : CR[h]; if (!c || !app.firstElementChild || app.querySelector('.crumbs')) return;
   const last = c.length - 1, items = [['home', 'Início'], ...c].map(([href, t], i, a) => i === a.length - 1 ? `<li aria-current="page">${t}</li>` : `<li><a href="#${href}">${t}</a></li>`);
   app.insertAdjacentHTML('afterbegin', `<ol class="crumbs" aria-label="Você está em">${items.join('<li class="sep" aria-hidden="true">›</li>')}</ol>`);
 }
