@@ -1,5 +1,5 @@
 // Configuração do Supabase: arquivo config.js
-const APP_VERSION = '2026.10.21-9'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-10'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 let sb; try { sb = supabase.createClient(new URL(SUPABASE_URL.trim()).origin, SUPABASE_KEY.trim()); } catch (e) { sb = null; }
 const $ = s => document.querySelector(s); let app = $('#app');
 const fail = m => { app.innerHTML = '<div class="card" style="margin:16px"><b>Não foi possível iniciar o Astell Home</b><p class="mute">' + m + '</p></div>'; };
@@ -12,8 +12,15 @@ const S = { profile: null, res: [], cur: null, groups: {} };
 const staff = () => false; // este app é somente de consulta do cliente
 function toast(m, err) { const t = $('#toast'); t.textContent = m; t.className = 'show' + (err ? ' err' : ''); setTimeout(() => t.className = '', 3500); }
 const addMonths = (d, m) => { const x = new Date(d + 'T00:00'); x.setMonth(x.getMonth() + m); return x; };
-function wState(w) { const end = addMonths(w.start_date, w.months), days = (end - new Date()) / 864e5;
-  return days < 0 ? ['Encerrada', 'bad', end] : days < 90 ? ['Próxima do vencimento', 'warn', end] : ['Vigente', 'ok', end]; }
+function wState(w) { const start = new Date(w.start_date + 'T00:00'), end = addMonths(w.start_date, w.months), left = end - new Date(), total = end - start;   // vigente; próxima do vencimento = resta 1/4 do prazo ou menos; expirada
+  return left <= 0 ? ['Encerrada', 'bad', end] : left <= total / 4 ? ['Próxima do vencimento', 'warn', end] : ['Vigente', 'ok', end]; }
+function wInfo(w) {   // tudo que o cartão da garantia mostra: tempo restante (meses e dias), % da barra e frase de alerta
+  const [s, c, end] = wState(w), start = new Date(w.start_date + 'T00:00'), now = new Date(), total = end - start, left = Math.max(0, end - now), from = now < start ? start : now;
+  let m = 0, d = 0; if (left > 0) { m = (end.getFullYear() - from.getFullYear()) * 12 + end.getMonth() - from.getMonth(); let t = new Date(from); t.setMonth(t.getMonth() + m); if (t > end) { m--; t = new Date(from); t.setMonth(t.getMonth() + m); } d = Math.floor((end - t) / 864e5); }
+  const mm = n => n + (n === 1 ? ' mês' : ' meses'), dd = n => n + (n === 1 ? ' dia' : ' dias');
+  const txt = [m ? mm(m) : '', d || !m ? dd(d) : ''].filter(Boolean).join(' e ');
+  return { s, c, end, m, d, txt, big: m ? mm(m) : dd(d), total: mm(+w.months || 0), pct: c === 'bad' ? 100 : total > 0 ? Math.max(2, Math.min(100, left / total * 100)) : 0, kind: c === 'bad' ? 'bad' : c === 'warn' ? 'warn' : 'ok' };
+}
 
 // Módulos genéricos: f = [coluna, rótulo, tipo]
 const T = {
@@ -107,7 +114,7 @@ async function garantiasView() {
   app.innerHTML = `<div class="gtitle">${ico(IC.shield, 'big')}<h1>Garantias</h1><p class="mute">Mais segurança para o seu investimento.</p></div>
   <div class="card"><b>Resumo da garantia</b><p class="mute">Sua casa conta com garantia de acordo com o contrato e a legislação vigente.</p></div>` +
     (staff() ? formOf('warranties', 'Adicionar garantia', T.warranties.f.map(input).join('')) : '') +
-    `<h3>Prazos por sistema</h3><div class="card rows">${(data || []).map(w => { const [s, c, end] = wState(w); return `<div class="row"><span>${esc(w.system)}<br><span class="badge ${c}">${s}</span> <small class="mute">até ${end.toLocaleDateString('pt-BR')}</small>${w.coverage ? `<br><small class="mute">${esc(w.coverage)}</small>` : ''}${staff() ? `<br><button class="link" data-del="warranties:${w.id}">Excluir</button>` : ''}</span><b>${per(w.months)}</b></div>`; }).join('') || '<p class="empty">Nenhuma garantia cadastrada ainda.</p>'}</div>` +
+    `<h3>Prazos por sistema</h3><div class="card rows">${(data || []).map(w => { const [s, c, end] = wState(w), wi = wInfo(w); return `<div class="row"><span>${esc(w.system)}<br>${wi.kind === 'warn' ? `<span class="wwarn">Garantia próxima do vencimento - faltam ${wi.txt}</span><br>` : ''}<span class="wbar sm w-${wi.kind}"><i style="width:${wi.pct.toFixed(1)}%"></i></span><br><span class="badge ${c}">${s}</span> <small class="mute">até ${end.toLocaleDateString('pt-BR')}</small>${w.coverage ? `<br><small class="mute">${esc(w.coverage)}</small>` : ''}${staff() ? `<br><button class="link" data-del="warranties:${w.id}">Excluir</button>` : ''}</span><b>${per(w.months)}</b></div>`; }).join('') || '<p class="empty">Nenhuma garantia cadastrada ainda.</p>'}</div>` +
     linkrow('assistencia', 'Solicitar assistência', 'Precisa de suporte? Fale com a nossa equipe.', 'phones') + `<p class="notice">${T.warranties.note}</p>`;
 }
 const DEFREQ = ['system', 'name', 'description', 'months', 'start_date', 'event_date'];
