@@ -1,5 +1,5 @@
 // Configuração do Supabase: arquivo config.js
-const APP_VERSION = '2026.10.21-12'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-13'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 let sb; try { sb = supabase.createClient(new URL(SUPABASE_URL.trim()).origin, SUPABASE_KEY.trim()); } catch (e) { sb = null; }
 const $ = s => document.querySelector(s); let app = $('#app');
 const fail = m => { app.innerHTML = '<div class="card" style="margin:16px"><b>Não foi possível iniciar o Astell Home</b><p class="mute">' + m + '</p></div>'; };
@@ -115,7 +115,7 @@ async function itemsView(k) {
   const cat = BCAT[k];
   const { data } = await sb.from('building_items').select('*').eq('residence_id', S.cur.id).eq('category', cat).order('created_at');
   const rows = (data || []).filter(r => staff() || r.visible !== false);
-  app.innerHTML = (k === 'estrutura' ? '<div class="banner"><img src="img/estrutura.jpg" alt="Ilustração de estrutura em Steel Frame"><small>Imagem ilustrativa</small></div>' : '') + `<h1 class="ptitle">${k === 'sistemas' ? 'Instalações' : cat}</h1>` +
+  app.innerHTML = `<h1 class="ptitle">${k === 'sistemas' ? 'Instalações' : cat}</h1>` +
     (staff() ? formOf('bitem', 'Adicionar item', `<input type="hidden" name="category" value="${cat}"><label>Título<input name="title" required></label><label>Descrição<textarea name="description" rows="3"></textarea></label><label>Destaques (um por linha)<textarea name="highlights" rows="4"></textarea></label>`) : '') +
     (rows.map(r => {
       const med = (r.media || []).filter(x => x.visible !== false).map(x => ({ ...x, t: mtype(x) })), vis = med.filter(x => x.t === 'image' || x.t === 'video' && x.url), docs = med.filter(x => (x.t === 'pdf' || x.t === '3d') && x.path);
@@ -123,8 +123,7 @@ async function itemsView(k) {
         (vis.length ? grp('bi-' + r.id, vis.map(x => x.url), 'gallery') : '') +
         (docs.length ? `<div class="bdocs">${docs.map(x => `<div class="bdoc">${ico(x.t === '3d' ? IC.layers : IC.doc)}<span><b>${x.t === '3d' ? 'Modelo 3D' : 'PDF'} · ${esc(x.name || 'arquivo')}</b>${x.size ? `<small>${plSize(x.size)}</small>` : ''}</span>${x.t === 'pdf' ? `<button type="button" data-open="${esc(x.path)}">Abrir</button>` : PL_VIEW.includes(plExt(x.name)) ? `<button type="button" data-v3d="${esc(x.path)}|${esc(x.name)}">Ver em 3D</button>` : ''}<button type="button" class="ghost2" data-dl="${esc(x.path)}|${esc(x.name || 'arquivo')}">Baixar</button></div>`).join('')}</div>` : '') +
         `${staff() ? `<button class="link" data-del="building_items:${r.id}">Excluir</button>` : ''}</section>`;
-    }).join('') || '<p class="empty">A Astell ainda não publicou as informações desta seção.</p>') +
-    linkrow('documentos', 'Documentação técnica', 'Confira os documentos da sua casa.', 'doc') + linkrow('planta', 'Ver planta técnica', 'Pontos e detalhes da planta.', 'doc');
+    }).join('') || '<p class="empty">A Astell ainda não publicou as informações desta seção.</p>');
 }
 async function garantiasView() {
   const { data } = await sb.from('warranties').select('*').eq('residence_id', S.cur.id).order('start_date');
@@ -277,7 +276,15 @@ function route() {
   document.querySelectorAll('nav a').forEach(a => a.classList.toggle('on', (a.dataset.g || '').split(' ').includes(h)));
   $('#avatar').classList.toggle('on', h === 'mais'); refreshBell();
   if (!S.cur) return app.innerHTML = '<p class="empty">Nenhuma residência vinculada à sua conta. Fale com a Astell.</p>';
-  (views[h] || views.home)();
+  const v = views[h] || views.home, go = location.hash;
+  Promise.resolve(v()).finally(() => { if (location.hash === go) crumbs(h); });
+}
+// Caminho de navegação (breadcrumb) no alto de todas as telas, exceto o Início
+const CR = { casa: [['casa', 'Minha Casa']], estrutura: [['casa', 'Minha Casa'], ['', 'Estrutura']], sistemas: [['casa', 'Minha Casa'], ['', 'Instalações']], materiais: [['casa', 'Minha Casa'], ['', 'Materiais']], garantias: [['casa', 'Minha Casa'], ['', 'Garantias']], manutencao: [['casa', 'Minha Casa'], ['', 'Manutenção']], equipamentos: [['casa', 'Minha Casa'], ['', 'Equipamentos']], planta: [['casa', 'Minha Casa'], ['', 'Planta técnica']], documentos: [['documentos', 'Documentos']], assistencia: [['assistencia', 'Suporte']], mais: [['mais', 'Perfil']] };
+function crumbs(h) {
+  const c = CR[h]; if (!c || !app.firstElementChild || app.querySelector('.crumbs')) return;
+  const last = c.length - 1, items = [['home', 'Início'], ...c].map(([href, t], i, a) => i === a.length - 1 ? `<li aria-current="page">${t}</li>` : `<li><a href="#${href}">${t}</a></li>`);
+  app.insertAdjacentHTML('afterbegin', `<ol class="crumbs" aria-label="Você está em">${items.join('<li class="sep" aria-hidden="true">›</li>')}</ol>`);
 }
 addEventListener('hashchange', () => { S.edit = null; route(); });
 

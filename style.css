@@ -201,3 +201,6 @@ body.app #toast{bottom:96px}
 .bdoc>.ico{width:26px;height:26px;color:var(--gold);flex:none}.bdoc span{flex:1;min-width:140px;overflow-wrap:anywhere}.bdoc b{display:block;margin:0;font-size:.9rem}.bdoc small{color:var(--mute)}
 .bdoc button{margin:0;min-height:38px;padding:0 14px;font-size:.85rem}
 #lb model-viewer{width:min(96vw,900px);height:80vh;background:#0d1a27;border-radius:12px;--poster-color:transparent}
+/* Caminho de navegação */
+.crumbs{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;list-style:none;margin:0 0 14px;padding:0;font-size:.82rem;color:var(--mute)}
+.crumbs a{color:var(--gold);text-decoration:none}.crumbs li[aria-current]{color:#fff;font-weight:600}.crumbs .sep{color:#6b7c88}
