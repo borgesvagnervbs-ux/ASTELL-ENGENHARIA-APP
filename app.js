@@ -1,5 +1,5 @@
 // Configuração do Supabase: arquivo config.js
-const APP_VERSION = '2026.10.21-14'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-15'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 let sb; try { sb = supabase.createClient(new URL(SUPABASE_URL.trim()).origin, SUPABASE_KEY.trim()); } catch (e) { sb = null; }
 const $ = s => document.querySelector(s); let app = $('#app');
 const fail = m => { app.innerHTML = '<div class="card" style="margin:16px"><b>Não foi possível iniciar o Astell Home</b><p class="mute">' + m + '</p></div>'; };
@@ -41,7 +41,7 @@ const ico = (d, c = '') => `<svg class="ico ${c}" viewBox="0 0 24 24" fill="none
 const IC = { home: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z|M9 22V12h6v10', casa: 'M4 21V8l8-5 8 5v13|M9 21v-6h6v6', drop: 'M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z', layers: 'M12 2L2 7l10 5 10-5-10-5z|M2 17l10 5 10-5|M2 12l10 5 10-5', shield: 'M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z|M9 12l2 2 4-4', wrench: 'M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z', phones: 'M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3', doc: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z|M14 2v6h6|M8 13h8|M8 17h8', user: 'M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2|M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', chev: 'M9 18l6-6-6-6', check: 'M22 11.08V12a10 10 0 1 1-5.93-9.14|M22 4L12 14.01l-3-3', bell: 'M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9|M10.3 21a1.94 1.94 0 0 0 3.4 0', pin: 'M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0|M12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5', chevd: 'M6 9l6 6 6-6', bolt: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z', image: 'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z|M8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3|M21 15l-5-5L5 21', calendar: 'M8 2v4|M16 2v4|M3 10h18|M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z|M8 14h.01|M12 14h.01|M16 14h.01|M8 18h.01|M12 18h.01', dl: 'M12 3v12|M7 11l5 5 5-5|M5 21h14', folder: 'M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z', usr: 'M20 21a8 8 0 0 0-16 0|M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8', tick: 'M5 12.5l4.5 4.5L19 7.5' };
 const TILES = [['estrutura', 'Estrutura', 'Steel Frame', 'layers'], ['sistemas', 'Instalações', 'Elétrica e hidráulica', 'bolt'], ['garantias', 'Garantias', 'Prazos e condições', 'shield'], ['manutencao', 'Manutenção', 'Cuidados da sua casa', 'wrench']];
 const BCAT = { estrutura: 'Estrutura', sistemas: 'Sistemas', materiais: 'Materiais' };
-const NAV = [['home', 'Início', 'home', ['home']], ['casa', 'Minha Casa', 'layers', ['casa', 'estrutura', 'sistemas', 'materiais', 'garantias', 'manutencao', 'equipamentos', 'planta']], ['documentos', 'Documentos', 'folder', ['documentos']], ['assistencia', 'Suporte', 'phones', ['assistencia']]];
+const NAV = [['home', 'Início', 'home', ['home']], ['casa', 'Minha Casa', 'layers', ['casa', 'estrutura', 'sistemas', 'materiais', 'garantias', 'manutencao', 'equipamentos', 'planta', 'midias', 'cronograma']], ['documentos', 'Documentos', 'folder', ['documentos']], ['assistencia', 'Suporte', 'phones', ['assistencia']]];
 $('#nav').innerHTML = NAV.map(([h, l, i, g]) => `<a href="#${h}" data-g="${g.join(' ')}">${ico(IC[i])}<span>${l}</span></a>`).join('');
 $('#top .bico').innerHTML = ico(IC.casa, 'brandico'); $('#bell').innerHTML = ico(IC.bell); $('#avatar').innerHTML = ico(IC.usr);
 async function refreshBell() {   // número de solicitações de assistência ainda em andamento
@@ -188,9 +188,24 @@ const views = {
   },
   async casa() {
     const { data: im0 } = await sb.from('images').select('*').eq('residence_id', S.cur.id).eq('kind', 'residence').order('created_at');
-    S.media = im0 || []; S.casaTab = 'all';
     const r = S.cur, rows = [['Código', r.code], ['Endereço', r.address], ['Área construída', r.area_m2 && r.area_m2 + ' m²'], ['Pavimentos', r.floors], ['Sistema construtivo', r.build_system], ['Nº do projeto', r.project_no], ['Início da obra', fmt(r.start_date)], ['Entrega', fmt(r.delivery_date)], ['Responsável técnico', r.tech_lead], ['Observações', r.notes]];
-    app.innerHTML = `<h2>${esc(r.name)}</h2><div class="card">${rows.map(([a, b]) => `<p><span class="mute">${a}</span><br>${esc(b || '—')}</p>`).join('')}</div><div id="mb">${mediaBlock()}</div>`;
+    const CARDS = [['documentos', 'Documentos', 'doc'], ['midias', 'Mídias', 'image'], ['estrutura', 'Estrutura', 'layers'], ['sistemas', 'Instalações', 'bolt'], ['garantias', 'Garantias', 'shield'], ['manutencao', 'Manutenções', 'wrench'], ['assistencia', 'Assistências', 'phones'], ['cronograma', 'Cronograma', 'calendar']];
+    app.innerHTML = `<h2>${esc(r.name)}</h2><div class="card">${rows.map(([a, b]) => `<p><span class="mute">${a}</span><br>${esc(b || '—')}</p>`).join('')}</div><div class="cgrid">${CARDS.map(([h, t, i]) => `<a class="card ccard" href="#${h}">${ico(IC[i])}<b>${t}</b></a>`).join('')}</div>`;
+  },
+  async midias() {
+    const { data } = await sb.from('images').select('*').eq('residence_id', S.cur.id).eq('kind', 'residence').order('created_at');
+    S.media = data || []; S.casaTab = 'all'; app.innerHTML = `<h2>Mídias</h2><div id="mb">${mediaBlock() || '<p class="empty">Nenhuma mídia cadastrada ainda.</p>'}</div>`;
+  },
+  async cronograma() {
+    const rid = S.cur.id, [{ data: mt }, { data: sr }, { data: wr }] = await Promise.all([
+      sb.from('maintenance_tasks').select('name,next_due,status').eq('residence_id', rid).not('next_due', 'is', null),
+      sb.from('service_requests').select('protocol,category,status,scheduled_for').eq('residence_id', rid),
+      sb.from('warranties').select('system,start_date,months').eq('residence_id', rid)]);
+    const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'), ev = [];
+    (mt || []).filter(x => !['Concluída', 'Cancelada'].includes(x.status || 'Pendente')).forEach(x => ev.push({ d: x.next_due, k: 'man', t: x.name }));
+    (sr || []).filter(x => x.scheduled_for && !['Concluída', 'Encerrada'].includes(x.status)).forEach(x => ev.push({ d: x.scheduled_for, k: 'ast', t: `${x.category || 'Assistência'} (${x.protocol})` }));
+    (wr || []).filter(x => x.start_date && x.months != null).forEach(x => { const e = addMonths(x.start_date, +x.months); if (!isNaN(e)) ev.push({ d: iso(e), k: 'gar', t: x.system }); });
+    const n = new Date(); S.cal = { y: n.getFullYear(), m: n.getMonth(), ev }; app.innerHTML = '<h2>Cronograma</h2><div id="cal"></div>'; calPaint();
   },
   manutencao: () => listView('maintenance_tasks'), garantias: garantiasView, estrutura: () => itemsView('estrutura'), sistemas: () => itemsView('sistemas'), materiais: () => itemsView('materiais'), equipamentos: () => listView('equipment'),
   async documentos() {
@@ -256,6 +271,7 @@ app.addEventListener('submit', async e => {
 app.addEventListener('click', async e => {
   const d = e.target.dataset;
   if (d.cn && S.carGo) { S.carHold = Date.now() + 8000; S.carGo(S.carIdx() + +d.cn); }
+  if (d.cal && S.cal) { const x = new Date(S.cal.y, S.cal.m + +d.cal, 1); S.cal.y = x.getFullYear(); S.cal.m = x.getMonth(); calPaint(); }
   if (d.ct) { S.casaTab = d.ct; $('#mb').innerHTML = mediaBlock(); }
   if (d.lb) { const [g, i] = d.lb.split('|'); S.lb = { g, i: +i }; showLb(); }
   if (d.out !== undefined) sb.auth.signOut();
@@ -282,7 +298,22 @@ function route() {
   Promise.resolve(v()).finally(() => { if (location.hash === go) crumbs(h); });
 }
 // Caminho de navegação (breadcrumb) no alto de todas as telas, exceto o Início
-const CR = { casa: [['casa', 'Minha Casa']], estrutura: [['casa', 'Minha Casa'], ['', 'Estrutura']], sistemas: [['casa', 'Minha Casa'], ['', 'Instalações']], materiais: [['casa', 'Minha Casa'], ['', 'Materiais']], garantias: [['casa', 'Minha Casa'], ['', 'Garantias']], manutencao: [['casa', 'Minha Casa'], ['', 'Manutenção']], equipamentos: [['casa', 'Minha Casa'], ['', 'Equipamentos']], planta: [['casa', 'Minha Casa'], ['', 'Planta técnica']], documentos: [['documentos', 'Documentos']], assistencia: [['assistencia', 'Suporte']], mais: [['mais', 'Perfil']] };
+const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+const CAL_K = { man: ['Manutenção', 'cm'], ast: ['Assistência', 'ca'], gar: ['Garantia', 'cg'] };
+function calPaint() {
+  const { y, m, ev } = S.cal, el = $('#cal'); if (!el) return;
+  const pre = y + '-' + String(m + 1).padStart(2, '0') + '-', first = new Date(y, m, 1).getDay(), nd = new Date(y, m + 1, 0).getDate(), t = new Date(), hoje = t.getFullYear() === y && t.getMonth() === m ? t.getDate() : 0;
+  const by = {}; ev.filter(e => String(e.d).startsWith(pre)).forEach(e => (by[+String(e.d).slice(8, 10)] = by[+String(e.d).slice(8, 10)] || []).push(e));
+  let cells = ''; for (let i = 0; i < first; i++) cells += '<span class="cd0"></span>';
+  for (let d = 1; d <= nd; d++) cells += `<span class="cday${d === hoje ? ' hoje' : ''}${by[d] ? ' has' : ''}"><b>${d}</b>${by[d] ? `<i class="dots2">${[...new Set(by[d].map(e => e.k))].map(k => `<u class="${CAL_K[k][1]}"></u>`).join('')}</i>` : ''}</span>`;
+  const list = Object.keys(by).map(Number).sort((a, b) => a - b).flatMap(d => by[d].map(e => ({ ...e, day: d })));
+  const msg = e => { const dd = String(e.day).padStart(2, '0') + '/' + String(m + 1).padStart(2, '0'); return e.k === 'man' ? `Dia <b>${dd}</b>: deve ser feita a manutenção <b>${esc(e.t)}</b>.` : e.k === 'ast' ? `Dia <b>${dd}</b>: será atendida a assistência <b>${esc(e.t)}</b>.` : `Dia <b>${dd}</b>: expira a garantia de <b>${esc(e.t)}</b>.`; };
+  el.innerHTML = `<div class="calhead"><button type="button" data-cal="-1" aria-label="Mês anterior">‹</button><b>${MESES[m]} ${y}</b><button type="button" data-cal="1" aria-label="Próximo mês">›</button></div>
+  <div class="calgrid">${['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map(x => `<span class="cwd">${x}</span>`).join('')}${cells}</div>
+  <div class="callegend">${Object.values(CAL_K).map(([l, c]) => `<span><u class="${c}"></u>${l}</span>`).join('')}</div>
+  <h3>Avisos de ${MESES[m].toLowerCase()}</h3>${list.length ? list.map(e => `<div class="card calnote"><u class="${CAL_K[e.k][1]}"></u><p>${msg(e)}</p></div>`).join('') : '<p class="empty">Nada agendado para este mês.</p>'}`;
+}
+const CR = { midias: [['casa', 'Minha Casa'], ['', 'Mídias']], cronograma: [['casa', 'Minha Casa'], ['', 'Cronograma']], casa: [['casa', 'Minha Casa']], estrutura: [['casa', 'Minha Casa'], ['', 'Estrutura']], sistemas: [['casa', 'Minha Casa'], ['', 'Instalações']], materiais: [['casa', 'Minha Casa'], ['', 'Materiais']], garantias: [['casa', 'Minha Casa'], ['', 'Garantias']], manutencao: [['casa', 'Minha Casa'], ['', 'Manutenção']], equipamentos: [['casa', 'Minha Casa'], ['', 'Equipamentos']], planta: [['casa', 'Minha Casa'], ['', 'Planta técnica']], documentos: [['documentos', 'Documentos']], assistencia: [['assistencia', 'Suporte']], mais: [['mais', 'Perfil']] };
 function crumbs(h) {
   const c = h === 'assistencia' && S.nova ? [['assistencia', 'Suporte'], ['', 'Nova solicitação']] : CR[h]; if (!c || !app.firstElementChild || app.querySelector('.crumbs')) return;
   const last = c.length - 1, items = [['home', 'Início'], ...c].map(([href, t], i, a) => i === a.length - 1 ? `<li aria-current="page">${t}</li>` : `<li><a href="#${href}">${t}</a></li>`);

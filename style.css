@@ -206,3 +206,18 @@ body.app #toast{bottom:96px}
 .crumbs a{color:var(--gold);text-decoration:none}.crumbs li[aria-current]{color:#fff;font-weight:600}.crumbs .sep{color:#6b7c88}
 .newreq{display:block;text-align:center;margin:6px 0 16px;padding:14px;border-radius:14px;background:var(--gold);color:#1b1409;font-weight:700;text-decoration:none}
 .btn-cancel{display:block;text-align:center;margin-top:12px;color:var(--gold);text-decoration:none}
+/* Minha Casa: cartões e cronograma */
+.cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin:14px 0}
+.ccard{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:18px 16px;margin:0;color:var(--ink);text-decoration:none}
+.ccard .ico{width:30px;height:30px;color:var(--gold)}.ccard b{margin:0;font-size:1rem}
+.calhead{display:flex;align-items:center;justify-content:space-between;margin:6px 0 10px}.calhead b{font-size:1.15rem;color:#fff}
+.calhead button{margin:0;width:44px;padding:0;font-size:1.5rem;background:var(--card);color:var(--gold);border:1px solid var(--line)}
+.calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cwd{text-align:center;color:var(--mute);font-size:.78rem;padding:4px 0}
+.cday{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:3px;min-height:52px;padding:6px 0;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+.cday b{font-weight:500;font-size:.9rem}.cday.hoje{border-color:var(--gold);background:var(--gold);color:#1b1409}.cday.hoje b{font-weight:800}
+.dots2{display:flex;gap:3px}.calgrid u,.callegend u,.calnote u{display:inline-block;width:8px;height:8px;border-radius:50%;text-decoration:none}
+.cm{background:#d9b48a}.ca{background:#4aa3ff}.cg{background:#f08a3c}.cday.hoje .cm{background:#1b1409}
+.callegend{display:flex;flex-wrap:wrap;gap:6px 16px;margin:12px 0;color:var(--mute);font-size:.82rem}.callegend span{display:flex;align-items:center;gap:6px}
+.calnote{display:flex;gap:10px;align-items:flex-start;padding:12px}.calnote u{margin-top:6px;flex:none}.calnote p{margin:0}
+.calnote b{display:inline;margin:0}
