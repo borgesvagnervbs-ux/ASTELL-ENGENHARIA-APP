@@ -3,6 +3,17 @@
 // Cartão de confirmação (substitui o confirm() do navegador): devolve true se o usuário confirmar
 let lastClick = null; document.addEventListener('click', e => { lastClick = e.target; }, true);
 function ask(msg, ok = 'Excluir') {
+  if (!document.getElementById('ask-css')) { const st = document.createElement('style'); st.id = 'ask-css'; st.textContent = `.askov{position:fixed!important;inset:0!important;z-index:2147483000!important;background:rgba(4,9,15,.6)!important}
+.askdlg{position:fixed!important;inset:0!important;z-index:2147483001!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:20px!important;pointer-events:none!important;box-sizing:border-box}
+.askdlg .askbox{pointer-events:auto;box-sizing:border-box;width:min(420px,100%);max-height:92vh;overflow:auto;padding:22px;border-radius:18px;background:#101b28;border:1px solid #1f2f3f;box-shadow:0 20px 60px rgba(0,0,0,.8);text-align:center;color:#e8eef2}
+.askdlg .askbox h3{margin:0 0 10px;font-size:1.2rem;line-height:1.3;color:#fff;text-align:center;font-weight:700}
+.askdlg .asksub{margin:0 0 14px;color:#8a9aa6;font-size:.88rem;text-align:center}
+.askdlg .askbtns{display:flex;gap:10px;justify-content:center;margin-top:16px}
+.askdlg .askbtns button{margin:0!important;width:auto!important;min-height:44px;padding:0 20px!important;border-radius:12px;font-weight:600;font-size:1rem;cursor:pointer}
+.askdlg .askbtns .askno{background:transparent!important;color:#e8eef2!important;border:1px solid #3a4b5c!important}
+.askdlg .askbtns .askyes{background:#e5534b!important;color:#fff!important;border:0!important}
+.askhl{position:relative!important;z-index:2147482999!important;border:2px solid #3dc08c!important;box-shadow:0 0 0 4px rgba(61,192,140,.25),0 0 24px rgba(61,192,140,.35)!important}
+`; document.head.appendChild(st); }   // estilo próprio: não depende do style.css
   return new Promise(res => {
     const del = ok === 'Excluir', btn = lastClick && lastClick.closest && lastClick.closest('[data-del],[data-deldoc],[data-deldc],[data-delplan],[data-emdd],[data-gdel]'),
       card = del && btn ? btn.closest('.card,.gtile,.pfile,.item,.bthumb,.stagerow') : null, sub = del && !/^Excluir [^?]{0,40}\?$/.test(msg);
@@ -19,7 +30,7 @@ function ask(msg, ok = 'Excluir') {
   });
 }
 
-const APP_VERSION = '2026.10.21-22'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-23'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 let sb; try { sb = supabase.createClient(new URL(SUPABASE_URL.trim()).origin, SUPABASE_KEY.trim()); } catch (e) { sb = null; }
 const $ = s => document.querySelector(s); let app = $('#app');
 const fail = m => { app.innerHTML = '<div class="card" style="margin:16px"><b>Não foi possível iniciar o Astell Home</b><p class="mute">' + m + '</p></div>'; };
