@@ -234,3 +234,9 @@ a.calnote{color:var(--ink);text-decoration:none;align-items:center}a.calnote p{f
 .gdist{display:flex;height:12px;border-radius:6px;overflow:hidden;background:#ffffff14;gap:2px}.gdist i{display:block;height:100%}
 .gok{background:#2fbf71}.gwarn{background:#f08a3c}.gbad{background:#8d99a6}
 .gleg{display:flex;flex-wrap:wrap;gap:6px 14px;margin:10px 0 14px;font-size:.8rem;color:var(--mute)}.gleg span{display:flex;align-items:center;gap:6px}.gleg u{width:9px;height:9px;border-radius:50%;display:inline-block}
+/* Cartão de confirmação de exclusão */
+.askov{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;background:#04090fcc;backdrop-filter:blur(3px)}
+.askbox{width:min(420px,100%);padding:22px;border-radius:18px;background:var(--card);border:1px solid var(--line);box-shadow:0 20px 60px #000a}
+.askbox h3{margin:0 0 8px;font-size:1.15rem;color:#fff}.askbox p{margin:0 0 18px;color:var(--ink);line-height:1.45}
+.askbtns{display:flex;gap:10px;justify-content:flex-end}.askbtns button{margin:0;min-height:44px;padding:0 18px;border-radius:12px;font-weight:600}
+.askno{background:transparent;color:var(--ink);border:1px solid var(--line)}.askyes{background:#e5534b;color:#fff;border:0}

@@ -1,5 +1,18 @@
 // Configuração do Supabase: arquivo config.js
-const APP_VERSION = '2026.10.21-19'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+
+// Cartão de confirmação (substitui o confirm() do navegador): devolve true se o usuário confirmar
+function ask(msg, ok = 'Excluir') {
+  return new Promise(res => {
+    const ov = document.createElement('div'); ov.className = 'askov'; ov.setAttribute('role', 'alertdialog'); ov.setAttribute('aria-modal', 'true');
+    ov.innerHTML = `<div class="askbox"><h3>Confirmar exclusão</h3><p></p><div class="askbtns"><button type="button" class="askno">Cancelar</button><button type="button" class="askyes">${ok}</button></div></div>`;
+    ov.querySelector('p').textContent = msg;
+    const end = v => { document.removeEventListener('keydown', key, true); ov.remove(); res(v); }, key = e => { if (e.key === 'Escape') { e.stopPropagation(); end(false); } };
+    ov.addEventListener('click', e => { e.stopPropagation(); if (e.target === ov || e.target.closest('.askno')) end(false); else if (e.target.closest('.askyes')) end(true); });
+    document.addEventListener('keydown', key, true); document.body.appendChild(ov); ov.querySelector('.askno').focus();
+  });
+}
+
+const APP_VERSION = '2026.10.21-20'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 let sb; try { sb = supabase.createClient(new URL(SUPABASE_URL.trim()).origin, SUPABASE_KEY.trim()); } catch (e) { sb = null; }
 const $ = s => document.querySelector(s); let app = $('#app');
 const fail = m => { app.innerHTML = '<div class="card" style="margin:16px"><b>Não foi possível iniciar o Astell Home</b><p class="mute">' + m + '</p></div>'; };
@@ -139,7 +152,7 @@ async function garantiasView() {
   S.gw = (data || []).map(r => ({ r, k: wInfo(r).kind })); S.gf = null; gaPaint();
 }
 function gaPaint() {   // resumo (números = filtros) + lista filtrada
-  const all = S.gw || [], n = k => all.filter(x => x.k === k).length, two = v => String(v).padStart(2, '0'), f = S.gf;
+  const all = S.gw || [], n = k => all.filter(x => x.k === k).length, two = v => String(v), f = S.gf;
   const box = (k, v, l, c) => `<button type="button" class="gnum ${c}${f === k ? ' on' : ''}" data-gf="${k || 'all'}" aria-pressed="${f === k}"><b>${two(v)}</b><span>${l}</span></button>`;
   const tot = all.length, pc = v => tot ? (v / tot * 100).toFixed(2) : 0;
   const gs = $('#gs'), gl = $('#gl'); if (!gs || !gl) return;
@@ -151,9 +164,9 @@ function gaPaint() {   // resumo (números = filtros) + lista filtrada
 }
 const DEFREQ = ['system', 'name', 'description', 'months', 'start_date', 'event_date'];
 const fld = ([k, l, t = 'text', req], v = {}) => {
-  const val = v[k] ?? '', r = (req ?? DEFREQ.includes(k)) ? 'required' : '';
+  const val = v[k] ?? (k === 'months' ? 1 : ''), r = (req ?? DEFREQ.includes(k)) ? 'required' : '';
   if (Array.isArray(t)) return `<label>${l}<select name="${k}">${t.map(o => `<option ${o === val ? 'selected' : ''}>${o}</option>`).join('')}</select></label>`;
-  return `<label>${l}${t === 'textarea' ? `<textarea name="${k}" rows="3" ${r}>${esc(val)}</textarea>` : `<input name="${k}" type="${t}" value="${esc(val)}" ${r}${t === 'number' && /months/.test(k) ? ' min="0" step="1" inputmode="numeric" data-nonneg' : ''}>`}</label>`;
+  return `<label>${l}${t === 'textarea' ? `<textarea name="${k}" rows="3" ${r}>${esc(val)}</textarea>` : `<input name="${k}" type="${t}" value="${esc(val)}" ${r}${t === 'number' && /months/.test(k) ? ` min="${k === 'months' ? 1 : 0}" step="1" inputmode="numeric" data-nonneg` : ''}>`}</label>`;
 };
 const input = f => fld(f);
 const RES_F = [['code', 'Código (ex.: AST-2026-002)', 'text', true], ['name', 'Nome da residência', 'text', true], ['address', 'Endereço'], ['area_m2', 'Área construída (m²)', 'number'], ['floors', 'Pavimentos', 'number'], ['build_system', 'Sistema construtivo'], ['project_no', 'Nº do projeto'], ['start_date', 'Início da obra', 'date'], ['delivery_date', 'Entrega', 'date'], ['tech_lead', 'Responsável técnico'], ['notes', 'Observações', 'textarea']];
@@ -296,8 +309,8 @@ app.addEventListener('click', async e => {
   if (d.dl) { const [p, n] = d.dl.split('|'), { data, error } = await sb.storage.from('documents').createSignedUrl(p, 60, { download: n || true }); error ? toast('Acesso negado.', 1) : window.open(data.signedUrl, '_blank', 'noopener'); }
   if (d.v3d) { const [p, n] = d.v3d.split('|'), { data, error } = await sb.storage.from('documents').createSignedUrl(p, 3600); if (error) return toast('Acesso negado.', 1); loadMV(); const lb = $('#lb'); lb.hidden = false; lb.innerHTML = `<button class="lbx" data-lbx aria-label="Fechar">×</button><model-viewer src="${esc(data.signedUrl)}" alt="${esc(n)}" camera-controls touch-action="pan-y" shadow-intensity="1" auto-rotate></model-viewer>`; }
   if (d.open) { const { data, error } = await sb.storage.from('documents').createSignedUrl(d.open, 60); error ? toast('Acesso negado.', 1) : window.open(data.signedUrl, '_blank', 'noopener'); }
-  if (d.del && confirm('Excluir este registro?')) { const [t, id] = d.del.split(':'); await sb.from(t).delete().eq('id', id); route(); }
-  if (d.deldoc && confirm('Excluir este documento?')) { const [id, p] = d.deldoc.split('|'); await sb.storage.from('documents').remove([p]); await sb.from('documents').delete().eq('id', id); route(); }
+  if (d.del && await ask('Excluir este registro?')) { const [t, id] = d.del.split(':'); await sb.from(t).delete().eq('id', id); route(); }
+  if (d.deldoc && await ask('Excluir este documento?')) { const [id, p] = d.deldoc.split('|'); await sb.storage.from('documents').remove([p]); await sb.from('documents').delete().eq('id', id); route(); }
 });
 
 function route() {
