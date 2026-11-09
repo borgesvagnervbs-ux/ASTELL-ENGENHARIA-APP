@@ -1,18 +1,23 @@
 // Configuração do Supabase: arquivo config.js
 
 // Cartão de confirmação (substitui o confirm() do navegador): devolve true se o usuário confirmar
+let lastClick = null; document.addEventListener('click', e => { lastClick = e.target; }, true);
 function ask(msg, ok = 'Excluir') {
   return new Promise(res => {
+    const del = ok === 'Excluir', btn = lastClick && lastClick.closest && lastClick.closest('[data-del],[data-deldoc],[data-deldc],[data-delplan],[data-emdd],[data-gdel]'),
+      card = del && btn ? btn.closest('.card,.gtile,.pfile,.item,.bthumb,.stagerow') : null, sub = del && !/^Excluir [^?]{0,40}\?$/.test(msg);
     const ov = document.createElement('div'); ov.className = 'askov'; ov.setAttribute('role', 'alertdialog'); ov.setAttribute('aria-modal', 'true');
-    ov.innerHTML = `<div class="askbox"><h3>Confirmar exclusão</h3><p></p><div class="askbtns"><button type="button" class="askno">Cancelar</button><button type="button" class="askyes">${ok}</button></div></div>`;
-    ov.querySelector('p').textContent = msg;
+    ov.innerHTML = `<div class="askbox"><div class="askitemwrap"></div><h3></h3><p class="asksub" hidden></p><div class="askbtns"><button type="button" class="askno">Cancelar</button><button type="button" class="askyes">${ok}</button></div></div>`;
+    ov.querySelector('h3').textContent = del ? 'Tem certeza que deseja fazer essa exclusão?' : msg;
+    if (sub) { const p = ov.querySelector('.asksub'); p.textContent = msg; p.hidden = false; }
+    if (card) { const c = card.cloneNode(true); c.querySelectorAll('.acts,form,button,[id]').forEach(x => x.remove()); c.removeAttribute('id'); c.classList.add('askitem'); ov.querySelector('.askitemwrap').appendChild(c); }
     const end = v => { document.removeEventListener('keydown', key, true); ov.remove(); res(v); }, key = e => { if (e.key === 'Escape') { e.stopPropagation(); end(false); } };
     ov.addEventListener('click', e => { e.stopPropagation(); if (e.target === ov || e.target.closest('.askno')) end(false); else if (e.target.closest('.askyes')) end(true); });
     document.addEventListener('keydown', key, true); document.body.appendChild(ov); ov.querySelector('.askno').focus();
   });
 }
 
-const APP_VERSION = '2026.10.21-20'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-21'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 let sb; try { sb = supabase.createClient(new URL(SUPABASE_URL.trim()).origin, SUPABASE_KEY.trim()); } catch (e) { sb = null; }
 const $ = s => document.querySelector(s); let app = $('#app');
 const fail = m => { app.innerHTML = '<div class="card" style="margin:16px"><b>Não foi possível iniciar o Astell Home</b><p class="mute">' + m + '</p></div>'; };
