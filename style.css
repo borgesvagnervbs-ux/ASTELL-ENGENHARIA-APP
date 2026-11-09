@@ -266,3 +266,17 @@ body.app nav a[href="#custos"] span{font-size:.66rem}
 .combolist li{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer}
 .combolist li.on,.combolist li:hover{background:#16283a}.combolist li b{font-weight:500;margin:0;display:inline}
 .combohint{font-size:.8rem;margin:6px 0 0}
+/* Campos de data e hora com seletor verde */
+.field{margin:10px 0 4px}.field>.lbl{display:block;font-size:.85rem;color:var(--mute);margin:0 0 4px}
+.dpbox{position:relative;display:flex;gap:8px}.dpbox .dptxt{flex:1;min-width:0;margin:0}
+.dpbtn{width:48px;min-height:44px;margin:0;padding:0;display:grid;place-items:center;flex:none}.dpbtn .ico{width:22px;height:22px}
+.dpop{position:absolute;top:calc(100% + 6px);left:0;z-index:40;width:300px;max-width:calc(100vw - 56px);background:var(--card);border:1px solid #2a4157;border-radius:14px;padding:12px;box-shadow:0 10px 30px #000a}
+.dphead{display:flex;align-items:center;justify-content:space-between;gap:4px}.dphead b{flex:1;text-align:center;font-size:.95rem;color:#fff;margin:0}
+.dphead button,.dpfoot button{margin:0}.dphead button{width:34px;min-height:34px;padding:0;border-radius:8px;font-size:1.1rem;line-height:1}
+.dpgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:10px 0}.dpgrid i{font-style:normal;text-align:center;color:var(--mute);font-size:.75rem;padding:4px 0}
+.dpday{margin:0;min-height:34px;padding:0;border-radius:8px;background:transparent;color:var(--ink);font-weight:500}.dpday:hover{background:#16283a}
+.dpday.today{box-shadow:inset 0 0 0 2px var(--gold)}.dpday.sel{background:var(--gold);color:#04231a}
+.dpfoot{display:flex;justify-content:space-between;gap:8px;margin-top:8px}.dpfoot button{min-height:38px;padding:0 16px}
+.dptime{width:240px}.tmcols{display:grid;grid-template-columns:1fr 1fr;gap:10px}.tmcols small{display:block;color:var(--mute);margin-bottom:4px;text-align:center}
+.tmcol{display:grid;gap:4px;max-height:200px;overflow:auto;padding-right:2px}
+.tmb{margin:0;min-height:34px;padding:0;border-radius:8px;background:transparent;color:var(--ink);font-weight:500}.tmb:hover{background:#16283a}.tmb.sel{background:var(--gold);color:#04231a}
