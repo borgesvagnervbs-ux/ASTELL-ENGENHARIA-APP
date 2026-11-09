@@ -260,3 +260,9 @@ body.app nav a[href="#custos"] span{font-size:.66rem}
 .xdon{flex-wrap:nowrap}.xring{width:140px;height:140px;margin:0}.xcen{padding:0 26px}.xcen b{font-size:.78rem}.xcen small{font-size:.66rem}
 .xleg{min-width:0}.xcard a{color:var(--gold)}
 @media(max-width:340px){.xdon{flex-wrap:wrap}}
+/* Pesquisa de categoria (mesmo modelo da pesquisa do painel admin) */
+.comboin{position:relative;flex:1;min-width:0}.comboin .comboq{width:100%}
+.combolist{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:30;margin:0;padding:4px;list-style:none;max-height:240px;overflow:auto;background:var(--card);border:1px solid #2a4157;border-radius:12px;box-shadow:0 10px 30px #000a}
+.combolist li{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer}
+.combolist li.on,.combolist li:hover{background:#16283a}.combolist li b{font-weight:500;margin:0;display:inline}
+.combohint{font-size:.8rem;margin:6px 0 0}

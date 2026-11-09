@@ -30,7 +30,7 @@ function ask(msg, ok = 'Excluir') {
   });
 }
 
-const APP_VERSION = '2026.10.21-25'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-26'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 let sb; try { sb = supabase.createClient(new URL(SUPABASE_URL.trim()).origin, SUPABASE_KEY.trim()); } catch (e) { sb = null; }
 const $ = s => document.querySelector(s); let app = $('#app');
 const fail = m => { app.innerHTML = '<div class="card" style="margin:16px"><b>Não foi possível iniciar o Astell Home</b><p class="mute">' + m + '</p></div>'; };
@@ -243,7 +243,7 @@ const views = {
     S.exp = ex || []; S.xcats = xCats(cs || [], S.exp);
     if (S.nova) {
       app.innerHTML = `<h2>Lançar despesa</h2><form class="card" data-form="exp"><label>O que foi comprado<input name="description" required maxlength="160"></label><label>Valor (R$)<input name="amount" required inputmode="decimal" placeholder="0,00" autocomplete="off"></label><label>Data<input name="spent_on" type="date" required value="${xIso(new Date())}"></label>
-      <label>Categoria<input name="category" list="xcl" required maxlength="60" autocomplete="off" placeholder="Pesquise ou digite uma nova categoria"></label><datalist id="xcl">${S.xcats.map(c => `<option value="${esc(c)}">`).join('')}</datalist><p class="mute">Se a categoria não existir, ela será criada ao salvar e ficará disponível nas próximas pesquisas.</p>
+      <label>Categoria<div class="comboin" data-combo="cat"><input class="comboq" type="search" name="category" required maxlength="60" autocomplete="off" role="combobox" aria-expanded="false" aria-label="Pesquisar categoria" placeholder="Pesquise ou digite uma nova categoria…"><ul class="combolist" role="listbox" hidden></ul></div></label><p class="mute combohint">Digite parte do nome e escolha na lista. Se a categoria não existir, ela será criada ao salvar e ficará disponível nas próximas pesquisas.</p>
       <label>Fornecedor<input name="supplier" maxlength="120"></label><label>Telefone do fornecedor<input name="supplier_phone" type="tel" inputmode="tel" maxlength="30"></label><label>Descrição adicional<textarea name="notes" rows="3"></textarea></label>
       ${CLOUD_OK ? '<label>Comprovantes e notas (imagens ou PDF)<input name="files" type="file" accept="image/*,application/pdf" multiple></label><p class="mute">Até 6 arquivos de até 10 MB cada.</p>' : ''}<button>Salvar despesa</button><a class="btn-cancel" href="#custos">Cancelar</a></form>`; return;
     }
@@ -389,6 +389,28 @@ function xPaint() {
     (mes.map(e => { const md = e.media || [], im = md.filter(x => x.type !== 'pdf').map(x => x.url), pd = md.filter(x => x.type === 'pdf');
       return `<div class="card xcard"><div class="xtop"><b>${esc(e.description)}</b><strong>${brl(e.amount)}</strong></div><p class="mute"><span class="xcat" style="--c:${xColor(e.category)}">${esc(e.category)}</span> ${fmt(e.spent_on)}</p>${e.supplier ? `<p class="mute">Fornecedor: ${esc(e.supplier)}${e.supplier_phone ? ` · <a href="tel:${esc(String(e.supplier_phone).replace(/[^\d+]/g, ''))}">${esc(e.supplier_phone)}</a>` : ''}</p>` : ''}${e.notes ? `<p>${esc(e.notes)}</p>` : ''}${im.length ? grp('x' + e.id, im) : ''}${pd.length ? `<div class="xpdf">${pd.map(x => `<a href="${esc(x.url)}" target="_blank" rel="noopener">${ico(IC.doc)}<span>${esc(x.name || 'comprovante.pdf')}</span></a>`).join('')}</div>` : ''}<button type="button" class="link" data-xdel="${e.id}">Excluir</button></div>`; }).join('') || '<p class="empty">Nenhuma despesa neste mês.</p>');
 }
+// Pesquisa de categoria: mesmo modelo da pesquisa de residências/proprietários do painel admin
+const nrm = t => String(t == null ? '' : t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+function catList(box) {
+  const inp = box.querySelector('.comboq'), ul = box.querySelector('.combolist'), q = nrm(inp.value).trim();
+  if (!q) return catClose(box);   // sem caracteres digitados: nenhuma sugestão
+  const items = (S.xcats || XDEF).filter(c => nrm(c).includes(q) && nrm(c) !== q).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  if (!items.length) return catClose(box);   // nenhuma categoria contém o que foi digitado: a caixa não aparece
+  ul.innerHTML = items.map((c, i) => `<li role="option" data-opt="${esc(c)}" class="${i ? '' : 'on'}"><b>${esc(c)}</b></li>`).join(''); ul.hidden = false; inp.setAttribute('aria-expanded', 'true');
+}
+function catClose(box) { const ul = box.querySelector('.combolist'); ul.hidden = true; ul.innerHTML = ''; box.querySelector('.comboq').setAttribute('aria-expanded', 'false'); }
+function catPick(box, v) { box.querySelector('.comboq').value = v; catClose(box); }
+const isCat = e => e.target.classList && e.target.classList.contains('comboq') && e.target.closest('[data-combo=cat]');
+document.addEventListener('input', e => { if (isCat(e)) catList(e.target.closest('[data-combo=cat]')); });
+document.addEventListener('focusin', e => { if (isCat(e)) catList(e.target.closest('[data-combo=cat]')); });
+document.addEventListener('focusout', e => { if (isCat(e)) setTimeout(() => { const b = e.target.closest('[data-combo=cat]'); b && catClose(b); }, 120); });
+document.addEventListener('mousedown', e => { const li = e.target.closest && e.target.closest('[data-combo=cat] .combolist li[data-opt]'); if (!li) return; e.preventDefault(); catPick(li.closest('[data-combo=cat]'), li.dataset.opt); });
+document.addEventListener('keydown', e => {
+  if (!isCat(e)) return; const box = e.target.closest('[data-combo=cat]'), ul = box.querySelector('.combolist'), lis = [...ul.querySelectorAll('li[data-opt]')]; let i = lis.findIndex(l => l.classList.contains('on'));
+  if (e.key === 'Escape' && !ul.hidden) { e.preventDefault(); catClose(box); e.stopPropagation(); return; }
+  if (e.key === 'Enter') { if (!ul.hidden && i >= 0) { e.preventDefault(); catPick(box, lis[i].dataset.opt); } return; }
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); if (ul.hidden) return catList(box); if (!lis.length) return; if (i >= 0) lis[i].classList.remove('on'); i = (i + (e.key === 'ArrowDown' ? 1 : -1) + lis.length) % lis.length; lis[i].classList.add('on'); lis[i].scrollIntoView({ block: 'nearest' }); }
+});
 const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 async function calEvents(rid) {   // tudo que tem data no cronograma da residência
   const [{ data: mt }, { data: sr }, { data: wr }] = await Promise.all([
