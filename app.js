@@ -30,7 +30,7 @@ function ask(msg, ok = 'Excluir') {
   });
 }
 
-const APP_VERSION = '2026.10.21-29'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-30'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 let sb; try { sb = supabase.createClient(new URL(SUPABASE_URL.trim()).origin, SUPABASE_KEY.trim()); } catch (e) { sb = null; }
 const $ = s => document.querySelector(s); let app = $('#app');
 const fail = m => { app.innerHTML = '<div class="card" style="margin:16px"><b>Não foi possível iniciar o Astell Home</b><p class="mute">' + m + '</p></div>'; };
@@ -43,8 +43,21 @@ const S = { profile: null, res: [], cur: null, groups: {} };
 const staff = () => false; // este app é somente de consulta do cliente
 function toast(m, err) { const t = $('#toast'); t.textContent = m; t.className = 'show' + (err ? ' err' : ''); setTimeout(() => t.className = '', 3500); }
 const addMonths = (d, m) => { const x = new Date(d + 'T00:00'); x.setMonth(x.getMonth() + m); return x; };
-function wState(w) { const start = new Date(w.start_date + 'T00:00'), end = addMonths(w.start_date, w.months), left = end - new Date(), total = end - start;   // vigente; próxima do vencimento = resta 1/4 do prazo ou menos; expirada
+function wState(w) { const start = new Date(w.start_date + 'T00:00'), end = w._end || addMonths(w.start_date, w.months), left = end - new Date(), total = end - start;   // vigente; próxima do vencimento = resta 1/4 do prazo ou menos; expirada
   return left <= 0 ? ['Expirada', 'bad', end] : left <= total / 4 ? ['Próxima do vencimento', 'warn', end] : ['Vigente', 'ok', end]; }
+// Inspeções preventivas: mesma linha do tempo das garantias (início = última execução, fim = próxima execução)
+const perTxt = r => r.interval_months ? `${r.interval_months} ${+r.interval_months === 1 ? 'mês' : 'meses'}` : (r.frequency || '');
+function mInfo(r) {
+  if (!r.next_due || ['Concluída', 'Cancelada'].includes(r.status || 'Pendente')) return null;
+  const n = +r.interval_months || 0, endD = new Date(r.next_due + 'T00:00'), iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const startIso = r.last_done || (n ? iso(addMonths(r.next_due, -n)) : null); if (!startIso || isNaN(endD)) return null;
+  const tot = n || Math.max(1, Math.round((endD - new Date(startIso + 'T00:00')) / 2629800000));
+  return wInfo({ start_date: startIso, months: tot, _end: endD });
+}
+function mBox(r) {
+  const w = mInfo(r); if (!w) return '';
+  return `<div class="wbox w-${w.kind}">${w.kind === 'warn' ? `<p class="wwarn">Inspeção próxima do vencimento - faltam ${w.txt}</p>` : w.kind === 'bad' ? `<p class="wexp">Inspeção vencida em ${w.end.toLocaleDateString('pt-BR')}</p>` : ''}<div class="wfig"><div><span class="wnum wtot">${w.total}</span><span class="wlbl">Periodicidade</span></div><div><span class="wnum wrem">${w.kind === 'bad' ? 'Vencida' : w.big}</span><span class="wlbl">${w.kind === 'bad' ? 'Prazo esgotado' : 'Restantes'}</span></div></div><div class="wbar" role="img" aria-label="Tempo restante até a próxima execução"><i style="width:${w.pct.toFixed(1)}%"></i></div><span class="wpill">${w.s}</span></div>`;
+}
 function wInfo(w) {   // tudo que o cartão da garantia mostra: tempo restante (meses e dias), % da barra e frase de alerta
   const [s, c, end] = wState(w), start = new Date(w.start_date + 'T00:00'), now = new Date(), total = end - start, left = Math.max(0, end - now), from = now < start ? start : now;
   let m = 0, d = 0; if (left > 0) { m = (end.getFullYear() - from.getFullYear()) * 12 + end.getMonth() - from.getMonth(); let t = new Date(from); t.setMonth(t.getMonth() + m); if (t > end) { m--; t = new Date(from); t.setMonth(t.getMonth() + m); } d = Math.floor((end - t) / 864e5); }
@@ -58,8 +71,8 @@ const T = {
   warranties: { label: 'Garantias', order: 'start_date', f: [['system','Sistema ou componente'],['coverage','Descrição da cobertura'],['start_date','Data inicial','date'],['months','Prazo (meses)','number'],['notes','Condições e exclusões','textarea']],
     row: r => { const [s, c, end] = wState(r); return `<b>${esc(r.system)}</b> <span class="badge ${c}">${s}</span><p>${esc(r.coverage)}</p><span class="mute">${fmt(r.start_date)} até ${end.toLocaleDateString('pt-BR')}</span><p class="mute">${esc(r.notes)}</p>`; },
     note: 'Os prazos valem conforme contrato, fabricante e lei. As condições contratuais e legais prevalecem sobre estes indicadores.' },
-  maintenance_tasks: { label: 'Manutenção preventiva', order: 'next_due', f: [['name','Tarefa'],['system','Sistema'],['frequency','Periodicidade'],['last_done','Última execução','date'],['next_due','Próxima data','date'],['interval_months','Repetir a cada (meses)','number'],['status','Situação',['Pendente','Em andamento','Concluída','Cancelada']],['instructions','Instruções','textarea']],
-    row: r => { const st = r.status || 'Pendente', late = r.next_due && new Date(r.next_due + 'T00:00') < new Date() && !['Concluída', 'Cancelada'].includes(st); return `<b>${esc(r.name)}</b> <span class="badge ${late ? 'bad' : st === 'Concluída' ? 'ok' : ''}">${late ? 'Atrasada' : st}</span><p class="mute">${esc(r.system)} · ${esc(r.frequency)}</p>Última: ${fmt(r.last_done)} · Próxima: ${fmt(r.next_due)}<p class="mute">${esc(r.instructions)}</p>`; } },
+  maintenance_tasks: { label: 'Manutenção preventiva', order: 'next_due', f: [['name','Tarefa'],['system','Sistema'],['interval_months','Periodicidade (meses)','number'],['last_done','Última execução','date'],['next_due','Próxima execução','date'],['status','Situação',['Pendente','Em andamento','Concluída','Cancelada']],['instructions','Instruções','textarea']],
+    row: r => { const st = r.status || 'Pendente', late = r.next_due && new Date(r.next_due + 'T00:00') < new Date() && !['Concluída', 'Cancelada'].includes(st); return `<b>${esc(r.name)}</b> <span class="badge ${late ? 'bad' : st === 'Concluída' ? 'ok' : ''}">${late ? 'Atrasada' : st}</span><p class="mute">${esc(r.system)} · ${esc(perTxt(r))}</p>${mBox(r)}Última: ${fmt(r.last_done)} · Próxima execução: ${fmt(r.next_due)}<p class="mute">${esc(r.instructions)}</p>`; } },
   equipment: { label: 'Equipamentos', f: [['name','Nome'],['category','Categoria'],['maker','Fabricante'],['model','Modelo'],['serial','Nº de série'],['location','Localização']],
     row: r => `<b>${esc(r.name)}</b><span class="mute">${esc(r.category)} · ${esc(r.location)}</span><p>${esc(r.maker)} ${esc(r.model)} ${r.serial ? '· Série ' + esc(r.serial) : ''}</p>` },
 };
@@ -158,16 +171,17 @@ async function itemsView(k) {
 }
 const reqCard = r => { const fotos = (r.media || []).filter(x => x.url).map(x => x.url); return `<div class="card"><b>${esc(r.protocol)}</b> <span class="badge ${REQ_ST[r.status] || ''}">${esc(r.status)}</span> <span class="badge ${REQ_UR[r.urgency] || 'u-med'}">${esc(r.urgency || 'Média')}</span><p>${esc(r.category)} · ${esc(r.place)}</p><p>${esc(r.description)}</p>${r.preferred_date || r.contact_time ? `<p class="mute">Sua sugestão: ${r.preferred_date ? 'dia ' + fmt(r.preferred_date) : ''}${r.preferred_date && r.contact_time ? ' · ' : ''}${r.contact_time ? 'horário ' + esc(r.contact_time) : ''}</p>` : ''}${r.scheduled_for ? `<p class="sched">${ico(IC.calendar)}<span>Data prevista de atendimento: <b>${fmt(r.scheduled_for)}</b></span></p>` : ''}${fotos.length ? grp('req' + r.id, fotos) : ''}${r.staff_note ? `<div class="astnote"><span class="lbl">Assistência que será feita</span><p>${esc(r.staff_note)}</p></div>` : ''}
       ${staff() ? `<form data-form="upd" data-id="${r.id}">${sel('status', 'Situação', STATUS).replace(`<option>${r.status}`, `<option selected>${r.status}`)}<label>Comentário<input name="staff_note" value="${esc(r.staff_note || '')}"></label><button>Atualizar</button></form>` : ''}</div>`; };
-const warCard = r => { const w = wInfo(r); return `<div class="card"><b>${esc(r.system)}</b><div class="wbox w-${w.kind}">${w.kind === 'warn' ? `<p class="wwarn">Garantia próxima do vencimento - faltam ${w.txt}</p>` : w.kind === 'bad' ? `<p class="wexp">Garantia expirada em ${w.end.toLocaleDateString('pt-BR')}</p>` : ''}<div class="wfig"><div><span class="wnum wtot">${w.total}</span><span class="wlbl">Prazo total</span></div><div><span class="wnum wrem">${w.kind === 'bad' ? 'Expirada' : w.big}</span><span class="wlbl">${w.kind === 'bad' ? 'Vencida' : 'Restantes'}</span></div></div><div class="wbar" role="img" aria-label="Tempo restante da garantia"><i style="width:${w.pct.toFixed(1)}%"></i></div><span class="wpill">${w.s}</span></div>${r.coverage ? `<p>${esc(r.coverage)}</p>` : ''}<span class="mute">${fmt(r.start_date)} até ${w.end.toLocaleDateString('pt-BR')}</span>${r.notes ? `<p class="mute">${esc(r.notes)}</p>` : ''}${staff() ? `<button class="link" data-del="warranties:${r.id}">Excluir</button>` : ''}</div>`; };
+const warCard = r => { const w = wInfo(r); return `<div class="card"><b>${esc(r.system)}</b><div class="wbox w-${w.kind}">${w.kind === 'warn' ? `<p class="wwarn">Garantia próxima do vencimento - faltam ${w.txt}</p>` : w.kind === 'bad' ? `<p class="wexp">Garantia expirada em ${w.end.toLocaleDateString('pt-BR')}</p>` : ''}<div class="wfig"><div><span class="wnum wtot">${w.total}</span><span class="wlbl">Prazo total</span></div><div><span class="wnum wrem">${w.kind === 'bad' ? 'Expirada' : w.big}</span><span class="wlbl">${w.kind === 'bad' ? 'Vencida' : 'Restantes'}</span></div></div><div class="wbar" role="img" aria-label="Tempo restante da garantia"><i style="width:${w.pct.toFixed(1)}%"></i></div><span class="wpill">${w.s}</span></div>${r.coverage ? `<p>${esc(r.coverage)}</p>` : ''}<span class="mute">${fmt(r.start_date)} até ${w.end.toLocaleDateString('pt-BR')}</span>${r.notes ? `<p class="mute">${esc(r.notes)}</p>` : ''}${staff() && !r.fromExp ? `<button class="link" data-del="warranties:${r.id}">Excluir</button>` : ''}</div>`; };
+const expWar = e => ({ id: e.id, system: e.description, coverage: 'Item do Centro de custo' + (e.supplier ? ' · ' + e.supplier : ''), start_date: e.spent_on, months: e.warranty_months, notes: e.notes, fromExp: true });   // garantia cadastrada junto da despesa (só aparece no app do cliente)
 async function garantiasView() {
-  const { data } = await sb.from('warranties').select('*').eq('residence_id', S.cur.id).order('start_date');
+  const [{ data }, { data: ex }] = await Promise.all([sb.from('warranties').select('*').eq('residence_id', S.cur.id).order('start_date'), sb.from('expenses').select('*').eq('residence_id', S.cur.id).not('warranty_months', 'is', null)]);
   const per = m => m % 12 ? `${m} meses` : `${m / 12} ${m === 12 ? 'ano' : 'anos'}`;
   app.innerHTML = `<div class="gtitle">${ico(IC.shield, 'big')}<h1>Garantias</h1><p class="mute">Mais segurança para o seu investimento.</p></div>
   <div class="card gsum"><b>Resumo da garantia</b><div id="gs"></div><p class="mute">Sua casa conta com garantia de acordo com o contrato e a legislação vigente.</p></div>` +
     (staff() ? formOf('warranties', 'Adicionar garantia', T.warranties.f.map(input).join('')) : '') +
     `<h3>Prazos por sistema</h3><div id="gl"></div>` +
     linkrow('assistencia', 'Solicitar assistência', 'Precisa de suporte? Fale com a nossa equipe.', 'phones') + `<p class="notice">${T.warranties.note}</p>`;
-  S.gw = (data || []).map(r => ({ r, k: wInfo(r).kind })); S.gf = null; gaPaint();
+  S.gw = [...(data || []), ...(ex || []).map(expWar)].map(r => ({ r, k: wInfo(r).kind })).sort((a, b) => String(a.r.start_date).localeCompare(String(b.r.start_date))); S.gf = null; gaPaint();
 }
 function gaPaint() {   // resumo (números = filtros) + lista filtrada
   const all = S.gw || [], n = k => all.filter(x => x.k === k).length, two = v => String(v), f = S.gf;
@@ -244,7 +258,7 @@ const views = {
     if (S.nova) {
       app.innerHTML = `<h2>Lançar despesa</h2><form class="card" data-form="exp"><label>O que foi comprado<input name="description" required maxlength="160"></label><label>Valor (R$)<input name="amount" required inputmode="decimal" placeholder="0,00" autocomplete="off"></label>${dpField('spent_on', 'Data', xIso(new Date()), true)}
       <label>Categoria<div class="comboin" data-combo="cat"><input class="comboq" type="search" name="category" required maxlength="60" autocomplete="off" role="combobox" aria-expanded="false" aria-label="Pesquisar categoria" placeholder="Pesquise ou digite uma nova categoria…"><ul class="combolist" role="listbox" hidden></ul></div></label><p class="mute combohint">Digite parte do nome e escolha na lista. Se a categoria não existir, ela será criada ao salvar e ficará disponível nas próximas pesquisas.</p>
-      <label>Fornecedor<input name="supplier" maxlength="120"></label><label>Telefone do fornecedor<input name="supplier_phone" type="tel" inputmode="tel" maxlength="30"></label><label>Descrição adicional<textarea name="notes" rows="3"></textarea></label>
+      <label>Garantia do item (meses) — opcional<input name="warranty_months" type="number" min="1" step="1" inputmode="numeric" data-nonneg placeholder="Sem garantia"></label><label>Fornecedor<input name="supplier" maxlength="120"></label><label>Telefone do fornecedor<input name="supplier_phone" type="tel" inputmode="tel" maxlength="30"></label><label>Descrição adicional<textarea name="notes" rows="3"></textarea></label>
       ${CLOUD_OK ? '<label>Comprovantes e notas (imagens ou PDF)<input name="files" type="file" accept="image/*,application/pdf" multiple></label><p class="mute">Até 6 arquivos de até 10 MB cada.</p>' : ''}<button>Salvar despesa</button><a class="btn-cancel" href="#custos">Cancelar</a></form>`; return;
     }
     const now = new Date(); S.xm = { y: now.getFullYear(), m: now.getMonth() };
@@ -257,9 +271,10 @@ const views = {
   },
   async cronograma() { const ev = await calEvents(S.cur.id), n = new Date(); S.cal = { y: n.getFullYear(), m: n.getMonth(), ev }; app.innerHTML = '<h2>Cronograma</h2><div id="cal"></div>'; calPaint(); },
   async detalhe() {
-    const [k, id] = S.q.split(':'), tb = { man: 'maintenance_tasks', ast: 'service_requests', gar: 'warranties' }[k], { data: r } = tb ? await sb.from(tb).select('*').eq('id', id).maybeSingle() : { data: null };
+    const [k, id] = S.q.split(':'), tb = { man: 'maintenance_tasks', ast: 'service_requests', gar: 'warranties', gex: 'expenses' }[k], { data: r } = tb ? await sb.from(tb).select('*').eq('id', id).maybeSingle() : { data: null };
     if (!r) return app.innerHTML = '<p class="empty">Não foi possível encontrar este item.</p>';
     if (k === 'ast') return app.innerHTML = `<h2>Assistência</h2>${reqCard(r)}`;
+    if (k === 'gex') return app.innerHTML = `<h2>Garantia</h2>${warCard(expWar(r))}`;
     if (k === 'gar') return app.innerHTML = `<h2>Garantia</h2>${warCard(r)}`;
     const { data: ii } = await sb.from('images').select('url').eq('residence_id', S.cur.id).eq('kind', 'maintenance').eq('ref_id', r.id).order('created_at'), im = (ii || []).map(x => x.url);
     app.innerHTML = `<h2>Manutenção</h2><div class="card">${T.maintenance_tasks.row(r)}${im.length ? grp('m' + r.id, im) : ''}</div>`;
@@ -323,7 +338,7 @@ app.addEventListener('submit', async e => {
     catch (err) { if (btn) btn.disabled = false; return toast('Não foi possível enviar os arquivos: ' + err.message, 1); }
     const typed = String(o.category || '').trim().replace(/\s+/g, ' '), known = (S.xcats || XDEF).find(x => x.toLowerCase() === typed.toLowerCase());
     if (!known) await sb.from('expense_categories').insert({ name: typed });   // nova categoria fica cadastrada para as próximas vezes
-    r = await sb.from('expenses').insert({ residence_id: rid, description: String(o.description).trim(), amount: amt, spent_on: o.spent_on, category: known || typed, supplier: o.supplier, supplier_phone: o.supplier_phone, notes: o.notes, media }); if (btn) btn.disabled = false;
+    r = await sb.from('expenses').insert({ residence_id: rid, description: String(o.description).trim(), amount: amt, spent_on: o.spent_on, category: known || typed, supplier: o.supplier, supplier_phone: o.supplier_phone, notes: o.notes, media, warranty_months: parseInt(o.warranty_months, 10) >= 1 ? parseInt(o.warranty_months, 10) : null }); if (btn) btn.disabled = false;
   }
   else if (id === 'upd') { r = await sb.from('service_requests').update(o).eq('id', f.dataset.id); if (!r.error) await sb.from('history_events').insert({ residence_id: rid, category: 'Assistência', description: 'Solicitação atualizada: ' + o.status }); }
   else if (id === 'bitem') r = await sb.from('building_items').insert({ ...o, residence_id: rid });
@@ -382,12 +397,12 @@ function xPaint() {
   ex.forEach(e => { const k = (S.xcats || []).find(x => x.toLowerCase() === String(e.category).toLowerCase()) || e.category; by[k] = (by[k] || 0) + Number(e.amount); });
   const rows = Object.entries(by).sort((a, b) => b[1] - a[1]); let acc = 0;
   const segs = rows.map(([c, v]) => { const p = tot ? v / tot * 100 : 0, el = `<circle r="15.9155" cx="21" cy="21" fill="none" stroke="${xColor(c)}" stroke-width="6" stroke-dasharray="${p.toFixed(3)} ${(100 - p).toFixed(3)}" stroke-dashoffset="${(25 - acc).toFixed(3)}"/>`; acc += p; return el; }).join('');
-  const xs = $('#xs'); if (xs) xs.innerHTML = tot ? `<div class="xdon"><div class="xring"><svg viewBox="0 0 42 42" role="img" aria-label="Gastos por categoria"><circle r="15.9155" cx="21" cy="21" fill="none" stroke="#ffffff14" stroke-width="6"/>${segs}</svg><div class="xcen"><small>Total</small><b>${brl(tot)}</b></div></div>
+  const nw = ex.filter(e => e.warranty_months).length, xs = $('#xs'); if (xs) xs.innerHTML = tot ? `<p class="mute">${ex.length} ${ex.length === 1 ? 'lançamento' : 'lançamentos'} · ${nw} com garantia</p><div class="xdon"><div class="xring"><svg viewBox="0 0 42 42" role="img" aria-label="Gastos por categoria"><circle r="15.9155" cx="21" cy="21" fill="none" stroke="#ffffff14" stroke-width="6"/>${segs}</svg><div class="xcen"><small>Total</small><b>${brl(tot)}</b></div></div>
     <ul class="xleg">${rows.map(([c, v]) => `<li><i style="background:${xColor(c)}"></i><span>${esc(c)}</span><em>${(v / tot * 100).toFixed(1).replace('.', ',')}%</em><b>${brl(v)}</b></li>`).join('')}</ul></div>` : '<p class="empty">Nenhuma despesa lançada ainda.</p>';
   const { y, m } = S.xm, pre = y + '-' + String(m + 1).padStart(2, '0'), mes = ex.filter(e => String(e.spent_on).startsWith(pre)), mt = mes.reduce((a, e) => a + Number(e.amount), 0), xh = $('#xh'); if (!xh) return;
   xh.innerHTML = `<div class="calhead"><button type="button" data-xm="-1" aria-label="Mês anterior">‹</button><b>${MESES[m]} ${y}</b><button type="button" data-xm="1" aria-label="Próximo mês">›</button></div><p class="xmt">Total do mês: <b>${brl(mt)}</b> · ${mes.length} ${mes.length === 1 ? 'lançamento' : 'lançamentos'}</p>` +
     (mes.map(e => { const md = e.media || [], im = md.filter(x => x.type !== 'pdf').map(x => x.url), pd = md.filter(x => x.type === 'pdf');
-      return `<div class="card xcard"><div class="xtop"><b>${esc(e.description)}</b><strong>${brl(e.amount)}</strong></div><p class="mute"><span class="xcat" style="--c:${xColor(e.category)}">${esc(e.category)}</span> ${fmt(e.spent_on)}</p>${e.supplier ? `<p class="mute">Fornecedor: ${esc(e.supplier)}${e.supplier_phone ? ` · <a href="tel:${esc(String(e.supplier_phone).replace(/[^\d+]/g, ''))}">${esc(e.supplier_phone)}</a>` : ''}</p>` : ''}${e.notes ? `<p>${esc(e.notes)}</p>` : ''}${im.length ? grp('x' + e.id, im) : ''}${pd.length ? `<div class="xpdf">${pd.map(x => `<a href="${esc(x.url)}" target="_blank" rel="noopener">${ico(IC.doc)}<span>${esc(x.name || 'comprovante.pdf')}</span></a>`).join('')}</div>` : ''}<button type="button" class="link" data-xdel="${e.id}">Excluir</button></div>`; }).join('') || '<p class="empty">Nenhuma despesa neste mês.</p>');
+      return `<div class="card xcard"><div class="xtop"><b>${esc(e.description)}</b><strong>${brl(e.amount)}</strong></div><p class="mute"><span class="xcat" style="--c:${xColor(e.category)}">${esc(e.category)}</span> ${fmt(e.spent_on)}</p>${e.supplier ? `<p class="mute">Fornecedor: ${esc(e.supplier)}${e.supplier_phone ? ` · <a href="tel:${esc(String(e.supplier_phone).replace(/[^\d+]/g, ''))}">${esc(e.supplier_phone)}</a>` : ''}</p>` : ''}${e.warranty_months ? `<p class="mute xwar">Garantia: ${e.warranty_months} ${e.warranty_months === 1 ? 'mês' : 'meses'} (até ${addMonths(e.spent_on, e.warranty_months).toLocaleDateString('pt-BR')})</p>` : ''}${e.notes ? `<p>${esc(e.notes)}</p>` : ''}${im.length ? grp('x' + e.id, im) : ''}${pd.length ? `<div class="xpdf">${pd.map(x => `<a href="${esc(x.url)}" target="_blank" rel="noopener">${ico(IC.doc)}<span>${esc(x.name || 'comprovante.pdf')}</span></a>`).join('')}</div>` : ''}<button type="button" class="link" data-xdel="${e.id}">Excluir</button></div>`; }).join('') || '<p class="empty">Nenhuma despesa neste mês.</p>');
 }
 // Campos de data e hora com seletor verde (o do navegador não aceita cor): digitar com máscara ou abrir o seletor
 const DP_SVG = '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>', TM_SVG = '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
@@ -500,17 +515,19 @@ document.addEventListener('keydown', e => {
 });
 const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 async function calEvents(rid) {   // tudo que tem data no cronograma da residência
-  const [{ data: mt }, { data: sr }, { data: wr }] = await Promise.all([
+  const [{ data: mt }, { data: sr }, { data: wr }, { data: xr }] = await Promise.all([
     sb.from('maintenance_tasks').select('id,name,next_due,status').eq('residence_id', rid).not('next_due', 'is', null),
     sb.from('service_requests').select('id,protocol,category,status,scheduled_for').eq('residence_id', rid),
-    sb.from('warranties').select('id,system,start_date,months').eq('residence_id', rid)]);
+    sb.from('warranties').select('id,system,start_date,months').eq('residence_id', rid),
+    sb.from('expenses').select('id,description,spent_on,warranty_months').eq('residence_id', rid).not('warranty_months', 'is', null)]);
   const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'), ev = [];
   (mt || []).filter(x => !['Concluída', 'Cancelada'].includes(x.status || 'Pendente')).forEach(x => ev.push({ d: x.next_due, k: 'man', id: x.id, t: x.name }));
   (sr || []).filter(x => x.scheduled_for && !['Concluída', 'Encerrada'].includes(x.status)).forEach(x => ev.push({ d: x.scheduled_for, k: 'ast', id: x.id, t: `${x.category || 'Assistência'} (${x.protocol})` }));
   (wr || []).filter(x => x.start_date && x.months != null).forEach(x => { const e = addMonths(x.start_date, +x.months); if (!isNaN(e)) ev.push({ d: iso(e), k: 'gar', id: x.id, t: x.system }); });
+  (xr || []).forEach(x => { const e = addMonths(x.spent_on, +x.warranty_months); if (!isNaN(e)) ev.push({ d: iso(e), k: 'gex', id: x.id, t: x.description }); });
   return ev.sort((a, b) => String(a.d).localeCompare(String(b.d)));
 }
-const CAL_K = { man: ['Manutenção', 'cm'], ast: ['Assistência', 'ca'], gar: ['Garantia', 'cg'] };
+const CAL_K = { man: ['Manutenção', 'cm'], ast: ['Assistência', 'ca'], gar: ['Garantia', 'cg'], gex: ['Garantia', 'cg'] };
 function calPaint() {
   const { y, m, ev } = S.cal, el = $('#cal'); if (!el) return;
   const pre = y + '-' + String(m + 1).padStart(2, '0') + '-', first = new Date(y, m, 1).getDay(), nd = new Date(y, m + 1, 0).getDate(), t = new Date(), hoje = t.getFullYear() === y && t.getMonth() === m ? t.getDate() : 0;
