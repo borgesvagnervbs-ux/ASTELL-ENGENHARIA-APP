@@ -15,7 +15,7 @@ function ask(msg, ok = 'Excluir') {
 .askhl{position:relative!important;z-index:2147482999!important;border:2px solid #3dc08c!important;box-shadow:0 0 0 4px rgba(61,192,140,.25),0 0 24px rgba(61,192,140,.35)!important}
 `; document.head.appendChild(st); }   // estilo próprio: não depende do style.css
   return new Promise(res => {
-    const del = ok === 'Excluir', btn = lastClick && lastClick.closest && lastClick.closest('[data-del],[data-deldoc],[data-deldc],[data-delplan],[data-emdd],[data-gdel]'),
+    const del = ok === 'Excluir', btn = lastClick && lastClick.closest && lastClick.closest('[data-del],[data-deldoc],[data-deldc],[data-delplan],[data-emdd],[data-gdel],[data-xdel]'),
       card = del && btn ? btn.closest('.card,.gtile,.pfile,.item,.bthumb,.stagerow') : null, sub = del && !/^Excluir [^?]{0,40}\?$/.test(msg);
     const back = document.createElement('div'); back.className = 'askov';
     const dlg = document.createElement('div'); dlg.className = 'askdlg'; dlg.setAttribute('role', 'alertdialog'); dlg.setAttribute('aria-modal', 'true');
@@ -30,7 +30,7 @@ function ask(msg, ok = 'Excluir') {
   });
 }
 
-const APP_VERSION = '2026.10.21-24'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-25'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 let sb; try { sb = supabase.createClient(new URL(SUPABASE_URL.trim()).origin, SUPABASE_KEY.trim()); } catch (e) { sb = null; }
 const $ = s => document.querySelector(s); let app = $('#app');
 const fail = m => { app.innerHTML = '<div class="card" style="margin:16px"><b>Não foi possível iniciar o Astell Home</b><p class="mute">' + m + '</p></div>'; };
@@ -69,10 +69,10 @@ const DOC_CATS = ['Projeto arquitetônico','Projeto estrutural','Projeto elétri
 
 const PT_CATS = ['Elétrica','Hidráulica','Gás','Climatização','Estrutura','Paredes','Equipamentos'];
 const ico = (d, c = '') => `<svg class="ico ${c}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d.split('|').map(p => `<path d="${p}"/>`).join('')}</svg>`;
-const IC = { home: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z|M9 22V12h6v10', casa: 'M4 21V8l8-5 8 5v13|M9 21v-6h6v6', drop: 'M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z', layers: 'M12 2L2 7l10 5 10-5-10-5z|M2 17l10 5 10-5|M2 12l10 5 10-5', shield: 'M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z|M9 12l2 2 4-4', wrench: 'M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z', phones: 'M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3', doc: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z|M14 2v6h6|M8 13h8|M8 17h8', user: 'M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2|M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', chev: 'M9 18l6-6-6-6', check: 'M22 11.08V12a10 10 0 1 1-5.93-9.14|M22 4L12 14.01l-3-3', bell: 'M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9|M10.3 21a1.94 1.94 0 0 0 3.4 0', pin: 'M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0|M12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5', chevd: 'M6 9l6 6 6-6', bolt: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z', image: 'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z|M8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3|M21 15l-5-5L5 21', calendar: 'M8 2v4|M16 2v4|M3 10h18|M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z|M8 14h.01|M12 14h.01|M16 14h.01|M8 18h.01|M12 18h.01', dl: 'M12 3v12|M7 11l5 5 5-5|M5 21h14', folder: 'M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z', usr: 'M20 21a8 8 0 0 0-16 0|M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8', tick: 'M5 12.5l4.5 4.5L19 7.5' };
+const IC = { home: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z|M9 22V12h6v10', casa: 'M4 21V8l8-5 8 5v13|M9 21v-6h6v6', drop: 'M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z', layers: 'M12 2L2 7l10 5 10-5-10-5z|M2 17l10 5 10-5|M2 12l10 5 10-5', shield: 'M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z|M9 12l2 2 4-4', wrench: 'M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z', phones: 'M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3', doc: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z|M14 2v6h6|M8 13h8|M8 17h8', user: 'M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2|M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', chev: 'M9 18l6-6-6-6', check: 'M22 11.08V12a10 10 0 1 1-5.93-9.14|M22 4L12 14.01l-3-3', bell: 'M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9|M10.3 21a1.94 1.94 0 0 0 3.4 0', pin: 'M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0|M12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5', chevd: 'M6 9l6 6 6-6', bolt: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z', image: 'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z|M8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3|M21 15l-5-5L5 21', calendar: 'M8 2v4|M16 2v4|M3 10h18|M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z|M8 14h.01|M12 14h.01|M16 14h.01|M8 18h.01|M12 18h.01', dl: 'M12 3v12|M7 11l5 5 5-5|M5 21h14', folder: 'M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z', usr: 'M20 21a8 8 0 0 0-16 0|M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8', tick: 'M5 12.5l4.5 4.5L19 7.5', dollar: 'M12 2v20|M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6' };
 const TILES = [['estrutura', 'Estrutura', 'Steel Frame', 'layers'], ['sistemas', 'Instalações', 'Elétrica e hidráulica', 'bolt'], ['garantias', 'Garantias', 'Prazos e condições', 'shield'], ['manutencao', 'Manutenção', 'Cuidados da sua casa', 'wrench']];
 const BCAT = { estrutura: 'Estrutura', sistemas: 'Sistemas', materiais: 'Materiais' };
-const NAV = [['home', 'Início', 'home', ['home']], ['casa', 'Minha Casa', 'layers', ['casa', 'estrutura', 'sistemas', 'materiais', 'garantias', 'manutencao', 'equipamentos', 'planta', 'midias', 'cronograma', 'detalhe']], ['documentos', 'Documentos', 'folder', ['documentos']], ['assistencia', 'Suporte', 'phones', ['assistencia']]];
+const NAV = [['home', 'Início', 'home', ['home']], ['casa', 'Minha Casa', 'layers', ['casa', 'estrutura', 'sistemas', 'materiais', 'garantias', 'manutencao', 'equipamentos', 'planta', 'midias', 'cronograma', 'detalhe', 'documentos']], ['custos', 'Centro de custo', 'dollar', ['custos']], ['assistencia', 'Suporte', 'phones', ['assistencia']]];
 $('#nav').innerHTML = NAV.map(([h, l, i, g]) => `<a href="#${h}" data-g="${g.join(' ')}">${ico(IC[i])}<span>${l}</span></a>`).join('');
 $('#top .bico').innerHTML = ico(IC.casa, 'brandico'); $('#bell').innerHTML = ico(IC.bell); $('#avatar').innerHTML = ico(IC.usr);
 async function refreshBell() {   // número de solicitações de assistência ainda em andamento
@@ -238,6 +238,19 @@ const views = {
     const CARDS = [['documentos', 'Documentos', 'doc'], ['midias', 'Mídias', 'image'], ['estrutura', 'Estrutura', 'layers'], ['sistemas', 'Instalações', 'bolt'], ['garantias', 'Garantias', 'shield'], ['manutencao', 'Manutenções', 'wrench'], ['assistencia', 'Assistências', 'phones'], ['cronograma', 'Cronograma', 'calendar']];
     app.innerHTML = `<h2>${esc(r.name)}</h2><div class="card">${rows.map(([a, b]) => `<p><span class="mute">${a}</span><br>${esc(b || '—')}</p>`).join('')}</div><div class="cgrid">${CARDS.map(([h, t, i]) => `<a class="card ccard" href="#${h}">${ico(IC[i])}<b>${t}</b></a>`).join('')}</div>`;
   },
+  async custos() {
+    const rid = S.cur.id, [{ data: ex }, { data: cs }] = await Promise.all([sb.from('expenses').select('*').eq('residence_id', rid).order('spent_on', { ascending: false }).order('created_at', { ascending: false }), sb.from('expense_categories').select('name').order('name')]);
+    S.exp = ex || []; S.xcats = xCats(cs || [], S.exp);
+    if (S.nova) {
+      app.innerHTML = `<h2>Lançar despesa</h2><form class="card" data-form="exp"><label>O que foi comprado<input name="description" required maxlength="160"></label><label>Valor (R$)<input name="amount" required inputmode="decimal" placeholder="0,00" autocomplete="off"></label><label>Data<input name="spent_on" type="date" required value="${xIso(new Date())}"></label>
+      <label>Categoria<input name="category" list="xcl" required maxlength="60" autocomplete="off" placeholder="Pesquise ou digite uma nova categoria"></label><datalist id="xcl">${S.xcats.map(c => `<option value="${esc(c)}">`).join('')}</datalist><p class="mute">Se a categoria não existir, ela será criada ao salvar e ficará disponível nas próximas pesquisas.</p>
+      <label>Fornecedor<input name="supplier" maxlength="120"></label><label>Telefone do fornecedor<input name="supplier_phone" type="tel" inputmode="tel" maxlength="30"></label><label>Descrição adicional<textarea name="notes" rows="3"></textarea></label>
+      ${CLOUD_OK ? '<label>Comprovantes e notas (imagens ou PDF)<input name="files" type="file" accept="image/*,application/pdf" multiple></label><p class="mute">Até 6 arquivos de até 10 MB cada.</p>' : ''}<button>Salvar despesa</button><a class="btn-cancel" href="#custos">Cancelar</a></form>`; return;
+    }
+    const now = new Date(); S.xm = { y: now.getFullYear(), m: now.getMonth() };
+    app.innerHTML = `<h2>Centro de custo</h2><p class="mute">Acompanhe os gastos da sua obra.</p><div class="card xsum"><b>Resumo dos gastos</b><div id="xs"></div></div><a class="newreq" href="#custos?nova">+ Lançar despesa</a><div id="xh"></div>`;
+    xPaint();
+  },
   async midias() {
     const { data } = await sb.from('images').select('*').eq('residence_id', S.cur.id).eq('kind', 'residence').order('created_at');
     S.media = data || []; S.casaTab = 'all'; app.innerHTML = `<h2>Mídias</h2><div id="mb">${mediaBlock() || '<p class="empty">Nenhuma mídia cadastrada ainda.</p>'}</div>`;
@@ -299,6 +312,19 @@ app.addEventListener('submit', async e => {
     catch (err) { if (btn) btn.disabled = false; return toast('Não foi possível enviar os arquivos: ' + err.message, 1); }
     r = await sb.from('service_requests').insert({ ...o, urgency: 'Média', media, residence_id: rid, protocol: 'AST-' + Date.now().toString(36).toUpperCase() }); if (btn) btn.disabled = false;
   }
+  else if (id === 'exp') {
+    const files = f.files ? [...f.files.files].filter(x => x.size) : []; delete o.files;
+    const amt = parseFloat(String(o.amount || '').replace(/[^\d,.-]/g, '').replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.'));
+    if (!(amt > 0)) return toast('Informe um valor maior que zero.', 1);
+    if (files.length > 6) return toast('Envie no máximo 6 arquivos.', 1);
+    for (const x of files) { if (!/^image\//.test(x.type) && x.type !== 'application/pdf') return toast(`"${x.name}" não é imagem nem PDF.`, 1); if (x.size > 10 * 1048576) return toast(`"${x.name}" é maior que 10 MB.`, 1); }
+    const btn = f.querySelector('button:not([type])'); if (btn) btn.disabled = true; const media = [];
+    try { for (let i = 0; i < files.length; i++) { toast(`Enviando arquivo ${i + 1} de ${files.length}…`); const j = await cldPost(files[i], 'astell-home/despesas'); media.push({ url: j.secure_url, type: files[i].type === 'application/pdf' ? 'pdf' : 'image', name: files[i].name, public_id: j.public_id }); } }
+    catch (err) { if (btn) btn.disabled = false; return toast('Não foi possível enviar os arquivos: ' + err.message, 1); }
+    const typed = String(o.category || '').trim().replace(/\s+/g, ' '), known = (S.xcats || XDEF).find(x => x.toLowerCase() === typed.toLowerCase());
+    if (!known) await sb.from('expense_categories').insert({ name: typed });   // nova categoria fica cadastrada para as próximas vezes
+    r = await sb.from('expenses').insert({ residence_id: rid, description: String(o.description).trim(), amount: amt, spent_on: o.spent_on, category: known || typed, supplier: o.supplier, supplier_phone: o.supplier_phone, notes: o.notes, media }); if (btn) btn.disabled = false;
+  }
   else if (id === 'upd') { r = await sb.from('service_requests').update(o).eq('id', f.dataset.id); if (!r.error) await sb.from('history_events').insert({ residence_id: rid, category: 'Assistência', description: 'Solicitação atualizada: ' + o.status }); }
   else if (id === 'bitem') r = await sb.from('building_items').insert({ ...o, residence_id: rid });
   else if (id === 'plan') { const file = f.file.files[0], path = `${rid}/planta_${Date.now()}_${file.name.replace(/[^\w.-]/g, '_')}`;
@@ -308,12 +334,14 @@ app.addEventListener('submit', async e => {
   else if (id === 'doc') { const file = f.file.files[0], path = `${rid}/${Date.now()}_${file.name.replace(/[^\w.-]/g, '_')}`;
     r = await sb.storage.from('documents').upload(path, file); if (!r.error) { r = await sb.from('documents').insert({ residence_id: rid, title: o.title, category: o.category, version: o.version, description: o.description, path }); } }
   if (r?.error) return toast('Não foi possível salvar: ' + r.error.message, 1);
-  if (id === 'req') history.replaceState(null, '', '#assistencia');
-  toast(id === 'req' ? 'Solicitação enviada.' : 'Salvo com sucesso.'); route();
+  if (id === 'req') history.replaceState(null, '', '#assistencia'); if (id === 'exp') history.replaceState(null, '', '#custos');
+  toast(id === 'req' ? 'Solicitação enviada.' : id === 'exp' ? 'Despesa salva.' : 'Salvo com sucesso.'); route();
 });
 app.addEventListener('click', async e => {
   const d = e.target.dataset;
   if (d.cn && S.carGo) { S.carHold = Date.now() + 8000; S.carGo(S.carIdx() + +d.cn); }
+  if (d.xm && S.xm) { const x = new Date(S.xm.y, S.xm.m + +d.xm, 1); S.xm = { y: x.getFullYear(), m: x.getMonth() }; xPaint(); }
+  if (d.xdel && await ask('Excluir este lançamento?')) { const { error } = await sb.from('expenses').delete().eq('id', d.xdel); if (error) return toast('Não foi possível excluir.', 1); S.exp = (S.exp || []).filter(x => x.id !== d.xdel); xPaint(); toast('Lançamento excluído.'); }
   if (d.gf) { const k = d.gf === 'all' ? null : d.gf; S.gf = S.gf === k ? null : k; gaPaint(); }
   if (d.cal && S.cal) { const x = new Date(S.cal.y, S.cal.m + +d.cal, 1); S.cal.y = x.getFullYear(); S.cal.m = x.getMonth(); calPaint(); }
   if (d.ct) { S.casaTab = d.ct; $('#mb').innerHTML = mediaBlock(); }
@@ -342,6 +370,25 @@ function route() {
   Promise.resolve(v()).finally(() => { if (location.hash === go) crumbs(h); });
 }
 // Caminho de navegação (breadcrumb) no alto de todas as telas, exceto o Início
+const XDEF = ['Construção', 'Acabamentos', 'Mobiliário', 'Eletrodomésticos', 'Eletrônicos', 'Área externa', 'Serviços'], XCOL = ['#3dc08c', '#4aa3ff', '#f08a3c', '#b57bee', '#e5534b', '#26b5c4', '#e3c04a', '#8d99a6', '#6fd36f', '#ff7fb0'];
+const brl = v => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), xIso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+function xCats(custom, ex) {   // categorias padrão + criadas pelo cliente (sem repetir, ignorando maiúsculas)
+  const out = [...XDEF], has = n => out.some(x => x.toLowerCase() === String(n).toLowerCase());
+  [...(custom || []).map(c => c.name), ...(ex || []).map(e => e.category)].filter(Boolean).forEach(n => { if (!has(n)) out.push(n); }); return out;
+}
+const xColor = c => XCOL[Math.max(0, (S.xcats || []).findIndex(x => x.toLowerCase() === String(c).toLowerCase())) % XCOL.length];
+function xPaint() {
+  const ex = S.exp || [], tot = ex.reduce((a, e) => a + Number(e.amount), 0), by = {};
+  ex.forEach(e => { const k = (S.xcats || []).find(x => x.toLowerCase() === String(e.category).toLowerCase()) || e.category; by[k] = (by[k] || 0) + Number(e.amount); });
+  const rows = Object.entries(by).sort((a, b) => b[1] - a[1]); let acc = 0;
+  const segs = rows.map(([c, v]) => { const p = tot ? v / tot * 100 : 0, el = `<circle r="15.9155" cx="21" cy="21" fill="none" stroke="${xColor(c)}" stroke-width="6" stroke-dasharray="${p.toFixed(3)} ${(100 - p).toFixed(3)}" stroke-dashoffset="${(25 - acc).toFixed(3)}"/>`; acc += p; return el; }).join('');
+  const xs = $('#xs'); if (xs) xs.innerHTML = tot ? `<div class="xdon"><div class="xring"><svg viewBox="0 0 42 42" role="img" aria-label="Gastos por categoria"><circle r="15.9155" cx="21" cy="21" fill="none" stroke="#ffffff14" stroke-width="6"/>${segs}</svg><div class="xcen"><small>Total</small><b>${brl(tot)}</b></div></div>
+    <ul class="xleg">${rows.map(([c, v]) => `<li><i style="background:${xColor(c)}"></i><span>${esc(c)}</span><em>${(v / tot * 100).toFixed(1).replace('.', ',')}%</em><b>${brl(v)}</b></li>`).join('')}</ul></div>` : '<p class="empty">Nenhuma despesa lançada ainda.</p>';
+  const { y, m } = S.xm, pre = y + '-' + String(m + 1).padStart(2, '0'), mes = ex.filter(e => String(e.spent_on).startsWith(pre)), mt = mes.reduce((a, e) => a + Number(e.amount), 0), xh = $('#xh'); if (!xh) return;
+  xh.innerHTML = `<div class="calhead"><button type="button" data-xm="-1" aria-label="Mês anterior">‹</button><b>${MESES[m]} ${y}</b><button type="button" data-xm="1" aria-label="Próximo mês">›</button></div><p class="xmt">Total do mês: <b>${brl(mt)}</b> · ${mes.length} ${mes.length === 1 ? 'lançamento' : 'lançamentos'}</p>` +
+    (mes.map(e => { const md = e.media || [], im = md.filter(x => x.type !== 'pdf').map(x => x.url), pd = md.filter(x => x.type === 'pdf');
+      return `<div class="card xcard"><div class="xtop"><b>${esc(e.description)}</b><strong>${brl(e.amount)}</strong></div><p class="mute"><span class="xcat" style="--c:${xColor(e.category)}">${esc(e.category)}</span> ${fmt(e.spent_on)}</p>${e.supplier ? `<p class="mute">Fornecedor: ${esc(e.supplier)}${e.supplier_phone ? ` · <a href="tel:${esc(String(e.supplier_phone).replace(/[^\d+]/g, ''))}">${esc(e.supplier_phone)}</a>` : ''}</p>` : ''}${e.notes ? `<p>${esc(e.notes)}</p>` : ''}${im.length ? grp('x' + e.id, im) : ''}${pd.length ? `<div class="xpdf">${pd.map(x => `<a href="${esc(x.url)}" target="_blank" rel="noopener">${ico(IC.doc)}<span>${esc(x.name || 'comprovante.pdf')}</span></a>`).join('')}</div>` : ''}<button type="button" class="link" data-xdel="${e.id}">Excluir</button></div>`; }).join('') || '<p class="empty">Nenhuma despesa neste mês.</p>');
+}
 const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 async function calEvents(rid) {   // tudo que tem data no cronograma da residência
   const [{ data: mt }, { data: sr }, { data: wr }] = await Promise.all([
@@ -368,9 +415,9 @@ function calPaint() {
   <div class="callegend">${Object.values(CAL_K).map(([l, c]) => `<span><u class="${c}"></u>${l}</span>`).join('')}</div>
   <h3>Avisos de ${MESES[m].toLowerCase()}</h3>${list.length ? list.map(e => `<a class="card calnote" href="#detalhe?${e.k}:${e.id}"><u class="${CAL_K[e.k][1]}"></u><p>${msg(e)}</p>${ico(IC.chev)}</a>`).join('') : '<p class="empty">Nada agendado para este mês.</p>'}`;
 }
-const CR = { midias: [['casa', 'Minha Casa'], ['', 'Mídias']], cronograma: [['casa', 'Minha Casa'], ['', 'Cronograma']], casa: [['casa', 'Minha Casa']], estrutura: [['casa', 'Minha Casa'], ['', 'Estrutura']], sistemas: [['casa', 'Minha Casa'], ['', 'Instalações']], materiais: [['casa', 'Minha Casa'], ['', 'Materiais']], garantias: [['casa', 'Minha Casa'], ['', 'Garantias']], manutencao: [['casa', 'Minha Casa'], ['', 'Manutenção']], equipamentos: [['casa', 'Minha Casa'], ['', 'Equipamentos']], planta: [['casa', 'Minha Casa'], ['', 'Planta técnica']], documentos: [['documentos', 'Documentos']], assistencia: [['assistencia', 'Suporte']], mais: [['mais', 'Perfil']] };
+const CR = { midias: [['casa', 'Minha Casa'], ['', 'Mídias']], cronograma: [['casa', 'Minha Casa'], ['', 'Cronograma']], casa: [['casa', 'Minha Casa']], estrutura: [['casa', 'Minha Casa'], ['', 'Estrutura']], sistemas: [['casa', 'Minha Casa'], ['', 'Instalações']], materiais: [['casa', 'Minha Casa'], ['', 'Materiais']], garantias: [['casa', 'Minha Casa'], ['', 'Garantias']], manutencao: [['casa', 'Minha Casa'], ['', 'Manutenção']], equipamentos: [['casa', 'Minha Casa'], ['', 'Equipamentos']], planta: [['casa', 'Minha Casa'], ['', 'Planta técnica']], documentos: [['casa', 'Minha Casa'], ['', 'Documentos']], custos: [['custos', 'Centro de custo']], assistencia: [['assistencia', 'Suporte']], mais: [['mais', 'Perfil']] };
 function crumbs(h) {
-  const c = h === 'detalhe' ? [['casa', 'Minha Casa'], ['cronograma', 'Cronograma'], ['', 'Detalhe']] : h === 'assistencia' && S.nova ? [['assistencia', 'Suporte'], ['', 'Nova solicitação']] : CR[h]; if (!c || !app.firstElementChild || app.querySelector('.crumbs')) return;
+  const c = h === 'custos' && S.nova ? [['custos', 'Centro de custo'], ['', 'Lançar despesa']] : h === 'detalhe' ? [['casa', 'Minha Casa'], ['cronograma', 'Cronograma'], ['', 'Detalhe']] : h === 'assistencia' && S.nova ? [['assistencia', 'Suporte'], ['', 'Nova solicitação']] : CR[h]; if (!c || !app.firstElementChild || app.querySelector('.crumbs')) return;
   const last = c.length - 1, items = [['home', 'Início'], ...c].map(([href, t], i, a) => i === a.length - 1 ? `<li aria-current="page">${t}</li>` : `<li><a href="#${href}">${t}</a></li>`);
   app.insertAdjacentHTML('afterbegin', `<ol class="crumbs" aria-label="Você está em">${items.join('<li class="sep" aria-hidden="true">›</li>')}</ol>`);
 }
