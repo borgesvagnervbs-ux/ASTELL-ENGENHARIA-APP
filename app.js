@@ -30,7 +30,7 @@ function ask(msg, ok = 'Excluir') {
   });
 }
 
-const APP_VERSION = '2026.10.21-27'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-29'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 let sb; try { sb = supabase.createClient(new URL(SUPABASE_URL.trim()).origin, SUPABASE_KEY.trim()); } catch (e) { sb = null; }
 const $ = s => document.querySelector(s); let app = $('#app');
 const fail = m => { app.innerHTML = '<div class="card" style="margin:16px"><b>Não foi possível iniciar o Astell Home</b><p class="mute">' + m + '</p></div>'; };
@@ -235,7 +235,7 @@ const views = {
   async casa() {
     const { data: im0 } = await sb.from('images').select('*').eq('residence_id', S.cur.id).eq('kind', 'residence').order('created_at');
     const r = S.cur, rows = [['Código', r.code], ['Endereço', r.address], ['Área construída', r.area_m2 && r.area_m2 + ' m²'], ['Pavimentos', r.floors], ['Sistema construtivo', r.build_system], ['Nº do projeto', r.project_no], ['Início da obra', fmt(r.start_date)], ['Entrega', fmt(r.delivery_date)], ['Responsável técnico', r.tech_lead], ['Observações', r.notes]];
-    const CARDS = [['documentos', 'Documentos', 'doc'], ['midias', 'Mídias', 'image'], ['estrutura', 'Estrutura', 'layers'], ['sistemas', 'Instalações', 'bolt'], ['garantias', 'Garantias', 'shield'], ['manutencao', 'Manutenções', 'wrench'], ['assistencia', 'Assistências', 'phones'], ['cronograma', 'Cronograma', 'calendar']];
+    const CARDS = [['documentos', 'Documentos', 'doc'], ['midias', 'Mídias', 'image'], ['estrutura', 'Estrutura', 'layers'], ['sistemas', 'Instalações', 'bolt'], ['garantias', 'Garantias', 'shield'], ['manutencao', 'Manutenções', 'wrench'], ['assistencia', 'Assistências', 'phones'], ['cronograma', 'Cronograma', 'calendar'], ['custos', 'Centro de custo', 'dollar']];
     app.innerHTML = `<h2>${esc(r.name)}</h2><div class="card">${rows.map(([a, b]) => `<p><span class="mute">${a}</span><br>${esc(b || '—')}</p>`).join('')}</div><div class="cgrid">${CARDS.map(([h, t, i]) => `<a class="card ccard" href="#${h}">${ico(IC[i])}<b>${t}</b></a>`).join('')}</div>`;
   },
   async custos() {
@@ -406,13 +406,56 @@ function tmRender(box) {
   pop.innerHTML = `<div class="tmcols"><div><small>Hora</small><div class="tmcol">${Array.from({ length: 24 }, (_, i) => { const x = String(i).padStart(2, '0'); return `<button type="button" class="tmb${x === h ? ' sel' : ''}" data-tmh="${x}">${x}</button>`; }).join('')}</div></div><div><small>Minuto</small><div class="tmcol">${Array.from({ length: 12 }, (_, i) => { const x = String(i * 5).padStart(2, '0'); return `<button type="button" class="tmb${x === mi ? ' sel' : ''}" data-tmm="${x}">${x}</button>`; }).join('')}</div></div></div><div class="dpfoot"><button type="button" data-tmnow>Agora</button><button type="button" data-dpclear>Limpar</button></div>`;
   const s = pop.querySelector('.tmb.sel'); if (s) s.scrollIntoView({ block: 'nearest' });
 }
+
+// Seletor de horário digital: setas para subir/descer horas e minutos OU digitar nos números
+const TP_CSS = `.tpov{position:fixed;inset:0;z-index:2147482000;background:rgba(4,9,15,.7);display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box}
+.tpbox{width:min(340px,100%);background:#101b28;border:1px solid #1f2f3f;border-radius:20px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.8);color:#e8eef2;box-sizing:border-box}
+.tpbox h3{margin:0 0 14px;font-size:1.05rem;font-weight:700;color:#fff}
+.tpdig{display:flex;align-items:center;justify-content:center;gap:22px;padding:6px 0 14px}
+.tpcell{display:flex;flex-direction:column;align-items:center;gap:2px}
+.tpcell input{width:84px;height:64px;margin:0;padding:0;text-align:center;font-size:2.6rem;font-weight:700;border-radius:14px;background:transparent;border:2px solid transparent;color:#fff;box-sizing:border-box}
+.tpcell input:focus{border-color:#3dc08c;outline:none;background:rgba(61,192,140,.12)}
+.tpcell small{color:#8a9aa6;font-size:.85rem}
+.tparr{width:56px;height:40px;margin:0;padding:0;border:0;border-radius:10px;background:transparent;color:#3dc08c;cursor:pointer;display:grid;place-items:center}
+.tparr:hover,.tparr:active{background:rgba(61,192,140,.18)}.tparr svg{width:26px;height:26px}
+.tpsep{font-size:2.4rem;font-weight:700;color:#3dc08c;align-self:center;margin-top:-6px}
+.tpbtns{display:flex;gap:10px;justify-content:flex-end;margin-top:6px}.tpbtns button{margin:0;min-height:44px;padding:0 20px;border-radius:12px;font-weight:700;font-size:1rem;cursor:pointer;border:0}
+.tpbtns .tpno{background:transparent;color:#3dc08c}.tpbtns .tpok{background:#3dc08c;color:#04231a}`;
+function tpOpen(box) {
+  if (!document.getElementById('tp-css')) { const st = document.createElement('style'); st.id = 'tp-css'; st.textContent = TP_CSS; document.head.appendChild(st); }
+  const inp = box.querySelector('.dptxt'), m = /^(\d{2}):(\d{2})$/.exec(inp.value), n = new Date(); let H = m ? +m[1] : n.getHours(), M = m ? +m[2] : n.getMinutes();
+  const ov = document.createElement('div'); ov.className = 'tpov'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true');
+  const up = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>', dn = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
+  const cell = (k, lbl) => `<div class="tpcell"><button type="button" class="tparr" data-k="${k}" data-d="1" aria-label="Aumentar ${lbl.toLowerCase()}">${up}</button><input class="tp${k}" inputmode="numeric" maxlength="2" autocomplete="off" aria-label="${lbl}"><small>${lbl}</small><button type="button" class="tparr" data-k="${k}" data-d="-1" aria-label="Diminuir ${lbl.toLowerCase()}">${dn}</button></div>`;
+  ov.innerHTML = `<div class="tpbox"><h3>Escolha o horário</h3><div class="tpdig">${cell('h', 'Horas')}<span class="tpsep">:</span>${cell('m', 'Minutos')}</div><div class="tpbtns"><button type="button" class="tpno">Cancelar</button><button type="button" class="tpok">OK</button></div></div>`;
+  document.body.appendChild(ov);
+  const ih = ov.querySelector('.tph'), im = ov.querySelector('.tpm'), p2 = v => String(v).padStart(2, '0'), show = () => { ih.value = p2(H); im.value = p2(M); };
+  const step = (k, d) => { if (k === 'h') H = (H + d + 24) % 24; else M = (M + d + 60) % 60; show(); };
+  show();
+  // segurar a seta repete a mudança, como nos celulares
+  let rep, tm; const stop = () => { clearTimeout(tm); clearInterval(rep); };
+  ov.querySelectorAll('.tparr').forEach(b => { b.addEventListener('pointerdown', e => { e.preventDefault(); const k = b.dataset.k, d = +b.dataset.d; step(k, d); tm = setTimeout(() => { rep = setInterval(() => step(k, d), 90); }, 450); }); ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => b.addEventListener(ev, stop)); b.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); step(b.dataset.k, +b.dataset.d); } }); });
+  const typed = (el, max, set, next) => {
+    el.addEventListener('focus', () => el.select());
+    el.addEventListener('input', () => { el.value = el.value.replace(/\D/g, '').slice(0, 2); if (el.value === '') return; let v = Math.min(+el.value, max); if (el.value.length === 2 || v * 10 > max) { set(v); el.value = p2(v); if (next) next.focus(); } else set(v); });
+    el.addEventListener('blur', show);
+    el.addEventListener('keydown', e => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); step(el === ih ? 'h' : 'm', e.key === 'ArrowUp' ? 1 : -1); el.select(); } });
+    el.addEventListener('wheel', e => { e.preventDefault(); step(el === ih ? 'h' : 'm', e.deltaY < 0 ? 1 : -1); }, { passive: false });
+  };
+  typed(ih, 23, v => { H = v; }, im); typed(im, 59, v => { M = v; }, null);
+  const end = ok => { stop(); if (ok) { if (document.activeElement === ih && ih.value) H = Math.min(23, +ih.value); if (document.activeElement === im && im.value) M = Math.min(59, +im.value); inp.value = p2(H) + ':' + p2(M); inp.setCustomValidity(''); } document.removeEventListener('keydown', key, true); ov.remove(); };
+  const key = e => { if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); end(false); } else if (e.key === 'Enter' && !e.target.closest('.tparr')) { e.preventDefault(); end(true); } };
+  document.addEventListener('keydown', key, true);
+  ov.addEventListener('click', e => { e.stopPropagation(); if (e.target === ov || e.target.closest('.tpno')) end(false); else if (e.target.closest('.tpok')) end(true); });
+  ih.focus();
+}
 function dpCloseAll(except) { let any = false; document.querySelectorAll('.dpop:not([hidden])').forEach(p => { if (!except || !p.closest('[data-dp]').contains(except)) { p.hidden = true; any = true; } }); return any; }
 function dpSetTime(box, v) { const t = box.querySelector('.dptxt'); t.value = v; t.setCustomValidity(''); }
 document.addEventListener('click', e => {
   const t = e.target, box = t.closest && t.closest('[data-dp]');
   if (!box) { dpCloseAll(); return; } dpCloseAll(box);
   const pop = box.querySelector('.dpop'), isDate = box.dataset.dp === 'date';
-  if (t.closest('[data-dpbtn]')) { if (!pop.hidden) pop.hidden = true; else { if (isDate) { const v = box.querySelector('[type=hidden]').value, d = v ? new Date(v + 'T00:00') : new Date(); dpRender(box, d.getFullYear(), d.getMonth()); } else tmRender(box); pop.hidden = false; const r = pop.getBoundingClientRect(); if (r.bottom > innerHeight - 100) scrollBy({ top: r.bottom - innerHeight + 110, behavior: 'smooth' }); } return; }
+  if (t.closest('[data-dpbtn]')) { if (!pop.hidden) pop.hidden = true; else { if (isDate) { const v = box.querySelector('[type=hidden]').value, d = v ? new Date(v + 'T00:00') : new Date(); dpRender(box, d.getFullYear(), d.getMonth()); } else { tpOpen(box); return; } pop.hidden = false; const r = pop.getBoundingClientRect(); if (r.bottom > innerHeight - 100) scrollBy({ top: r.bottom - innerHeight + 110, behavior: 'smooth' }); } return; }
   const nav = t.closest('[data-dpnav]'); if (nav) { const d = new Date(+pop.dataset.y, +pop.dataset.m + +nav.dataset.dpnav, 1); dpRender(box, d.getFullYear(), d.getMonth()); return; }
   const day = t.closest('[data-dpday]'); if (day) { box.querySelector('[type=hidden]').value = day.dataset.dpday; const tx = box.querySelector('.dptxt'); tx.value = dpBr(day.dataset.dpday); tx.setCustomValidity(''); pop.hidden = true; return; }
   if (t.closest('[data-dptoday]')) { const n = new Date(), iso = dpIso(n.getFullYear(), n.getMonth(), n.getDate()); box.querySelector('[type=hidden]').value = iso; const tx = box.querySelector('.dptxt'); tx.value = dpBr(iso); tx.setCustomValidity(''); pop.hidden = true; return; }
