@@ -30,7 +30,7 @@ function ask(msg, ok = 'Excluir') {
   });
 }
 
-const APP_VERSION = '2026.10.21-34'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-35'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 // Dentro do aplicativo (Median/WebView) o Google bloqueia o login por OAuth; lá o acesso é por e-mail e senha.
 const IN_APP = /median|gonative/i.test(navigator.userAgent);
 if (IN_APP) document.documentElement.classList.add('in-app');
@@ -591,7 +591,7 @@ function loginScreen(mode = 'login') {
   app.innerHTML = `<div class="login"><form id="lf">
     <h1>ASTELL<span>HOME</span></h1><p class="tag">Sua casa. Sua história. Tudo em um só lugar.</p>
     <h2>${su ? 'Crie sua conta' : 'Bem-vindo à sua casa Astell'}</h2>
-    ${IN_APP ? '' : `<button type="button" class="btn-google" id="gg">${GOOGLE_SVG}<span>${su ? 'Cadastrar com o Google' : 'Entrar com o Google'}</span></button>
+    ${`<button type="button" class="btn-google" id="gg">${GOOGLE_SVG}<span>${su ? 'Cadastrar com o Google' : 'Entrar com o Google'}</span></button>
     <div class="or"><span>ou</span></div>`}
     ${su ? '<label>Nome completo<input id="nm" required autocomplete="name"></label>' + CPF_INPUT('cp') : ''}
     <label>E-mail<input id="em" type="email" required autocomplete="username"></label>
@@ -602,7 +602,12 @@ function loginScreen(mode = 'login') {
     <p class="switch">${su ? 'Já tem conta?' : 'Ainda não tem conta?'} <button type="button" id="sw" class="btn-text">${su ? 'Entrar' : 'Cadastre-se'}</button></p>
   </form></div>`;
   $('#sw').onclick = () => loginScreen(su ? 'login' : 'signup');
-  if ($('#gg')) $('#gg').onclick = async () => { if (location.protocol === 'file:') return toast('O login com Google não funciona com o arquivo aberto direto. Abra o app por um endereço http ou https.', 1); const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: back } }); if (error) toast('Não foi possível entrar com o Google. Confira se ele está ativado no Supabase.', 1); };
+  if ($('#gg')) $('#gg').onclick = async () => {
+    if (IN_APP) {   // Median: login nativo do Google (o Google bloqueia o login pelo navegador embutido)
+      if (!(window.median && median.socialLogin && median.socialLogin.google)) return toast('O login com o Google ainda não está ativo neste aplicativo. Entre com e-mail e senha.', 1);
+      window.__gLogin = async r => { if (!r || !r.idToken) return toast(r && r.error ? 'Não foi possível entrar com o Google.' : 'Login com o Google cancelado.', 1); const { error } = await sb.auth.signInWithIdToken({ provider: 'google', token: r.idToken }); if (error) return toast('O Supabase não aceitou o login com o Google. Confira o Client ID do Google no Supabase.', 1); location.hash = '#home'; location.reload(); };
+      return median.socialLogin.google.login({ callback: window.__gLogin });
+    } if (location.protocol === 'file:') return toast('O login com Google não funciona com o arquivo aberto direto. Abra o app por um endereço http ou https.', 1); const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: back } }); if (error) toast('Não foi possível entrar com o Google. Confira se ele está ativado no Supabase.', 1); };
   $('#lf').onsubmit = async e => {
     e.preventDefault(); const email = $('#em').value.trim(), password = $('#pw').value;
     if (!su) { const { error } = await sb.auth.signInWithPassword({ email, password }); if (error) toast(/confirm/i.test(error.message) ? 'Confirme seu e-mail antes de entrar.' : 'E-mail ou senha incorretos.', 1); return; }
