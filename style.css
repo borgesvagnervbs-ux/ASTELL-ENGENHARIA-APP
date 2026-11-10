@@ -284,3 +284,10 @@ body.app nav a[href="#custos"] span{font-size:.66rem}
 /* Centro de custo: ações do cartão, telefone com link e formulário somente leitura */
 .xact{display:flex;gap:16px;flex-wrap:wrap;margin-top:6px}.xwa{color:var(--gold)}.xfs{border:0;margin:0;padding:0;min-width:0}.xfs:disabled input,.xfs:disabled textarea{opacity:1;color:var(--ink)}.xkeep{display:flex;gap:8px;align-items:center;margin:4px 0}.xkeep input{width:auto}
 .xact .link{color:var(--gold)}.xact .link[data-xdel]{color:var(--bad)}.xcontact{display:inline-block;color:var(--gold);font-weight:600;text-decoration:underline}
+
+/* App instalado / Median: área segura (notch e barra de gestos), sem zoom em campos e sem seleção acidental */
+html{-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+body.app{overscroll-behavior-y:none}
+header{padding-top:calc(10px + env(safe-area-inset-top));padding-left:max(14px,env(safe-area-inset-left));padding-right:max(14px,env(safe-area-inset-right))}
+input,select,textarea{font-size:16px}
+html.in-app button,html.in-app .brand,html.in-app nav a,html.in-app .card a.ccard{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
