@@ -283,3 +283,4 @@ body.app nav a[href="#custos"] span{font-size:.66rem}
 
 /* Centro de custo: ações do cartão, telefone com link e formulário somente leitura */
 .xact{display:flex;gap:16px;flex-wrap:wrap;margin-top:6px}.xwa{color:var(--gold)}.xfs{border:0;margin:0;padding:0;min-width:0}.xfs:disabled input,.xfs:disabled textarea{opacity:1;color:var(--ink)}.xkeep{display:flex;gap:8px;align-items:center;margin:4px 0}.xkeep input{width:auto}
+.xact .link{color:var(--gold)}.xact .link[data-xdel]{color:var(--bad)}.xcontact{display:inline-block;color:var(--gold);font-weight:600;text-decoration:underline}
