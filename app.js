@@ -30,7 +30,7 @@ function ask(msg, ok = 'Excluir') {
   });
 }
 
-const APP_VERSION = '2026.10.21-31'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-32'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 let sb; try { sb = supabase.createClient(new URL(SUPABASE_URL.trim()).origin, SUPABASE_KEY.trim()); } catch (e) { sb = null; }
 const $ = s => document.querySelector(s); let app = $('#app');
 const fail = m => { app.innerHTML = '<div class="card" style="margin:16px"><b>Não foi possível iniciar o Astell Home</b><p class="mute">' + m + '</p></div>'; };
@@ -173,8 +173,8 @@ async function itemsView(k) {
 }
 const reqCard = r => { const fotos = (r.media || []).filter(x => x.url).map(x => x.url); return `<div class="card"><b>${esc(r.protocol)}</b> <span class="badge ${REQ_ST[r.status] || ''}">${esc(r.status)}</span> <span class="badge ${REQ_UR[r.urgency] || 'u-med'}">${esc(r.urgency || 'Média')}</span><p>${esc(r.category)} · ${esc(r.place)}</p><p>${esc(r.description)}</p>${r.preferred_date || r.contact_time ? `<p class="mute">Sua sugestão: ${r.preferred_date ? 'dia ' + fmt(r.preferred_date) : ''}${r.preferred_date && r.contact_time ? ' · ' : ''}${r.contact_time ? 'horário ' + esc(r.contact_time) : ''}</p>` : ''}${r.scheduled_for ? `<p class="sched">${ico(IC.calendar)}<span>Data prevista de atendimento: <b>${fmt(r.scheduled_for)}</b></span></p>` : ''}${fotos.length ? grp('req' + r.id, fotos) : ''}${r.staff_note ? `<div class="astnote"><span class="lbl">Assistência que será feita</span><p>${esc(r.staff_note)}</p></div>` : ''}
       ${staff() ? `<form data-form="upd" data-id="${r.id}">${sel('status', 'Situação', STATUS).replace(`<option>${r.status}`, `<option selected>${r.status}`)}<label>Comentário<input name="staff_note" value="${esc(r.staff_note || '')}"></label><button>Atualizar</button></form>` : ''}</div>`; };
-const warCard = r => { const w = wInfo(r); return `<div class="card"><b>${esc(r.system)}</b><div class="wbox w-${w.kind}">${w.kind === 'warn' ? `<p class="wwarn">Garantia próxima do vencimento - faltam ${w.txt}</p>` : w.kind === 'bad' ? `<p class="wexp">Garantia expirada em ${w.end.toLocaleDateString('pt-BR')}</p>` : ''}<div class="wfig"><div><span class="wnum wtot">${w.total}</span><span class="wlbl">Prazo total</span></div><div><span class="wnum wrem">${w.kind === 'bad' ? 'Expirada' : w.big}</span><span class="wlbl">${w.kind === 'bad' ? 'Vencida' : 'Restantes'}</span></div></div><div class="wbar" role="img" aria-label="Tempo restante da garantia"><i style="width:${w.pct.toFixed(1)}%"></i></div><span class="wpill">${w.s}</span></div>${r.coverage ? `<p>${esc(r.coverage)}</p>` : ''}<span class="mute">${fmt(r.start_date)} até ${w.end.toLocaleDateString('pt-BR')}</span>${r.notes ? `<p class="mute">${esc(r.notes)}</p>` : ''}${staff() && !r.fromExp ? `<button class="link" data-del="warranties:${r.id}">Excluir</button>` : ''}</div>`; };
-const expWar = e => ({ id: e.id, system: e.description, coverage: 'Item do Centro de custo' + (e.supplier ? ' · ' + e.supplier : ''), start_date: e.spent_on, months: e.warranty_months, notes: e.notes, fromExp: true });   // garantia cadastrada junto da despesa (só aparece no app do cliente)
+const warCard = r => { const w = wInfo(r); return `<div class="card"><b>${esc(r.system)}</b><div class="wbox w-${w.kind}">${w.kind === 'warn' ? `<p class="wwarn">Garantia próxima do vencimento - faltam ${w.txt}</p>` : w.kind === 'bad' ? `<p class="wexp">Garantia expirada em ${w.end.toLocaleDateString('pt-BR')}</p>` : ''}<div class="wfig"><div><span class="wnum wtot">${w.total}</span><span class="wlbl">Prazo total</span></div><div><span class="wnum wrem">${w.kind === 'bad' ? 'Expirada' : w.big}</span><span class="wlbl">${w.kind === 'bad' ? 'Vencida' : 'Restantes'}</span></div></div><div class="wbar" role="img" aria-label="Tempo restante da garantia"><i style="width:${w.pct.toFixed(1)}%"></i></div><span class="wpill">${w.s}</span></div>${r.coverage ? `<p>${esc(r.coverage)}</p>` : ''}${r.fromExp ? xSup(r) : ''}<span class="mute">${fmt(r.start_date)} até ${w.end.toLocaleDateString('pt-BR')}</span>${r.notes ? `<p class="mute">${esc(r.notes)}</p>` : ''}${staff() && !r.fromExp ? `<button class="link" data-del="warranties:${r.id}">Excluir</button>` : ''}</div>`; };
+const expWar = e => ({ id: e.id, system: e.description, coverage: 'Item do Centro de custo', supplier: e.supplier, supplier_phone: e.supplier_phone, start_date: e.spent_on, months: e.warranty_months, notes: e.notes, fromExp: true });   // garantia cadastrada junto da despesa (só aparece no app do cliente)
 async function garantiasView() {
   const [{ data }, { data: ex }] = await Promise.all([sb.from('warranties').select('*').eq('residence_id', S.cur.id).order('start_date'), sb.from('expenses').select('*').eq('residence_id', S.cur.id).not('warranty_months', 'is', null)]);
   const per = m => m % 12 ? `${m} meses` : `${m / 12} ${m === 12 ? 'ano' : 'anos'}`;
@@ -257,12 +257,8 @@ const views = {
   async custos() {
     const rid = S.cur.id, [{ data: ex }, { data: cs }] = await Promise.all([sb.from('expenses').select('*').eq('residence_id', rid).order('spent_on', { ascending: false }).order('created_at', { ascending: false }), sb.from('expense_categories').select('name').order('name')]);
     S.exp = ex || []; S.xcats = xCats(cs || [], S.exp);
-    if (S.nova) {
-      app.innerHTML = `<h2>Lançar despesa</h2><form class="card" data-form="exp"><label>O que foi comprado<input name="description" required maxlength="160"></label><label>Valor (R$)<input name="amount" required inputmode="decimal" placeholder="0,00" autocomplete="off"></label>${dpField('spent_on', 'Data', xIso(new Date()), true)}
-      <label>Categoria<div class="comboin" data-combo="cat"><input class="comboq" type="search" name="category" required maxlength="60" autocomplete="off" role="combobox" aria-expanded="false" aria-label="Pesquisar categoria" placeholder="Pesquise ou digite uma nova categoria…"><ul class="combolist" role="listbox" hidden></ul></div></label><p class="mute combohint">Digite parte do nome e escolha na lista. Se a categoria não existir, ela será criada ao salvar e ficará disponível nas próximas pesquisas.</p>
-      <label>Garantia do item (meses) — opcional<input name="warranty_months" type="number" min="1" step="1" inputmode="numeric" data-nonneg placeholder="Sem garantia"></label><label>Fornecedor<input name="supplier" maxlength="120"></label><label>Telefone do fornecedor<input name="supplier_phone" type="tel" inputmode="tel" maxlength="30"></label><label>Descrição adicional<textarea name="notes" rows="3"></textarea></label>
-      ${CLOUD_OK ? '<label>Comprovantes e notas (imagens ou PDF)<input name="files" type="file" accept="image/*,application/pdf" multiple></label><p class="mute">Até 6 arquivos de até 10 MB cada.</p>' : ''}<button>Salvar despesa</button><a class="btn-cancel" href="#custos">Cancelar</a></form>`; return;
-    }
+    if (S.nova) { app.innerHTML = xForm({}, 'new'); return; }
+    if (S.xv) { const x = S.exp.find(z => String(z.id) === S.xv.id); if (!x) return app.innerHTML = '<p class="empty">Não foi possível encontrar este lançamento.</p><a class="btn-cancel" href="#custos">Voltar</a>'; app.innerHTML = xForm(x, S.xv.m === 'ver' ? 'view' : 'edit'); return; }
     const now = new Date(); S.xm = { y: now.getFullYear(), m: now.getMonth() };
     app.innerHTML = `<h2>Centro de custo</h2><p class="mute">Acompanhe os gastos da sua obra.</p><div class="card xsum"><b>Resumo dos gastos</b><div id="xs"></div></div><a class="newreq" href="#custos?nova">+ Lançar despesa</a><div id="xh"></div>`;
     xPaint();
@@ -333,14 +329,17 @@ app.addEventListener('submit', async e => {
     const files = f.files ? [...f.files.files].filter(x => x.size) : []; delete o.files;
     const amt = parseFloat(String(o.amount || '').replace(/[^\d,.-]/g, '').replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.'));
     if (!(amt > 0)) return toast('Informe um valor maior que zero.', 1);
-    if (files.length > 6) return toast('Envie no máximo 6 arquivos.', 1);
+    const eid = f.dataset.id, old = eid ? (S.exp || []).find(z => String(z.id) === String(eid)) : null, kept = old ? (old.media || []).filter((m, i) => { const c = f.querySelector(`[data-keep="${i}"]`); return !c || c.checked; }) : [];
+    if (o.supplier_phone && telDigits(o.supplier_phone).length < 10) return toast('Telefone inválido. Use DDD + número.', 1);
+    if (files.length + kept.length > 6) return toast('Envie no máximo 6 arquivos.', 1);
     for (const x of files) { if (!/^image\//.test(x.type) && x.type !== 'application/pdf') return toast(`"${x.name}" não é imagem nem PDF.`, 1); if (x.size > 10 * 1048576) return toast(`"${x.name}" é maior que 10 MB.`, 1); }
     const btn = f.querySelector('button:not([type])'); if (btn) btn.disabled = true; const media = [];
     try { for (let i = 0; i < files.length; i++) { toast(`Enviando arquivo ${i + 1} de ${files.length}…`); const j = await cldPost(files[i], 'astell-home/despesas'); media.push({ url: j.secure_url, type: files[i].type === 'application/pdf' ? 'pdf' : 'image', name: files[i].name, public_id: j.public_id }); } }
     catch (err) { if (btn) btn.disabled = false; return toast('Não foi possível enviar os arquivos: ' + err.message, 1); }
     const typed = String(o.category || '').trim().replace(/\s+/g, ' '), known = (S.xcats || XDEF).find(x => x.toLowerCase() === typed.toLowerCase());
     if (!known) await sb.from('expense_categories').insert({ name: typed });   // nova categoria fica cadastrada para as próximas vezes
-    r = await sb.from('expenses').insert({ residence_id: rid, description: String(o.description).trim(), amount: amt, spent_on: o.spent_on, category: known || typed, supplier: o.supplier, supplier_phone: o.supplier_phone, notes: o.notes, media, warranty_months: parseInt(o.warranty_months, 10) >= 1 ? parseInt(o.warranty_months, 10) : null }); if (btn) btn.disabled = false;
+    const row = { description: String(o.description).trim(), amount: amt, spent_on: o.spent_on, category: known || typed, supplier: o.supplier, supplier_phone: o.supplier_phone, notes: o.notes, media, warranty_months: parseInt(o.warranty_months, 10) >= 1 ? parseInt(o.warranty_months, 10) : null };
+    r = eid ? await sb.from('expenses').update({ ...row, media: [...kept, ...media] }).eq('id', eid) : await sb.from('expenses').insert({ residence_id: rid, ...row }); if (btn) btn.disabled = false;
   }
   else if (id === 'upd') { r = await sb.from('service_requests').update(o).eq('id', f.dataset.id); if (!r.error) await sb.from('history_events').insert({ residence_id: rid, category: 'Assistência', description: 'Solicitação atualizada: ' + o.status }); }
   else if (id === 'bitem') r = await sb.from('building_items').insert({ ...o, residence_id: rid });
@@ -352,12 +351,14 @@ app.addEventListener('submit', async e => {
     r = await sb.storage.from('documents').upload(path, file); if (!r.error) { r = await sb.from('documents').insert({ residence_id: rid, title: o.title, category: o.category, version: o.version, description: o.description, path }); } }
   if (r?.error) return toast('Não foi possível salvar: ' + r.error.message, 1);
   if (id === 'req') history.replaceState(null, '', '#assistencia'); if (id === 'exp') history.replaceState(null, '', '#custos');
-  toast(id === 'req' ? 'Solicitação enviada.' : id === 'exp' ? 'Despesa salva.' : 'Salvo com sucesso.'); route();
+  toast(id === 'req' ? 'Solicitação enviada.' : id === 'exp' ? (f.dataset.id ? 'Despesa atualizada.' : 'Despesa salva.') : 'Salvo com sucesso.'); route();
 });
 app.addEventListener('click', async e => {
   const d = e.target.dataset;
   if (d.cn && S.carGo) { S.carHold = Date.now() + 8000; S.carGo(S.carIdx() + +d.cn); }
   if (d.xm && S.xm) { const x = new Date(S.xm.y, S.xm.m + +d.xm, 1); S.xm = { y: x.getFullYear(), m: x.getMonth() }; xPaint(); }
+  if (d.xview) location.hash = '#custos?ver=' + encodeURIComponent(d.xview);
+  if (d.xedit) location.hash = '#custos?edit=' + encodeURIComponent(d.xedit);
   if (d.xdel && await ask('Excluir este lançamento?')) { const { error } = await sb.from('expenses').delete().eq('id', d.xdel); if (error) return toast('Não foi possível excluir.', 1); S.exp = (S.exp || []).filter(x => x.id !== d.xdel); xPaint(); toast('Lançamento excluído.'); }
   if (d.gf) { const k = d.gf === 'all' ? null : d.gf; S.gf = S.gf === k ? null : k; gaPaint(); }
   if (d.cal && S.cal) { const x = new Date(S.cal.y, S.cal.m + +d.cal, 1); S.cal.y = x.getFullYear(); S.cal.m = x.getMonth(); calPaint(); }
@@ -379,7 +380,7 @@ app.addEventListener('click', async e => {
 function route() {
   if (!S.profile) return;
   clearInterval(S.carTimer);
-  const [h, q] = (location.hash.slice(1) || 'home').split('?'); S.nova = q === 'nova'; S.q = q || '';
+  const [h, q] = (location.hash.slice(1) || 'home').split('?'); S.nova = q === 'nova'; S.q = q || ''; { const mm = /^(ver|edit)=(.+)$/.exec(q || ''); S.xv = mm ? { m: mm[1], id: decodeURIComponent(mm[2]) } : null; }
   document.querySelectorAll('nav a').forEach(a => a.classList.toggle('on', (a.dataset.g || '').split(' ').includes(h)));
   $('#avatar').classList.toggle('on', h === 'mais'); refreshBell();
   if (!S.cur) return app.innerHTML = '<p class="empty">Nenhuma residência vinculada à sua conta. Fale com a Astell.</p>';
@@ -389,6 +390,21 @@ function route() {
 // Caminho de navegação (breadcrumb) no alto de todas as telas, exceto o Início
 const XDEF = ['Construção', 'Acabamentos', 'Mobiliário', 'Eletrodomésticos', 'Eletrônicos', 'Área externa', 'Serviços'], XCOL = ['#3dc08c', '#4aa3ff', '#f08a3c', '#b57bee', '#e5534b', '#26b5c4', '#e3c04a', '#8d99a6', '#6fd36f', '#ff7fb0'];
 const brl = v => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), xIso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+// Telefone com máscara e link para o WhatsApp (mesmo padrão do telefone do proprietário no painel admin)
+const telDigits = v => String(v || '').replace(/\D/g, '').slice(0, 11);
+function telMask(v) { const d = telDigits(v); if (!d) return ''; if (d.length <= 2) return '(' + d; if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`; if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`; return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`; }
+const xSup = e => `${e.supplier ? `<p class="mute">Fornecedor: ${esc(e.supplier)}</p>` : ''}${e.supplier_phone ? `<p class="mute">WhatsApp: <a class="xwa" href="https://wa.me/55${telDigits(e.supplier_phone)}" target="_blank" rel="noopener">${esc(telDigits(e.supplier_phone).length >= 10 ? telMask(e.supplier_phone) : e.supplier_phone)}</a></p>` : ''}`;
+// Formulário do lançamento de despesa: novo, visualizar (somente leitura) ou editar
+function xForm(e, mode) {
+  const view = mode === 'view', md = e.media || [], ph = telDigits(e.supplier_phone).length >= 10 ? telMask(e.supplier_phone) : (e.supplier_phone || '');
+  const title = { new: 'Lançar despesa', view: 'Visualizar despesa', edit: 'Editar despesa' }[mode], vv = (k, d = '') => esc(e[k] ?? d);
+  const keep = mode === 'edit' && md.length ? `<div class="field"><span class="lbl">Arquivos já anexados (desmarque para remover)</span>${md.map((m, i) => `<label class="xkeep"><input type="checkbox" data-keep="${i}" checked> ${esc(m.name || (m.type === 'pdf' ? 'comprovante.pdf' : 'imagem'))}</label>`).join('')}</div>` : '';
+  const shown = view && md.length ? (md.filter(x => x.type !== 'pdf').length ? grp('xv' + e.id, md.filter(x => x.type !== 'pdf').map(x => x.url)) : '') + (md.some(x => x.type === 'pdf') ? `<div class="xpdf">${md.filter(x => x.type === 'pdf').map(x => `<a href="${esc(x.url)}" target="_blank" rel="noopener">${ico(IC.doc)}<span>${esc(x.name || 'comprovante.pdf')}</span></a>`).join('')}</div>` : '') : '';
+  return `<h2>${title}</h2><form class="card" data-form="exp"${e.id ? ` data-id="${esc(e.id)}"` : ''}><fieldset class="xfs"${view ? ' disabled' : ''}><label>O que foi comprado<input name="description" required maxlength="160" value="${vv('description')}"></label><label>Valor (R$)<input name="amount" required inputmode="decimal" placeholder="0,00" autocomplete="off" value="${e.amount != null ? esc(Number(e.amount).toFixed(2).replace('.', ',')) : ''}"></label>${dpField('spent_on', 'Data', e.spent_on || xIso(new Date()), true)}
+      <label>Categoria<div class="comboin" data-combo="cat"><input class="comboq" type="search" name="category" required maxlength="60" autocomplete="off" role="combobox" aria-expanded="false" aria-label="Pesquisar categoria" placeholder="Pesquise ou digite uma nova categoria…" value="${vv('category')}"><ul class="combolist" role="listbox" hidden></ul></div></label>${view ? '' : '<p class="mute combohint">Digite parte do nome e escolha na lista. Se a categoria não existir, ela será criada ao salvar e ficará disponível nas próximas pesquisas.</p>'}
+      <label>Garantia do item (meses) — opcional<input name="warranty_months" type="number" min="1" step="1" inputmode="numeric" data-nonneg placeholder="Sem garantia" value="${vv('warranty_months')}"></label><label>Fornecedor<input name="supplier" maxlength="120" value="${vv('supplier')}"></label><label>Telefone do fornecedor<input name="supplier_phone" class="tel" type="tel" inputmode="numeric" maxlength="15" placeholder="(00) 00000-0000" autocomplete="off" value="${esc(ph)}"></label><label>Descrição adicional<textarea name="notes" rows="3">${vv('notes')}</textarea></label>
+      ${view ? '' : keep + (CLOUD_OK ? '<label>Comprovantes e notas (imagens ou PDF)<input name="files" type="file" accept="image/*,application/pdf" multiple></label><p class="mute">Até 6 arquivos de até 10 MB cada.</p>' : '')}</fieldset>${shown}${view ? `<button type="button" data-xedit="${esc(e.id)}">Editar</button><a class="btn-cancel" href="#custos">Voltar</a>` : `<button>${mode === 'edit' ? 'Salvar alterações' : 'Salvar despesa'}</button><a class="btn-cancel" href="#custos">Cancelar</a>`}</form>`;
+}
 function xCats(custom, ex) {   // categorias padrão + criadas pelo cliente (sem repetir, ignorando maiúsculas)
   const out = [...XDEF], has = n => out.some(x => x.toLowerCase() === String(n).toLowerCase());
   [...(custom || []).map(c => c.name), ...(ex || []).map(e => e.category)].filter(Boolean).forEach(n => { if (!has(n)) out.push(n); }); return out;
@@ -404,7 +420,7 @@ function xPaint() {
   const { y, m } = S.xm, pre = y + '-' + String(m + 1).padStart(2, '0'), mes = ex.filter(e => String(e.spent_on).startsWith(pre)), mt = mes.reduce((a, e) => a + Number(e.amount), 0), xh = $('#xh'); if (!xh) return;
   xh.innerHTML = `<div class="calhead"><button type="button" data-xm="-1" aria-label="Mês anterior">‹</button><b>${MESES[m]} ${y}</b><button type="button" data-xm="1" aria-label="Próximo mês">›</button></div><p class="xmt">Total do mês: <b>${brl(mt)}</b> · ${mes.length} ${mes.length === 1 ? 'lançamento' : 'lançamentos'}</p>` +
     (mes.map(e => { const md = e.media || [], im = md.filter(x => x.type !== 'pdf').map(x => x.url), pd = md.filter(x => x.type === 'pdf');
-      return `<div class="card xcard"><div class="xtop"><b>${esc(e.description)}</b><strong>${brl(e.amount)}</strong></div><p class="mute"><span class="xcat" style="--c:${xColor(e.category)}">${esc(e.category)}</span> ${fmt(e.spent_on)}</p>${e.supplier ? `<p class="mute">Fornecedor: ${esc(e.supplier)}${e.supplier_phone ? ` · <a href="tel:${esc(String(e.supplier_phone).replace(/[^\d+]/g, ''))}">${esc(e.supplier_phone)}</a>` : ''}</p>` : ''}${e.warranty_months ? `<p class="mute xwar">Garantia: ${e.warranty_months} ${e.warranty_months === 1 ? 'mês' : 'meses'} (até ${addMonths(e.spent_on, e.warranty_months).toLocaleDateString('pt-BR')})</p>` : ''}${e.notes ? `<p>${esc(e.notes)}</p>` : ''}${im.length ? grp('x' + e.id, im) : ''}${pd.length ? `<div class="xpdf">${pd.map(x => `<a href="${esc(x.url)}" target="_blank" rel="noopener">${ico(IC.doc)}<span>${esc(x.name || 'comprovante.pdf')}</span></a>`).join('')}</div>` : ''}<button type="button" class="link" data-xdel="${e.id}">Excluir</button></div>`; }).join('') || '<p class="empty">Nenhuma despesa neste mês.</p>');
+      return `<div class="card xcard"><div class="xtop"><b>${esc(e.description)}</b><strong>${brl(e.amount)}</strong></div><p class="mute"><span class="xcat" style="--c:${xColor(e.category)}">${esc(e.category)}</span> ${fmt(e.spent_on)}</p>${xSup(e)}${e.warranty_months ? `<p class="mute xwar">Garantia: ${e.warranty_months} ${e.warranty_months === 1 ? 'mês' : 'meses'} (até ${addMonths(e.spent_on, e.warranty_months).toLocaleDateString('pt-BR')})</p>` : ''}${e.notes ? `<p>${esc(e.notes)}</p>` : ''}${im.length ? grp('x' + e.id, im) : ''}${pd.length ? `<div class="xpdf">${pd.map(x => `<a href="${esc(x.url)}" target="_blank" rel="noopener">${ico(IC.doc)}<span>${esc(x.name || 'comprovante.pdf')}</span></a>`).join('')}</div>` : ''}<div class="xact"><button type="button" class="link" data-xview="${e.id}">Visualizar</button><button type="button" class="link" data-xedit="${e.id}">Editar</button><button type="button" class="link" data-xdel="${e.id}">Excluir</button></div></div>`; }).join('') || '<p class="empty">Nenhuma despesa neste mês.</p>');
 }
 // Campos de data e hora com seletor verde (o do navegador não aceita cor): digitar com máscara ou abrir o seletor
 const DP_SVG = '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>', TM_SVG = '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
@@ -545,7 +561,7 @@ function calPaint() {
 }
 const CR = { midias: [['casa', 'Minha Casa'], ['', 'Mídias']], cronograma: [['casa', 'Minha Casa'], ['', 'Cronograma']], casa: [['casa', 'Minha Casa']], estrutura: [['casa', 'Minha Casa'], ['', 'Estrutura']], sistemas: [['casa', 'Minha Casa'], ['', 'Instalações']], materiais: [['casa', 'Minha Casa'], ['', 'Materiais']], garantias: [['casa', 'Minha Casa'], ['', 'Garantias']], manutencao: [['casa', 'Minha Casa'], ['', 'Manutenção']], equipamentos: [['casa', 'Minha Casa'], ['', 'Equipamentos']], planta: [['casa', 'Minha Casa'], ['', 'Planta técnica']], documentos: [['casa', 'Minha Casa'], ['', 'Documentos']], custos: [['custos', 'Centro de custo']], assistencia: [['assistencia', 'Suporte']], mais: [['mais', 'Perfil']] };
 function crumbs(h) {
-  const c = h === 'custos' && S.nova ? [['custos', 'Centro de custo'], ['', 'Lançar despesa']] : h === 'detalhe' ? [['casa', 'Minha Casa'], ['cronograma', 'Cronograma'], ['', 'Detalhe']] : h === 'assistencia' && S.nova ? [['assistencia', 'Suporte'], ['', 'Nova solicitação']] : CR[h]; if (!c || !app.firstElementChild || app.querySelector('.crumbs')) return;
+  const c = h === 'custos' && (S.nova || S.xv) ? [['custos', 'Centro de custo'], ['', S.xv ? (S.xv.m === 'ver' ? 'Visualizar despesa' : 'Editar despesa') : 'Lançar despesa']] : h === 'detalhe' ? [['casa', 'Minha Casa'], ['cronograma', 'Cronograma'], ['', 'Detalhe']] : h === 'assistencia' && S.nova ? [['assistencia', 'Suporte'], ['', 'Nova solicitação']] : CR[h]; if (!c || !app.firstElementChild || app.querySelector('.crumbs')) return;
   const last = c.length - 1, items = [['home', 'Início'], ...c].map(([href, t], i, a) => i === a.length - 1 ? `<li aria-current="page">${t}</li>` : `<li><a href="#${href}">${t}</a></li>`);
   app.insertAdjacentHTML('afterbegin', `<ol class="crumbs" aria-label="Você está em">${items.join('<li class="sep" aria-hidden="true">›</li>')}</ol>`);
 }
@@ -669,4 +685,5 @@ addEventListener('keydown', e => {
 });
 
 addEventListener('keydown', e => { if (e.target.matches && e.target.matches('input[data-nonneg]') && ['-', '+', 'e', 'E', '.', ','].includes(e.key)) e.preventDefault(); });
+addEventListener('input', e => { const t = e.target; if (t.matches && t.matches('input.tel')) t.value = telMask(t.value); });
 addEventListener('input', e => { const t = e.target; if (t.matches && t.matches('input[data-nonneg]') && t.value !== '' && !/^\d+$/.test(t.value)) t.value = t.value.replace(/\D/g, ''); });
