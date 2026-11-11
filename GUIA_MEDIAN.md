@@ -23,10 +23,11 @@ Envie toda a pasta (index.html, admin.html, app.js, admin.js, style.css, admin.c
 **Como funciona**
 - **Primeiro acesso:** o cliente informa CPF, e-mail e senha. O CPF e o e-mail precisam ser os do proprietário cadastrado no painel (campo e-mail do proprietário). O Supabase envia um link de confirmação para esse e-mail.
 - **Entrar:** CPF + senha (com o ícone de olho para conferir). "Esqueci minha senha" envia o link de nova senha para o e-mail cadastrado.
+- **E-mail que já tem acesso (ex.: já entrou com o Google):** no primeiro acesso o app envia um link para esse e-mail; ao abrir o link o cliente informa o CPF e cria a senha, e depois entra com CPF e senha.
 - **CPF sem residência:** aparece "Contate a ASTELL" (WhatsApp).
 
 **Passo a passo**
-1. **SQL Editor:** rode, nesta ordem, `schema_v23.sql`, `schema_v24.sql` (se ainda não rodou) e `schema_v25.sql`.
+1. **SQL Editor:** rode, nesta ordem, `schema_v23.sql`, `schema_v24.sql` (se ainda não rodou), `schema_v25.sql` e `schema_v26.sql`.
 2. **Authentication > Users:** apague as contas de teste criadas antes da v25 (as que têm e-mail terminado em `@cpf.astellhome.app`).
 3. **Authentication > Providers > Email:** mantenha "Confirm email" LIGADO.
 4. **Authentication > Emails > SMTP Settings:** configure um SMTP próprio (Gmail com senha de app, Resend, Brevo etc.). O envio padrão do Supabase só entrega poucos e-mails por hora e, em muitos casos, só para membros da equipe; sem isso o e-mail de confirmação pode não chegar.
