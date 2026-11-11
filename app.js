@@ -30,7 +30,7 @@ function ask(msg, ok = 'Excluir') {
   });
 }
 
-const APP_VERSION = '2026.10.21-40'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-41'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 // Dentro do aplicativo (Median/WebView) o Google bloqueia o login por OAuth; lá o acesso é por e-mail e senha.
 let REC_FLOW = /[#&]type=recovery/.test(location.hash);   // aberto pelo link de recuperação de senha
 const IN_APP = /median|gonative/i.test(navigator.userAgent);
@@ -137,17 +137,32 @@ async function cldPost(file, folder) {
   const resp = await fetch(`https://api.cloudinary.com/v1_1/${CLD_NAME}/auto/upload`, { method: 'POST', body: fd });
   const j = await resp.json(); if (!resp.ok) throw new Error((j.error && j.error.message) || 'erro no envio'); return j;
 }
-// Mídias que não carregam (aplicativo/WebView, transformação bloqueada, formato não aceito): tenta o arquivo original e, por fim, mostra um aviso
+// Mídias que não carregam (rede bloqueando o Cloudinary, WebView, formato): tenta alternativas e, por fim, mostra aviso com botão "Tentar novamente"
+const MSG_REDE = 'Não foi possível carregar. Verifique a sua rede ou utilize seus dados móveis.';
+function midBad(t, orig, isVid) {
+  const d = document.createElement('div'); d.className = 'midbad'; d.setAttribute('role', 'alert'); d._el = t;
+  d.innerHTML = `<span>${MSG_REDE}</span><button type="button" data-retry>Tentar novamente</button>${isVid ? `<a href="${esc(orig)}" target="_blank" rel="noopener">Abrir o vídeo</a>` : ''}`;
+  t.replaceWith(d);
+}
 document.addEventListener('error', e => {
   const t = e.target; if (!t || !t.tagName) return; const tag = t.tagName, orig = t.dataset && t.dataset.orig; if (!orig || (tag !== 'IMG' && tag !== 'VIDEO')) return;
   const n = +(t.dataset.rt || 0); t.dataset.rt = n + 1;
+  if (!t.dataset.s0) t.dataset.s0 = tag === 'IMG' ? (t.getAttribute('src') || '') : (t.getAttribute('poster') || '');
   if (tag === 'IMG') {
     if (n === 0) { const vid = isVidUrl(orig); t.src = vid ? String(orig).replace('/upload/', '/upload/so_0/').replace(/\.\w+$/, '.jpg') : orig; return; }   // 2ª tentativa: poster simples / arquivo original
     if (n === 1 && !isVidUrl(orig)) { t.src = String(orig).replace('/upload/', '/upload/f_jpg/'); return; }   // 3ª: força JPEG
-    t.removeAttribute('src'); t.classList.add('imgbad'); t.alt = isVidUrl(orig) ? 'Toque para abrir o vídeo' : 'Imagem indisponível'; return;
+    midBad(t, orig, isVidUrl(orig)); return;
   }
   if (n === 0) { t.removeAttribute('poster'); t.src = orig; t.load(); return; }   // vídeo: arquivo original (sem conversão)
-  const a = document.createElement('a'); a.className = 'vidbad'; a.href = orig; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Não foi possível reproduzir aqui. Toque para abrir o vídeo.'; t.replaceWith(a);
+  midBad(t, orig, true);
+}, true);
+document.addEventListener('click', e => {
+  const b = e.target.closest && e.target.closest('[data-retry]'); if (!b) return;
+  e.preventDefault(); e.stopPropagation();
+  const d = b.closest('.midbad'), t = d && d._el; if (!t) return;
+  t.dataset.rt = 0;
+  if (t.tagName === 'IMG') t.src = t.dataset.s0 || t.dataset.orig; else { t.src = t.dataset.orig; }
+  d.replaceWith(t); if (t.tagName === 'VIDEO') t.load();
 }, true);
 function cld(u, w) { return String(u).replace('/upload/', `/upload/w_${w},c_limit,q_auto,f_auto/`); }
 function grp(key, urls, cls = 'thumbs') {
