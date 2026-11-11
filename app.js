@@ -30,7 +30,7 @@ function ask(msg, ok = 'Excluir') {
   });
 }
 
-const APP_VERSION = '2026.10.21-39'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-40'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 // Dentro do aplicativo (Median/WebView) o Google bloqueia o login por OAuth; lá o acesso é por e-mail e senha.
 let REC_FLOW = /[#&]type=recovery/.test(location.hash);   // aberto pelo link de recuperação de senha
 const IN_APP = /median|gonative/i.test(navigator.userAgent);
@@ -105,7 +105,7 @@ const isVidUrl = u => /\/video\/upload\//.test(u);
 function carousel(urls) {
   if (!urls.length) return '<img class="heroimg" src="img/casa.jpg" alt="Foto da residência">';
   S.groups.home = urls;
-  const slide = (u, i, clone) => `<img src="${esc(cld(u, 1200))}" alt="Foto ${i + 1} de ${urls.length} da residência" data-lb="home|${i}"${clone ? ' aria-hidden="true"' : ''}>`, many = urls.length > 1;
+  const slide = (u, i, clone) => `<img src="${esc(cld(u, 1200))}" data-orig="${esc(u)}" referrerpolicy="no-referrer" alt="Foto ${i + 1} de ${urls.length} da residência" data-lb="home|${i}"${clone ? ' aria-hidden="true"' : ''}>`, many = urls.length > 1;
   return `<div class="carousel" aria-roledescription="carrossel" aria-label="Fotos recentes da residência"><div class="slides">${urls.map((u, i) => slide(u, i)).join('')}${many ? slide(urls[0], 0, true) : ''}</div>${many ? `<button class="cn l" data-cn="-1" aria-label="Foto anterior">‹</button><button class="cn r" data-cn="1" aria-label="Próxima foto">›</button><div class="dots">${urls.map((_, i) => `<span class="dot ${i ? '' : 'on'}"></span>`).join('')}</div>` : ''}</div>`;
 }
 // Troca automática a cada 4,5 s, sempre para a direita: depois da última foto vem uma cópia da primeira e,
@@ -137,14 +137,26 @@ async function cldPost(file, folder) {
   const resp = await fetch(`https://api.cloudinary.com/v1_1/${CLD_NAME}/auto/upload`, { method: 'POST', body: fd });
   const j = await resp.json(); if (!resp.ok) throw new Error((j.error && j.error.message) || 'erro no envio'); return j;
 }
+// Mídias que não carregam (aplicativo/WebView, transformação bloqueada, formato não aceito): tenta o arquivo original e, por fim, mostra um aviso
+document.addEventListener('error', e => {
+  const t = e.target; if (!t || !t.tagName) return; const tag = t.tagName, orig = t.dataset && t.dataset.orig; if (!orig || (tag !== 'IMG' && tag !== 'VIDEO')) return;
+  const n = +(t.dataset.rt || 0); t.dataset.rt = n + 1;
+  if (tag === 'IMG') {
+    if (n === 0) { const vid = isVidUrl(orig); t.src = vid ? String(orig).replace('/upload/', '/upload/so_0/').replace(/\.\w+$/, '.jpg') : orig; return; }   // 2ª tentativa: poster simples / arquivo original
+    if (n === 1 && !isVidUrl(orig)) { t.src = String(orig).replace('/upload/', '/upload/f_jpg/'); return; }   // 3ª: força JPEG
+    t.removeAttribute('src'); t.classList.add('imgbad'); t.alt = isVidUrl(orig) ? 'Toque para abrir o vídeo' : 'Imagem indisponível'; return;
+  }
+  if (n === 0) { t.removeAttribute('poster'); t.src = orig; t.load(); return; }   // vídeo: arquivo original (sem conversão)
+  const a = document.createElement('a'); a.className = 'vidbad'; a.href = orig; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Não foi possível reproduzir aqui. Toque para abrir o vídeo.'; t.replaceWith(a);
+}, true);
 function cld(u, w) { return String(u).replace('/upload/', `/upload/w_${w},c_limit,q_auto,f_auto/`); }
 function grp(key, urls, cls = 'thumbs') {
   S.groups[key] = urls;
-  return `<div class="${cls}">${urls.map((u, i) => isVidUrl(u) ? `<span class="vt"><img src="${esc(vposter(u))}" alt="Vídeo ${i + 1}" loading="lazy" data-lb="${key}|${i}"><i>▶</i></span>` : `<img src="${esc(cld(u, cls === 'thumbs' ? 240 : 500))}" alt="Imagem ${i + 1}" loading="lazy" data-lb="${key}|${i}">`).join('')}</div>`;
+  return `<div class="${cls}">${urls.map((u, i) => isVidUrl(u) ? `<span class="vt"><img src="${esc(vposter(u))}" alt="Vídeo ${i + 1}" data-orig="${esc(u)}" referrerpolicy="no-referrer" data-lb="${key}|${i}"><i>▶</i></span>` : `<img src="${esc(cld(u, cls === 'thumbs' ? 240 : 500))}" alt="Imagem ${i + 1}" data-orig="${esc(u)}" referrerpolicy="no-referrer" data-lb="${key}|${i}">`).join('')}</div>`;
 }
 function showLb() {
   const u = S.groups[S.lb.g], cur = u[S.lb.i], lb = $('#lb'); lb.hidden = false;
-  const media = isVidUrl(cur) ? `<video controls autoplay playsinline src="${esc(vsrc(cur))}" poster="${esc(vposter(cur))}"></video>` : `<img src="${esc(cld(cur, 1400))}" alt="Imagem ${S.lb.i + 1} de ${u.length}">`;
+  const media = isVidUrl(cur) ? `<video controls autoplay playsinline referrerpolicy="no-referrer" data-orig="${esc(cur)}" src="${esc(vsrc(cur))}" poster="${esc(vposter(cur))}"></video>` : `<img src="${esc(cld(cur, 1400))}" data-orig="${esc(cur)}" referrerpolicy="no-referrer" alt="Imagem ${S.lb.i + 1} de ${u.length}">`;
   lb.innerHTML = `<button class="lbx" data-lbx aria-label="Fechar">×</button>${u.length > 1 ? '<button class="lbn l" data-lbn="-1" aria-label="Anterior">‹</button><button class="lbn r" data-lbn="1" aria-label="Próxima">›</button>' : ''}${media}`;
 }
 // Menu Casa: abas Todos / Imagens / Vídeos
