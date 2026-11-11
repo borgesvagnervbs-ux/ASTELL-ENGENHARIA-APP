@@ -19,15 +19,36 @@ Envie toda a pasta (index.html, admin.html, app.js, admin.js, style.css, admin.c
 5. Desative o "pull to refresh" se atrapalhar a rolagem. Mantenha a rotação em retrato.
 6. Gere o **APK** (teste direto no celular) ou o **AAB** (para a Play Store).
 
-## 4. Login por CPF + senha (v23)
-1. **Supabase > Authentication > Providers > Email:** DESLIGUE "Confirm email". O login por CPF usa um e-mail interno (`CPF@cpf.astellhome.app`) que não recebe mensagens.
-2. **SQL Editor:** rode `schema_v23.sql` (uma vez). Ele cria o acesso por CPF, os superusuários (91350735000 e 91311764020 veem todas as residências) e a lista de CPFs do painel.
-3. **Crie logo as contas dos dois superusuários** (tela "Primeiro acesso", com o CPF de cada um) antes de divulgar o aplicativo. Quem criar a senha de um CPF primeiro fica com ele.
-4. **Painel admin por CPF (opcional):** para liberar um CPF no painel, rode no SQL Editor `insert into staff_cpfs(cpf_hash) values (cpf_hash('NUMEROSDOCPF')) on conflict do nothing;` e peça à pessoa para entrar no painel (Primeiro acesso). O Google continua funcionando no painel para as contas administradoras atuais.
-5. **Clientes que já tinham conta por e-mail/Google:** no painel, libere o CPF dele (Proprietários > liberar CPF) e peça que use "Primeiro acesso" no app. A conta antiga fica sem vínculo.
-6. **Esqueci a senha:** não há e-mail de recuperação. O app mostra "Contate a ASTELL"; para redefinir, use Supabase > Authentication > Users > (usuário) > Reset password/Delete user e peça um novo "Primeiro acesso".
+## 4. Login por CPF, primeiro acesso com e-mail (v23 + v25)
+**Como funciona**
+- **Primeiro acesso:** o cliente informa CPF, e-mail e senha. O CPF e o e-mail precisam ser os do proprietário cadastrado no painel (campo e-mail do proprietário). O Supabase envia um link de confirmação para esse e-mail.
+- **Entrar:** CPF + senha (com o ícone de olho para conferir). "Esqueci minha senha" envia o link de nova senha para o e-mail cadastrado.
+- **CPF sem residência:** aparece "Contate a ASTELL" (WhatsApp).
+
+**Passo a passo**
+1. **SQL Editor:** rode, nesta ordem, `schema_v23.sql`, `schema_v24.sql` (se ainda não rodou) e `schema_v25.sql`.
+2. **Authentication > Users:** apague as contas de teste criadas antes da v25 (as que têm e-mail terminado em `@cpf.astellhome.app`).
+3. **Authentication > Providers > Email:** mantenha "Confirm email" LIGADO.
+4. **Authentication > Emails > SMTP Settings:** configure um SMTP próprio (Gmail com senha de app, Resend, Brevo etc.). O envio padrão do Supabase só entrega poucos e-mails por hora e, em muitos casos, só para membros da equipe; sem isso o e-mail de confirmação pode não chegar.
+5. **Authentication > URL Configuration:** Site URL e Redirect URLs com o endereço do app (e do painel), como já está.
+6. **Superusuários:** cadastre os e-mails deles: `insert into super_emails(email) values ('seu.email@gmail.com') on conflict do nothing;`. Depois eles fazem o "Primeiro acesso" com o CPF e esse e-mail (CPF e e-mail precisam estar nas duas listas).
+7. **Painel por CPF (opcional):** `insert into staff_cpfs(cpf_hash,email) values (cpf_hash('NUMEROSDOCPF'),'email@gmail.com') on conflict do nothing;` e a pessoa faz o "Primeiro acesso" no painel. O Google continua funcionando no painel.
+8. **Clientes antigos (e-mail ou Google):** use "Liberar" no CPF dele no painel e peça o "Primeiro acesso" no app.
 
 ## 5. Observações
-- O login com Google do aplicativo foi retirado (a identificação agora é o CPF). O plugin Social Login do Median não é mais necessário.
 - Depois de qualquer mudança nos arquivos, republique o site: o aplicativo carrega sempre a versão publicada, sem gerar novo APK.
 - Cloudinary não precisa de mudança.
+
+## 6. Login com Google no APK
+**Como funciona:** o botão "Entrar com o Google" abre a escolha de contas do Android (plugin nativo do Median). Na primeira vez o app pede o CPF para ligar a conta Google à residência cadastrada pelo painel.
+
+1. **Google Cloud Console** (console.cloud.google.com) > APIs e serviços > Credenciais:
+   - Tela de consentimento OAuth configurada (tipo Externo, nome do app, e-mail de suporte).
+   - **ID do cliente "Aplicativo da Web"**: já é o usado no Supabase. Anote o Client ID e o Client Secret.
+   - **ID do cliente "Android"**: nome do pacote = o do app no Median; SHA-1 = o do certificado de assinatura (o Median informa; o APK de teste e o da Play Store podem ter SHA-1 diferentes, crie um cliente Android para cada).
+2. **Supabase > Authentication > Providers > Google:** ative, cole Client ID e Secret do cliente Web; em "Authorized Client IDs" coloque o Client ID Web (e o Android, se pedir); ligue **Skip nonce checks**.
+3. **Median App Studio > Native Plugins > Social Login > Settings:** informe o Web Client ID, salve e **gere o APK novamente**.
+4. **SQL Editor:** rode `schema_v24.sql`. Para superusuário entrar pelo Google, cadastre o Gmail dele na lista `super_emails` (linha comentada no arquivo).
+5. Instale o novo APK e teste: Entrar com o Google > escolher a conta > informar o CPF.
+
+Se aparecer "No credentials available", quase sempre o SHA-1 ou o nome do pacote do cliente Android estão errados.

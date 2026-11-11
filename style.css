@@ -69,7 +69,7 @@ nav a{display:flex;flex-direction:column;align-items:center;gap:3px}nav a.on{col
 .fine{color:#7f93a1;font-size:.78rem;margin:14px 0 0}
 #toast{z-index:20}
 
-.pwrules{list-style:none;padding:0;margin:8px 0 0;text-align:left;font-size:.8rem;color:#7f93a1}.pwrules li{padding:2px 0}.pwrules li.ok{color:#6fd3a0}
+.pwrules{list-style:none;padding:0;margin:8px 0 0;text-align:left;font-size:.8rem;color:#7f93a1}.pwrules li{padding:2px 0}.pwrules li.ok{color:#6fd3a0;background:none}
 .login .lead{color:#9fb5c1;font-size:.9rem;margin:-6px 0 14px}.login .warn{color:#f0c36b;background:#2a2412;border-radius:10px;padding:10px;font-size:.85rem;margin:0 0 8px}
 
 .tabs{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin-bottom:10px}
@@ -291,3 +291,7 @@ body.app{overscroll-behavior-y:none}
 header{padding-top:calc(10px + env(safe-area-inset-top));padding-left:max(14px,env(safe-area-inset-left));padding-right:max(14px,env(safe-area-inset-right))}
 input,select,textarea{font-size:16px}
 html.in-app button,html.in-app .brand,html.in-app nav a,html.in-app .card a.ccard{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+
+/* Campo de senha com olho para conferir */
+.pwbox{position:relative;display:block;width:100%}.pwbox input{margin:0!important}.pwbox input{width:100%;padding-right:48px}.pweye{position:absolute;right:2px;top:0;bottom:0;margin:auto 0;width:44px;height:44px;display:grid;place-items:center;background:none!important;border:0!important;color:#9fb5c1!important;padding:0!important;min-height:0!important;box-shadow:none!important}.pweye svg{width:22px;height:22px}.pweye[aria-pressed=true]{color:var(--gold)!important}
+.pwbox .pweye{width:44px!important;height:44px!important;left:auto!important;right:2px!important;min-width:0!important;margin:auto 0!important;border-radius:10px}

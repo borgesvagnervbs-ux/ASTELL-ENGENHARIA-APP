@@ -30,8 +30,9 @@ function ask(msg, ok = 'Excluir') {
   });
 }
 
-const APP_VERSION = '2026.10.21-36'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-38'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 // Dentro do aplicativo (Median/WebView) o Google bloqueia o login por OAuth; lá o acesso é por e-mail e senha.
+let REC_FLOW = /[#&]type=recovery/.test(location.hash);   // aberto pelo link de recuperação de senha
 const IN_APP = /median|gonative/i.test(navigator.userAgent);
 if (IN_APP) document.documentElement.classList.add('in-app');
 let sb; try { sb = supabase.createClient(new URL(SUPABASE_URL.trim()).origin, SUPABASE_KEY.trim()); } catch (e) { sb = null; }
@@ -309,7 +310,7 @@ const views = {
   },
   mais() {
     const l = [['documentos', 'Documentos'], ['garantias', 'Garantias'], ['equipamentos', 'Equipamentos'], ['planta', 'Planta técnica']];
-    app.innerHTML = `<div class="perfil"><h2>Perfil</h2><div class="card"><b>${esc(/@/.test(S.profile.name || '') ? '' : (S.profile.name || ''))}</b><span class="mute">${cpfFromEmail(S.profile.email) ? 'CPF ' + esc(cpfMask(cpfFromEmail(S.profile.email))) : esc(S.profile.email || '')}</span></div><div class="menu">${l.map(([h, t]) => `<a href="#${h}">${t}</a>`).join('')}</div><p class="notice">Pendentes nesta versão: camadas construtivas, emergência, auditoria, PWA e notificações.</p><p class="notice ver">Astell Home · versão ${APP_VERSION}</p><button class="sair" data-out>Sair da conta</button></div>`;
+    app.innerHTML = `<div class="perfil"><h2>Perfil</h2><div class="card"><b>${esc(/@/.test(S.profile.name || '') ? '' : (S.profile.name || ''))}</b><span class="mute">${esc(S.profile.email || '')}</span></div><div class="menu">${l.map(([h, t]) => `<a href="#${h}">${t}</a>`).join('')}</div><p class="notice">Pendentes nesta versão: camadas construtivas, emergência, auditoria, PWA e notificações.</p><p class="notice ver">Astell Home · versão ${APP_VERSION}</p><button class="sair" data-out>Sair da conta</button></div>`;
   },
 };
 
@@ -585,41 +586,96 @@ const pwList = p => PW_RULES.map(([t, f]) => `<li class="${f(p) ? 'ok' : ''}">${
 const strongPw = p => PW_RULES.every(([, f]) => f(p));
 const CPF_INPUT = id => `<label>CPF<input id="${id}" class="cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" required autocomplete="off"></label>`;
 
-// Login por CPF + senha. O Supabase exige um e-mail, então cada CPF vira um e-mail interno (nunca recebe mensagens).
-const CPF_DOMAIN = '@cpf.astellhome.app', cpfEmail = d => d + CPF_DOMAIN, cpfFromEmail = m => { const x = /^(\d{11})@cpf\.astellhome\.app$/i.exec(String(m || '')); return x ? x[1] : ''; };
+// Login por CPF + senha. O primeiro acesso confere CPF e e-mail com o cadastro do proprietário no painel; a recuperação de senha vai para esse e-mail.
 const WA_ASTELL = 'https://wa.me/5554996528034';
 const contactAstell = (txt = 'Contate a ASTELL') => `<a class="xcontact" href="${WA_ASTELL}" target="_blank" rel="noopener">${txt}</a>`;
+const EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A10.7 10.7 0 0112 5c6.4 0 10 7 10 7a17 17 0 01-3.2 4.2M6.6 6.6A17 17 0 002 12s3.6 7 10 7a10.5 10.5 0 004.4-1M9.9 9.9a3 3 0 004.2 4.2"/></svg>';
+const pwInput = (id, label, auto) => `<label>${label}<span class="pwbox"><input id="${id}" type="password" required autocomplete="${auto}"><button type="button" class="pweye" data-eye aria-label="Mostrar senha" aria-pressed="false">${EYE}</button></span></label>`;
+document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-eye]'); if (!b) return; const i = b.parentElement.querySelector('input'), show = i.type === 'password'; i.type = show ? 'text' : 'password'; b.innerHTML = show ? EYE_OFF : EYE; b.setAttribute('aria-label', show ? 'Ocultar senha' : 'Mostrar senha'); b.setAttribute('aria-pressed', String(show)); });
+const msgBox = (el, html) => { el.innerHTML = html; el.hidden = !html; };
 
 function loginScreen(mode = 'login') {
   $('#top').hidden = $('#nav').hidden = true;
-  const su = mode === 'signup';
+  const su = mode === 'signup', back = location.origin + location.pathname;
   app.innerHTML = `<div class="login"><form id="lf">
     <h1>ASTELL<span>HOME</span></h1><p class="tag">Sua casa. Sua história. Tudo em um só lugar.</p>
     <h2>${su ? 'Primeiro acesso: crie sua senha' : 'Bem-vindo à sua casa Astell'}</h2>
-    ${su ? '<p class="lead">Informe o CPF cadastrado pela Astell e crie uma senha para entrar no aplicativo.</p>' : ''}
+    ${su ? '<p class="lead">Informe o CPF e o e-mail cadastrados pela Astell. Sugerimos o Gmail que você usa no celular: enviaremos um link de confirmação e, se esquecer a senha, a recuperação é feita por ele.</p>' : ''}
     ${CPF_INPUT('cp')}
-    <label>Senha<input id="pw" type="password" required autocomplete="${su ? 'new-password' : 'current-password'}"></label>
-    ${su ? `<ul class="pwrules" id="pr">${pwList('')}</ul><label>Confirmar senha<input id="pw2" type="password" required autocomplete="new-password"></label>` : ''}
-    <button class="btn-main">${su ? 'Criar senha e entrar' : 'Entrar na minha casa'}</button>
-    ${su ? '' : `<p class="fine">Esqueceu a senha? ${contactAstell()}</p>`}
+    ${su ? '<label>E-mail<input id="em" type="email" required autocomplete="email" placeholder="seuemail@gmail.com"></label>' : ''}
+    ${pwInput('pw', 'Senha', su ? 'new-password' : 'current-password')}
+    ${su ? `<ul class="pwrules" id="pr">${pwList('')}</ul>${pwInput('pw2', 'Confirmar senha', 'new-password')}` : ''}
+    <p class="warn" id="lm" hidden></p>
+    <button class="btn-main">${su ? 'Criar acesso' : 'Entrar na minha casa'}</button>
+    ${su ? '' : '<button type="button" id="fg" class="btn-text">Esqueci minha senha</button>'}
+    ${su ? '' : `<div class="or"><span>ou</span></div><button type="button" class="btn-google" id="gg">${GOOGLE_SVG}<span>Entrar com o Google</span></button><p class="fine">Com o Google você confirma seu CPF na primeira vez.</p>`}
     <p class="switch">${su ? 'Já criou sua senha?' : 'Primeiro acesso?'} <button type="button" id="sw" class="btn-text">${su ? 'Entrar' : 'Criar senha'}</button></p>
   </form></div>`;
   $('#sw').onclick = () => loginScreen(su ? 'login' : 'signup');
+  if ($('#fg')) $('#fg').onclick = forgotScreen;
+  if ($('#gg')) $('#gg').onclick = async () => {
+    if (IN_APP) {   // Median: login nativo do Google (o Google bloqueia o login pelo navegador embutido)
+      if (!(window.median && median.socialLogin && median.socialLogin.google)) return toast('O login com o Google não está ativo neste aplicativo. Entre com CPF e senha.', 1);
+      window.__gLogin = async r => { if (!r || !r.idToken) return toast(r && r.error ? 'Não foi possível entrar com o Google.' : 'Login com o Google cancelado.', 1); const { error } = await sb.auth.signInWithIdToken({ provider: 'google', token: r.idToken }); if (error) return toast('O Supabase não aceitou o login com o Google. Confira o Client ID do Google no Supabase.', 1); };
+      return median.socialLogin.google.login({ callback: window.__gLogin });
+    }
+    if (location.protocol === 'file:') return toast('O login com Google não funciona com o arquivo aberto direto. Abra o app por um endereço http ou https.', 1);
+    const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: back } }); if (error) toast('Não foi possível entrar com o Google. Confira se ele está ativado no Supabase.', 1);
+  };
   $('#lf').onsubmit = async e => {
-    e.preventDefault(); const cpf = cpfDigits($('#cp').value), password = $('#pw').value, btn = $('#lf .btn-main');
+    e.preventDefault(); const cpf = cpfDigits($('#cp').value), password = $('#pw').value, btn = $('#lf .btn-main'), lm = $('#lm'); msgBox(lm, '');
     if (!cpfOk(cpf)) return toast('CPF inválido. Confira os números.', 1);
     if (!su) {
       if (!strongPw(password)) return toast('CPF ou senha incorretos.', 1);
-      btn.disabled = true; const { error } = await sb.auth.signInWithPassword({ email: cpfEmail(cpf), password }); btn.disabled = false;
-      if (error) toast(/rate|too many/i.test(error.message) ? 'Muitas tentativas. Aguarde alguns minutos.' : 'CPF ou senha incorretos. Se for o primeiro acesso, toque em "Criar senha".', 1); return;
+      btn.disabled = true; const { data: em } = await sb.rpc('cpf_login_email', { p_cpf: cpf });
+      const r = em ? await sb.auth.signInWithPassword({ email: em, password }) : { error: { message: 'x' } }; btn.disabled = false;
+      if (r.error) msgBox(lm, /confirm/i.test(r.error.message) ? 'Confirme seu e-mail pelo link que enviamos e tente de novo.' : /rate|too many/i.test(r.error.message) ? 'Muitas tentativas. Aguarde alguns minutos.' : 'CPF ou senha incorretos. Se acabou de criar o acesso, confirme primeiro o link enviado ao seu e-mail.'); return;
     }
+    const email = $('#em').value.trim().toLowerCase();
     if (!strongPw(password)) return toast('A senha não atende a todos os requisitos.', 1);
     if (password !== $('#pw2').value) return toast('As senhas não são iguais.', 1);
-    btn.disabled = true; const { data, error } = await sb.auth.signUp({ email: cpfEmail(cpf), password }); btn.disabled = false;
-    if (error) return toast(/registered|exists/i.test(error.message) ? 'Este CPF já tem senha criada. Toque em "Entrar".' : 'Não foi possível criar a senha: ' + error.message, 1);
-    if (data.user && data.user.identities && data.user.identities.length === 0) return toast('Este CPF já tem senha criada. Toque em "Entrar".', 1);
-    if (!data.session) { loginScreen('login'); toast('Cadastro criado, mas o Supabase ainda exige confirmação de e-mail. Peça à Astell para desligar "Confirm email".', 1); }
+    btn.disabled = true; const { data: ck } = await sb.rpc('signup_check', { p_cpf: cpf, p_email: email, p_scope: 'app' });
+    if (!ck || !ck.ok) { btn.disabled = false; return msgBox(lm, (ck && ck.code === 'NOEMAIL' ? 'O seu cadastro na Astell ainda não tem e-mail.' : 'O CPF e o e-mail não conferem com o cadastro da Astell.') + ' ' + contactAstell()); }
+    const { data, error } = await sb.auth.signUp({ email, password, options: { data: { cpf }, emailRedirectTo: back } }); btn.disabled = false;
+    if (error) return msgBox(lm, /registered|exists/i.test(error.message) ? 'Este e-mail já tem acesso. Toque em "Entrar" ou use "Esqueci minha senha".' : 'Não foi possível criar o acesso: ' + esc(error.message));
+    if (data.user && data.user.identities && data.user.identities.length === 0) return msgBox(lm, 'Este e-mail já tem acesso. Toque em "Entrar" ou use "Esqueci minha senha".');
+    if (!data.session) confirmScreen(email, true);
   };
+}
+
+// Esqueci a senha: o link vai para o e-mail cadastrado
+function forgotScreen() {
+  $('#top').hidden = $('#nav').hidden = true;
+  app.innerHTML = `<div class="login"><form id="ff"><h1>ASTELL<span>HOME</span></h1><h2>Recuperar senha</h2>
+    <p class="lead">Informe seu CPF. Enviaremos um link para o e-mail que você usou no primeiro acesso.</p>${CPF_INPUT('cp')}
+    <p class="warn" id="lm" hidden></p><button class="btn-main">Enviar link</button><button type="button" id="bk" class="btn-text">Voltar</button></form></div>`;
+  $('#bk').onclick = () => loginScreen();
+  $('#ff').onsubmit = async e => {
+    e.preventDefault(); const cpf = cpfDigits($('#cp').value), btn = $('#ff .btn-main'); if (!cpfOk(cpf)) return toast('CPF inválido. Confira os números.', 1);
+    btn.disabled = true; const { data: em } = await sb.rpc('cpf_login_email', { p_cpf: cpf }); if (em) await sb.auth.resetPasswordForEmail(em, { redirectTo: location.origin + location.pathname }); btn.disabled = false;
+    msgBox($('#lm'), 'Se o CPF tiver acesso, enviamos o link para o e-mail cadastrado. Confira também a caixa de spam. Sem acesso ao e-mail? ' + contactAstell());
+  };
+}
+// Nova senha (aberta pelo link do e-mail de recuperação)
+function recoveryScreen() {
+  $('#top').hidden = $('#nav').hidden = true;
+  app.innerHTML = `<div class="login"><form id="rf"><h1>ASTELL<span>HOME</span></h1><h2>Crie uma nova senha</h2>
+    ${pwInput('pw', 'Nova senha', 'new-password')}<ul class="pwrules" id="pr">${pwList('')}</ul>${pwInput('pw2', 'Confirmar nova senha', 'new-password')}<button class="btn-main">Salvar nova senha</button></form></div>`;
+  $('#rf').onsubmit = async e => {
+    e.preventDefault(); const p = $('#pw').value; if (!strongPw(p)) return toast('A senha não atende a todos os requisitos.', 1); if (p !== $('#pw2').value) return toast('As senhas não são iguais.', 1);
+    const { error } = await sb.auth.updateUser({ password: p }); if (error) return toast('Não foi possível salvar a senha: ' + error.message, 1);
+    REC_FLOW = false; history.replaceState(null, '', location.pathname); toast('Senha alterada! Entre com seu CPF e a nova senha.'); await sb.auth.signOut();
+  };
+}
+// E-mail ainda não confirmado
+function confirmScreen(email, fresh) {
+  $('#top').hidden = $('#nav').hidden = true;
+  app.innerHTML = `<div class="login"><form id="cm"><h1>ASTELL<span>HOME</span></h1><h2>Confirme seu e-mail</h2>
+    <p class="lead">${fresh ? 'Acesso criado! ' : ''}Enviamos um link de confirmação para <b>${esc(email)}</b>. Abra o e-mail (veja também o spam), toque no link e depois volte aqui para entrar com CPF e senha.</p>
+    <button type="button" id="rs" class="btn-main">Reenviar e-mail</button><button type="button" id="bk" class="btn-text">Voltar ao login</button></form></div>`;
+  $('#bk').onclick = async () => { await sb.auth.signOut(); loginScreen(); };
+  $('#rs').onclick = async () => { const { error } = await sb.auth.resend({ type: 'signup', email }); toast(error ? 'Não foi possível reenviar agora. Tente em alguns minutos.' : 'E-mail reenviado.', !!error); };
 }
 
 // CPF sem residência vinculada: orienta a falar com a Astell
@@ -663,16 +719,18 @@ async function loadLogo() {
   } catch (e) { /* sem logo: fica o texto */ }
 }
 async function start(session) {
+  if (REC_FLOW && session) return recoveryScreen();
   if (!session) { S.profile = null; S.cur = null; return loginScreen(); }
   const { data } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
   if (!data) return fail('Sua conta existe, mas ainda não tem perfil no banco. Peça à Astell para conferir se o schema.sql foi executado antes da criação do usuário.');
   S.profile = data;
-  const cpfAcc = cpfFromEmail(session.user.email);
-  if (cpfAcc && data.role === 'client') {   // conta criada com CPF: vincula as residências cadastradas pela Astell (e libera superusuários)
+  const metaCpf = /^\d{11}$/.test(String((session.user.user_metadata || {}).cpf || ''));
+  if (metaCpf && data.role === 'client') {   // acesso criado com CPF + e-mail: vincula as residências cadastradas pela Astell
     const { data: c } = await sb.rpc('claim_my_cpf');
-    if (c && c.super && !data.is_super) { const { data: p2 } = await sb.from('profiles').select('*').eq('id', session.user.id).single(); if (p2) { S.profile = p2; } }
+    if (c && c.code === 'UNCONFIRMED') return confirmScreen(session.user.email);
+    if (c && c.ok) { const { data: p2 } = await sb.from('profiles').select('*').eq('id', session.user.id).single(); if (p2) S.profile = p2; }
     const { data: rs } = await sb.from('residences').select('id').limit(1);
-    if (!(rs || []).length) return semCasaScreen(c && c.code === 'TAKEN' ? 'Este CPF já foi usado em outra conta. Fale com a Astell para liberar o seu acesso.' : '');
+    if (!(rs || []).length) return semCasaScreen(c && c.code === 'DENIED' ? 'O CPF ou o e-mail desta conta não conferem com o cadastro da Astell.' : '');
   }
   else if (data.role === 'client' && !data.cpf_claimed) {
     const { data: rs } = await sb.from('residences').select('id').limit(1);
@@ -687,7 +745,8 @@ async function start(session) {
   await loadRes();
 }
 sb.auth.getSession().then(({ data }) => start(data.session));
-sb.auth.onAuthStateChange((ev, s) => { if (ev === 'SIGNED_IN' && S.profile && s && S.profile.id === s.user.id) return;
+sb.auth.onAuthStateChange((ev, s) => { if (ev === 'PASSWORD_RECOVERY') REC_FLOW = true;
+  if (ev === 'SIGNED_IN' && S.profile && s && S.profile.id === s.user.id) return;
   if (ev === 'SIGNED_IN' || ev === 'SIGNED_OUT') setTimeout(() => start(s), 0); });
 
 app.addEventListener('change', e => { if (e.target.id === 'planSel') { S.planId = e.target.value; route(); } if (e.target.id === 'homeSel') { S.cur = S.res.find(r => r.id === e.target.value) || S.cur; route(); } });
