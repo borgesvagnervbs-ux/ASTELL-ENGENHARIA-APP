@@ -30,7 +30,7 @@ function ask(msg, ok = 'Excluir') {
   });
 }
 
-const APP_VERSION = '2026.10.21-35'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-36'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 // Dentro do aplicativo (Median/WebView) o Google bloqueia o login por OAuth; lá o acesso é por e-mail e senha.
 const IN_APP = /median|gonative/i.test(navigator.userAgent);
 if (IN_APP) document.documentElement.classList.add('in-app');
@@ -235,7 +235,7 @@ const views = {
       sb.from('documents').select('title,category,path').eq('residence_id', r.id).order('created_at', { ascending: false })]);
     const pics = (hi || []).filter(x => (x.media_type || 'image') === 'image').sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 5).map(x => x.url);
     const hj = new Date().toISOString().slice(0, 10), nx = (evs || []).find(x => String(x.d) >= hj);
-    const hr = new Date().getHours(), sau = hr < 12 ? 'Bom dia' : hr < 18 ? 'Boa tarde' : 'Boa noite', nome = String((S.profile && S.profile.name) || '').trim().split(/\s+/)[0];
+    const hr = new Date().getHours(), sau = hr < 12 ? 'Bom dia' : hr < 18 ? 'Boa tarde' : 'Boa noite', nome = String((S.profile && !/@/.test(S.profile.name || '') && S.profile.name) || '').trim().split(/\s+/)[0];
     const man = (docs || []).find(d => d.category === 'Manuais'), prj = (docs || []).find(d => /^Projeto/.test(d.category || ''));
     const chip = (d, t) => d ? `<button type="button" class="dchip" data-open="${esc(d.path)}">${ico(IC.doc)}<span>${t}</span>${ico(IC.dl)}</button>` : `<a class="dchip" href="#documentos">${ico(IC.doc)}<span>${t}</span>${ico(IC.dl)}</a>`;
     const sec = (t, s, extra = '') => `<div class="sec"><i class="sbar"></i><div><h2>${t}</h2><p>${s}</p></div>${extra}</div>`;
@@ -309,13 +309,13 @@ const views = {
   },
   mais() {
     const l = [['documentos', 'Documentos'], ['garantias', 'Garantias'], ['equipamentos', 'Equipamentos'], ['planta', 'Planta técnica']];
-    app.innerHTML = `<div class="perfil"><h2>Perfil</h2><div class="card"><b>${esc(S.profile.name || '')}</b><span class="mute">${esc(S.profile.email || '')}</span></div><div class="menu">${l.map(([h, t]) => `<a href="#${h}">${t}</a>`).join('')}</div><p class="notice">Pendentes nesta versão: camadas construtivas, emergência, auditoria, PWA e notificações.</p><p class="notice ver">Astell Home · versão ${APP_VERSION}</p><button class="sair" data-out>Sair da conta</button></div>`;
+    app.innerHTML = `<div class="perfil"><h2>Perfil</h2><div class="card"><b>${esc(/@/.test(S.profile.name || '') ? '' : (S.profile.name || ''))}</b><span class="mute">${cpfFromEmail(S.profile.email) ? 'CPF ' + esc(cpfMask(cpfFromEmail(S.profile.email))) : esc(S.profile.email || '')}</span></div><div class="menu">${l.map(([h, t]) => `<a href="#${h}">${t}</a>`).join('')}</div><p class="notice">Pendentes nesta versão: camadas construtivas, emergência, auditoria, PWA e notificações.</p><p class="notice ver">Astell Home · versão ${APP_VERSION}</p><button class="sair" data-out>Sair da conta</button></div>`;
   },
 };
 
 // Eventos
 app.addEventListener('submit', async e => {
-  e.preventDefault(); const f = e.target, id = f.dataset.form, o = clean(Object.fromEntries(new FormData(f))), rid = S.cur?.id; let r;
+  e.preventDefault(); if (!e.target.dataset.form) return; const f = e.target, id = f.dataset.form, o = clean(Object.fromEntries(new FormData(f))), rid = S.cur?.id; let r;
   if (id.startsWith('edit:')) { r = await sb.from(id.slice(5)).update(o).eq('id', f.dataset.id); S.edit = null; }
   else if (id === 'editres') { r = await sb.from('residences').update(o).eq('id', rid); if (!r.error) { await loadRes(rid); return toast('Dados da residência salvos.'); } }
   else if (T[id]) r = await sb.from(id).insert({ ...o, residence_id: rid });
@@ -585,42 +585,52 @@ const pwList = p => PW_RULES.map(([t, f]) => `<li class="${f(p) ? 'ok' : ''}">${
 const strongPw = p => PW_RULES.every(([, f]) => f(p));
 const CPF_INPUT = id => `<label>CPF<input id="${id}" class="cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" required autocomplete="off"></label>`;
 
+// Login por CPF + senha. O Supabase exige um e-mail, então cada CPF vira um e-mail interno (nunca recebe mensagens).
+const CPF_DOMAIN = '@cpf.astellhome.app', cpfEmail = d => d + CPF_DOMAIN, cpfFromEmail = m => { const x = /^(\d{11})@cpf\.astellhome\.app$/i.exec(String(m || '')); return x ? x[1] : ''; };
+const WA_ASTELL = 'https://wa.me/5554996528034';
+const contactAstell = (txt = 'Contate a ASTELL') => `<a class="xcontact" href="${WA_ASTELL}" target="_blank" rel="noopener">${txt}</a>`;
+
 function loginScreen(mode = 'login') {
   $('#top').hidden = $('#nav').hidden = true;
-  const su = mode === 'signup', back = location.origin + location.pathname;
+  const su = mode === 'signup';
   app.innerHTML = `<div class="login"><form id="lf">
     <h1>ASTELL<span>HOME</span></h1><p class="tag">Sua casa. Sua história. Tudo em um só lugar.</p>
-    <h2>${su ? 'Crie sua conta' : 'Bem-vindo à sua casa Astell'}</h2>
-    ${`<button type="button" class="btn-google" id="gg">${GOOGLE_SVG}<span>${su ? 'Cadastrar com o Google' : 'Entrar com o Google'}</span></button>
-    <div class="or"><span>ou</span></div>`}
-    ${su ? '<label>Nome completo<input id="nm" required autocomplete="name"></label>' + CPF_INPUT('cp') : ''}
-    <label>E-mail<input id="em" type="email" required autocomplete="username"></label>
+    <h2>${su ? 'Primeiro acesso: crie sua senha' : 'Bem-vindo à sua casa Astell'}</h2>
+    ${su ? '<p class="lead">Informe o CPF cadastrado pela Astell e crie uma senha para entrar no aplicativo.</p>' : ''}
+    ${CPF_INPUT('cp')}
     <label>Senha<input id="pw" type="password" required autocomplete="${su ? 'new-password' : 'current-password'}"></label>
     ${su ? `<ul class="pwrules" id="pr">${pwList('')}</ul><label>Confirmar senha<input id="pw2" type="password" required autocomplete="new-password"></label>` : ''}
-    <button class="btn-main">${su ? 'Criar conta' : 'Entrar na minha casa'}</button>
-    ${su ? '<p class="fine">Você usará o e-mail e a senha para entrar. O CPF serve para localizar a residência cadastrada pela Astell.</p>' : '<button type="button" id="rs" class="btn-text">Esqueci minha senha</button>'}
-    <p class="switch">${su ? 'Já tem conta?' : 'Ainda não tem conta?'} <button type="button" id="sw" class="btn-text">${su ? 'Entrar' : 'Cadastre-se'}</button></p>
+    <button class="btn-main">${su ? 'Criar senha e entrar' : 'Entrar na minha casa'}</button>
+    ${su ? '' : `<p class="fine">Esqueceu a senha? ${contactAstell()}</p>`}
+    <p class="switch">${su ? 'Já criou sua senha?' : 'Primeiro acesso?'} <button type="button" id="sw" class="btn-text">${su ? 'Entrar' : 'Criar senha'}</button></p>
   </form></div>`;
   $('#sw').onclick = () => loginScreen(su ? 'login' : 'signup');
-  if ($('#gg')) $('#gg').onclick = async () => {
-    if (IN_APP) {   // Median: login nativo do Google (o Google bloqueia o login pelo navegador embutido)
-      if (!(window.median && median.socialLogin && median.socialLogin.google)) return toast('O login com o Google ainda não está ativo neste aplicativo. Entre com e-mail e senha.', 1);
-      window.__gLogin = async r => { if (!r || !r.idToken) return toast(r && r.error ? 'Não foi possível entrar com o Google.' : 'Login com o Google cancelado.', 1); const { error } = await sb.auth.signInWithIdToken({ provider: 'google', token: r.idToken }); if (error) return toast('O Supabase não aceitou o login com o Google. Confira o Client ID do Google no Supabase.', 1); location.hash = '#home'; location.reload(); };
-      return median.socialLogin.google.login({ callback: window.__gLogin });
-    } if (location.protocol === 'file:') return toast('O login com Google não funciona com o arquivo aberto direto. Abra o app por um endereço http ou https.', 1); const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: back } }); if (error) toast('Não foi possível entrar com o Google. Confira se ele está ativado no Supabase.', 1); };
   $('#lf').onsubmit = async e => {
-    e.preventDefault(); const email = $('#em').value.trim(), password = $('#pw').value;
-    if (!su) { const { error } = await sb.auth.signInWithPassword({ email, password }); if (error) toast(/confirm/i.test(error.message) ? 'Confirme seu e-mail antes de entrar.' : 'E-mail ou senha incorretos.', 1); return; }
-    const cpf = cpfDigits($('#cp').value);
+    e.preventDefault(); const cpf = cpfDigits($('#cp').value), password = $('#pw').value, btn = $('#lf .btn-main');
     if (!cpfOk(cpf)) return toast('CPF inválido. Confira os números.', 1);
+    if (!su) {
+      if (!strongPw(password)) return toast('CPF ou senha incorretos.', 1);
+      btn.disabled = true; const { error } = await sb.auth.signInWithPassword({ email: cpfEmail(cpf), password }); btn.disabled = false;
+      if (error) toast(/rate|too many/i.test(error.message) ? 'Muitas tentativas. Aguarde alguns minutos.' : 'CPF ou senha incorretos. Se for o primeiro acesso, toque em "Criar senha".', 1); return;
+    }
     if (!strongPw(password)) return toast('A senha não atende a todos os requisitos.', 1);
     if (password !== $('#pw2').value) return toast('As senhas não são iguais.', 1);
-    const { data, error } = await sb.auth.signUp({ email, password, options: { data: { name: $('#nm').value.trim(), cpf }, emailRedirectTo: back } });
-    if (error) return toast('Não foi possível criar a conta: ' + error.message, 1);
-    if (data.user && data.user.identities && data.user.identities.length === 0) return toast('Este e-mail já tem cadastro. Entre ou recupere a senha.', 1);
-    if (!data.session) { loginScreen('login'); toast('Conta criada! Enviamos um e-mail para você confirmar o cadastro.'); }
+    btn.disabled = true; const { data, error } = await sb.auth.signUp({ email: cpfEmail(cpf), password }); btn.disabled = false;
+    if (error) return toast(/registered|exists/i.test(error.message) ? 'Este CPF já tem senha criada. Toque em "Entrar".' : 'Não foi possível criar a senha: ' + error.message, 1);
+    if (data.user && data.user.identities && data.user.identities.length === 0) return toast('Este CPF já tem senha criada. Toque em "Entrar".', 1);
+    if (!data.session) { loginScreen('login'); toast('Cadastro criado, mas o Supabase ainda exige confirmação de e-mail. Peça à Astell para desligar "Confirm email".', 1); }
   };
-  if (!su) $('#rs').onclick = async () => { const v = $('#em').value.trim(); if (!v) return toast('Digite seu e-mail primeiro.', 1); await sb.auth.resetPasswordForEmail(v, { redirectTo: back }); toast('Se o e-mail existir, enviamos um link de recuperação.'); };
+}
+
+// CPF sem residência vinculada: orienta a falar com a Astell
+function semCasaScreen(msg) {
+  $('#top').hidden = $('#nav').hidden = true;
+  app.innerHTML = `<div class="login"><form id="nc"><h1>ASTELL<span>HOME</span></h1><p class="tag">Falta só uma etapa</p><h2>Sua residência ainda não foi vinculada</h2>
+    <p class="lead">${esc(msg || 'Não encontramos uma residência cadastrada para o seu CPF.')}</p>
+    <p class="lead">${contactAstell()}</p>
+    <button type="button" id="rt" class="btn-main">Verificar novamente</button><button type="button" id="so" class="btn-text">Sair</button></form></div>`;
+  $('#so').onclick = () => sb.auth.signOut();
+  $('#rt').onclick = async () => { const { data } = await sb.auth.getSession(); start(data.session); };
 }
 
 async function claim(cpf) {
@@ -657,7 +667,14 @@ async function start(session) {
   const { data } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
   if (!data) return fail('Sua conta existe, mas ainda não tem perfil no banco. Peça à Astell para conferir se o schema.sql foi executado antes da criação do usuário.');
   S.profile = data;
-  if (data.role === 'client' && !data.cpf_claimed) {
+  const cpfAcc = cpfFromEmail(session.user.email);
+  if (cpfAcc && data.role === 'client') {   // conta criada com CPF: vincula as residências cadastradas pela Astell (e libera superusuários)
+    const { data: c } = await sb.rpc('claim_my_cpf');
+    if (c && c.super && !data.is_super) { const { data: p2 } = await sb.from('profiles').select('*').eq('id', session.user.id).single(); if (p2) { S.profile = p2; } }
+    const { data: rs } = await sb.from('residences').select('id').limit(1);
+    if (!(rs || []).length) return semCasaScreen(c && c.code === 'TAKEN' ? 'Este CPF já foi usado em outra conta. Fale com a Astell para liberar o seu acesso.' : '');
+  }
+  else if (data.role === 'client' && !data.cpf_claimed) {
     const { data: rs } = await sb.from('residences').select('id').limit(1);
     if (!(rs || []).length) {
       const pend = (session.user.user_metadata || {}).cpf;
