@@ -30,7 +30,7 @@ function ask(msg, ok = 'Excluir') {
   });
 }
 
-const APP_VERSION = '2026.10.21-41'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-42'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 // Dentro do aplicativo (Median/WebView) o Google bloqueia o login por OAuth; lá o acesso é por e-mail e senha.
 let REC_FLOW = /[#&]type=recovery/.test(location.hash);   // aberto pelo link de recuperação de senha
 const IN_APP = /median|gonative/i.test(navigator.userAgent);
@@ -392,7 +392,8 @@ app.addEventListener('click', async e => {
   if (d.xedit) location.hash = '#custos?edit=' + encodeURIComponent(d.xedit);
   if (d.xdel && await ask('Excluir este lançamento?')) { const { error } = await sb.from('expenses').delete().eq('id', d.xdel); if (error) return toast('Não foi possível excluir.', 1); S.exp = (S.exp || []).filter(x => x.id !== d.xdel); xPaint(); toast('Lançamento excluído.'); }
   if (d.gf) { const k = d.gf === 'all' ? null : d.gf; S.gf = S.gf === k ? null : k; gaPaint(); }
-  if (d.cal && S.cal) { const x = new Date(S.cal.y, S.cal.m + +d.cal, 1); S.cal.y = x.getFullYear(); S.cal.m = x.getMonth(); calPaint(); }
+  if (d.cal && S.cal) { const x = new Date(S.cal.y, S.cal.m + +d.cal, 1); S.cal.y = x.getFullYear(); S.cal.m = x.getMonth(); S.cal.sel = null; calPaint(); }
+  if (d.calday != null && S.cal) { const n = +d.calday; S.cal.sel = !n || S.cal.sel === n ? null : n; calPaint(); }
   if (d.ct) { S.casaTab = d.ct; $('#mb').innerHTML = mediaBlock(); }
   if (d.lb) { const [g, i] = d.lb.split('|'); S.lb = { g, i: +i }; showLb(); }
   if (d.out !== undefined) sb.auth.signOut();
@@ -416,6 +417,7 @@ function route() {
   $('#avatar').classList.toggle('on', h === 'mais'); refreshBell();
   if (!S.cur) return app.innerHTML = '<p class="empty">Nenhuma residência vinculada à sua conta. Fale com a Astell.</p>';
   const v = views[h] || views.home, go = location.hash;
+  if (S.lastGo !== go) { S.lastGo = go; window.scrollTo(0, 0); document.documentElement.scrollTop = 0; document.body.scrollTop = 0; if (app.scrollTo) app.scrollTo(0, 0); }   // nova tela sempre começa pelo topo
   Promise.resolve(v()).finally(() => { if (location.hash === go) crumbs(h); });
 }
 // Caminho de navegação (breadcrumb) no alto de todas as telas, exceto o Início
@@ -582,13 +584,14 @@ function calPaint() {
   const pre = y + '-' + String(m + 1).padStart(2, '0') + '-', first = new Date(y, m, 1).getDay(), nd = new Date(y, m + 1, 0).getDate(), t = new Date(), hoje = t.getFullYear() === y && t.getMonth() === m ? t.getDate() : 0;
   const by = {}; ev.filter(e => String(e.d).startsWith(pre)).forEach(e => (by[+String(e.d).slice(8, 10)] = by[+String(e.d).slice(8, 10)] || []).push(e));
   let cells = ''; for (let i = 0; i < first; i++) cells += '<span class="cd0"></span>';
-  for (let d = 1; d <= nd; d++) cells += `<span class="cday${d === hoje ? ' hoje' : ''}${by[d] ? ' has' : ''}"><b>${d}</b>${by[d] ? `<i class="dots2">${[...new Set(by[d].map(e => e.k))].map(k => `<u class="${CAL_K[k][1]}"></u>`).join('')}</i>` : ''}</span>`;
-  const list = Object.keys(by).map(Number).sort((a, b) => a - b).flatMap(d => by[d].map(e => ({ ...e, day: d })));
+  for (let d = 1; d <= nd; d++) cells += by[d] ? `<button type="button" class="cday has${d === hoje ? ' hoje' : ''}${S.cal.sel === d ? ' sel' : ''}" data-calday="${d}" aria-pressed="${S.cal.sel === d}" aria-label="Dia ${d}: ${by[d].length} aviso(s)"><b>${d}</b><i class="dots2">${[...new Set(by[d].map(e => e.k))].map(k => `<u class="${CAL_K[k][1]}"></u>`).join('')}</i></button>` : `<span class="cday${d === hoje ? ' hoje' : ''}"><b>${d}</b></span>`;
+  if (S.cal.sel && !by[S.cal.sel]) S.cal.sel = null; const sel = S.cal.sel;
+  const list = Object.keys(by).map(Number).sort((a, b) => a - b).filter(d => !sel || d === sel).flatMap(d => by[d].map(e => ({ ...e, day: d })));
   const msg = e => { const dd = String(e.day).padStart(2, '0') + '/' + String(m + 1).padStart(2, '0'); return e.k === 'man' ? `Dia <b>${dd}</b>: deve ser feita a manutenção <b>${esc(e.t)}</b>.` : e.k === 'ast' ? `Dia <b>${dd}</b>: será atendida a assistência <b>${esc(e.t)}</b>.` : `Dia <b>${dd}</b>: expira a garantia de <b>${esc(e.t)}</b>.`; };
   el.innerHTML = `<div class="calhead"><button type="button" data-cal="-1" aria-label="Mês anterior">‹</button><b>${MESES[m]} ${y}</b><button type="button" data-cal="1" aria-label="Próximo mês">›</button></div>
   <div class="calgrid">${['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map(x => `<span class="cwd">${x}</span>`).join('')}${cells}</div>
-  <div class="callegend">${Object.values(CAL_K).map(([l, c]) => `<span><u class="${c}"></u>${l}</span>`).join('')}</div>
-  <h3>Avisos de ${MESES[m].toLowerCase()}</h3>${list.length ? list.map(e => `<a class="card calnote" href="#detalhe?${e.k}:${e.id}"><u class="${CAL_K[e.k][1]}"></u><p>${msg(e)}</p>${ico(IC.chev)}</a>`).join('') : '<p class="empty">Nada agendado para este mês.</p>'}`;
+  <div class="callegend">${[...new Map(Object.values(CAL_K).map(([l, c]) => [l, c]))].map(([l, c]) => `<span><u class="${c}"></u>${l}</span>`).join('')}</div>
+  <h3>${sel ? `Avisos do dia ${String(sel).padStart(2, '0')}/${String(m + 1).padStart(2, '0')}` : `Avisos de ${MESES[m].toLowerCase()}`}</h3>${sel ? '<button type="button" class="calall" data-calday="0">Ver todos os avisos do mês</button>' : ''}${list.length ? list.map(e => `<a class="card calnote" href="#detalhe?${e.k}:${e.id}"><u class="${CAL_K[e.k][1]}"></u><p>${msg(e)}</p>${ico(IC.chev)}</a>`).join('') : '<p class="empty">Nada agendado para este mês.</p>'}`;
 }
 const CR = { midias: [['casa', 'Minha Casa'], ['', 'Mídias']], cronograma: [['casa', 'Minha Casa'], ['', 'Cronograma']], casa: [['casa', 'Minha Casa']], estrutura: [['casa', 'Minha Casa'], ['', 'Estrutura']], sistemas: [['casa', 'Minha Casa'], ['', 'Instalações']], materiais: [['casa', 'Minha Casa'], ['', 'Materiais']], garantias: [['casa', 'Minha Casa'], ['', 'Garantias']], manutencao: [['casa', 'Minha Casa'], ['', 'Manutenção']], equipamentos: [['casa', 'Minha Casa'], ['', 'Equipamentos']], planta: [['casa', 'Minha Casa'], ['', 'Planta técnica']], documentos: [['casa', 'Minha Casa'], ['', 'Documentos']], custos: [['custos', 'Centro de custo']], assistencia: [['assistencia', 'Suporte']], mais: [['mais', 'Perfil']] };
 function crumbs(h) {
