@@ -30,7 +30,7 @@ function ask(msg, ok = 'Excluir') {
   });
 }
 
-const APP_VERSION = '2026.10.21-45'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-46'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 // Dentro do aplicativo (Median/WebView) o Google bloqueia o login por OAuth; lá o acesso é por e-mail e senha.
 let REC_FLOW = /[#&]type=recovery/.test(location.hash);   // aberto pelo link de recuperação de senha
 const IN_APP = /median|gonative/i.test(navigator.userAgent);
@@ -43,6 +43,9 @@ addEventListener('error', e => { if (!app.innerHTML.trim()) fail('Erro: ' + e.me
 addEventListener('unhandledrejection', e => { if (!app.innerHTML.trim()) fail('Erro: ' + (e.reason?.message || e.reason)); });
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt = d => d ? new Date(d + 'T00:00').toLocaleDateString('pt-BR') : '—';
+const FS = { n: ['Normal', '100%'], g: ['Grande', '112.5%'], x: ['Muito grande', '125%'] };
+function applyFs() { let k = 'n'; try { k = localStorage.getItem('astell_fs') || 'n'; } catch (e) {} document.documentElement.style.fontSize = (FS[k] || FS.n)[1]; return FS[k] ? k : 'n'; }
+applyFs();
 const S = { profile: null, res: [], cur: null, groups: {} };
 const staff = () => false; // este app é somente de consulta do cliente
 function toast(m, err) { const t = $('#toast'); t.textContent = m; t.className = 'show' + (err ? ' err' : ''); setTimeout(() => t.className = '', 3500); }
@@ -88,7 +91,7 @@ const DOC_CATS = ['Projeto arquitetônico','Projeto estrutural','Projeto elétri
 
 const PT_CATS = ['Elétrica','Hidráulica','Gás','Climatização','Estrutura','Paredes','Equipamentos'];
 const ico = (d, c = '') => `<svg class="ico ${c}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d.split('|').map(p => `<path d="${p}"/>`).join('')}</svg>`;
-const IC = { home: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z|M9 22V12h6v10', casa: 'M4 21V8l8-5 8 5v13|M9 21v-6h6v6', drop: 'M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z', layers: 'M12 2L2 7l10 5 10-5-10-5z|M2 17l10 5 10-5|M2 12l10 5 10-5', shield: 'M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z|M9 12l2 2 4-4', wrench: 'M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z', phones: 'M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3', doc: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z|M14 2v6h6|M8 13h8|M8 17h8', user: 'M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2|M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', chev: 'M9 18l6-6-6-6', check: 'M22 11.08V12a10 10 0 1 1-5.93-9.14|M22 4L12 14.01l-3-3', bell: 'M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9|M10.3 21a1.94 1.94 0 0 0 3.4 0', pin: 'M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0|M12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5', chevd: 'M6 9l6 6 6-6', bolt: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z', image: 'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z|M8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3|M21 15l-5-5L5 21', calendar: 'M8 2v4|M16 2v4|M3 10h18|M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z|M8 14h.01|M12 14h.01|M16 14h.01|M8 18h.01|M12 18h.01', dl: 'M12 3v12|M7 11l5 5 5-5|M5 21h14', folder: 'M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z', usr: 'M20 21a8 8 0 0 0-16 0|M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8', tick: 'M5 12.5l4.5 4.5L19 7.5', dollar: 'M12 2v20|M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6' };
+const IC = { lock: 'M5 11h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2z|M7 11V7a5 5 0 0 1 10 0v4|M12 15.5v2', palette: 'M12 22a10 10 0 1 1 10-10c0 3-2 4-4 4h-2a2 2 0 0 0-1 3.7c.6.5.4 2.3-3 2.3z|M7.5 11.5h.01|M10.5 7.5h.01|M15.5 8h.01|M17.5 12h.01', info: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z|M12 16v-4|M12 8h.01', out: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4|M16 17l5-5-5-5|M21 12H9', home: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z|M9 22V12h6v10', casa: 'M4 21V8l8-5 8 5v13|M9 21v-6h6v6', drop: 'M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z', layers: 'M12 2L2 7l10 5 10-5-10-5z|M2 17l10 5 10-5|M2 12l10 5 10-5', shield: 'M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z|M9 12l2 2 4-4', wrench: 'M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z', phones: 'M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3', doc: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z|M14 2v6h6|M8 13h8|M8 17h8', user: 'M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2|M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', chev: 'M9 18l6-6-6-6', check: 'M22 11.08V12a10 10 0 1 1-5.93-9.14|M22 4L12 14.01l-3-3', bell: 'M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9|M10.3 21a1.94 1.94 0 0 0 3.4 0', pin: 'M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0|M12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5', chevd: 'M6 9l6 6 6-6', bolt: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z', image: 'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z|M8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3|M21 15l-5-5L5 21', calendar: 'M8 2v4|M16 2v4|M3 10h18|M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z|M8 14h.01|M12 14h.01|M16 14h.01|M8 18h.01|M12 18h.01', dl: 'M12 3v12|M7 11l5 5 5-5|M5 21h14', folder: 'M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z', usr: 'M20 21a8 8 0 0 0-16 0|M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8', tick: 'M5 12.5l4.5 4.5L19 7.5', dollar: 'M12 2v20|M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6' };
 const TILES = [['estrutura', 'Estrutura', 'Steel Frame', 'layers'], ['sistemas', 'Instalações', 'Elétrica e hidráulica', 'bolt'], ['garantias', 'Garantias', 'Prazos e condições', 'shield'], ['manutencao', 'Manutenção', 'Cuidados da sua casa', 'wrench']];
 const BCAT = { estrutura: 'Estrutura', sistemas: 'Sistemas', materiais: 'Materiais' };
 const NAV = [['home', 'Início', 'home', ['home']], ['casa', 'Minha Casa', 'layers', ['casa', 'estrutura', 'sistemas', 'materiais', 'garantias', 'manutencao', 'equipamentos', 'planta', 'midias', 'cronograma', 'detalhe', 'documentos']], ['custos', 'Centro de custo', 'dollar', ['custos']], ['assistencia', 'Suporte', 'phones', ['assistencia']]];
@@ -234,7 +237,7 @@ function gaPaint() {   // resumo (números = filtros) + lista filtrada
   const gs = $('#gs'), gl = $('#gl'); if (!gs || !gl) return;
   gs.innerHTML = `<div class="gnums">${box('ok', n('ok'), 'Garantias vigentes', 'n-ok')}${box('warn', n('warn'), 'Próximas do vencimento', 'n-warn')}${box('bad', n('bad'), 'Garantias expiradas', 'n-bad')}${box(null, tot, 'Total de garantias', 'n-all')}</div>
   <h4>Distribuição das garantias</h4><div class="gdist" role="img" aria-label="Distribuição das garantias">${tot ? `<i class="gok" style="width:${pc(n('ok'))}%"></i><i class="gwarn" style="width:${pc(n('warn'))}%"></i><i class="gbad" style="width:${pc(n('bad'))}%"></i>` : ''}</div>
-  <div class="gleg"><span class="wpill gp-ok">Vigente</span><span class="wpill gp-warn">Próxima do vencimento</span><span class="wpill gp-bad">Expirada</span></div>`;
+  <div class="gleg"><span><u class="gok"></u>Vigentes</span><span><u class="gwarn"></u>Próximas do vencimento</span><span><u class="gbad"></u>Expiradas</span></div>`;
   const rows = all.filter(x => !f || x.k === f);
   gl.innerHTML = rows.map(x => warCard(x.r)).join('') || `<p class="empty">${all.length ? 'Nenhuma garantia neste status.' : 'Nenhuma garantia cadastrada ainda.'}</p>`;
 }
@@ -351,8 +354,28 @@ const views = {
       '<p class="notice">Os pontos são cadastrados pela Astell a partir dos projetos da obra. Em caso de dúvida, consulte os projetos oficiais em Documentos.</p>';
   },
   mais() {
-    const l = [['documentos', 'Documentos'], ['garantias', 'Garantias'], ['equipamentos', 'Equipamentos'], ['planta', 'Planta técnica']];
-    app.innerHTML = `<div class="perfil"><h2>Perfil</h2><div class="card"><b>${esc(/@/.test(S.profile.name || '') ? '' : (S.profile.name || ''))}</b><span class="mute">${esc(S.profile.email || '')}</span></div><div class="menu">${l.map(([h, t]) => `<a href="#${h}">${t}</a>`).join('')}</div><p class="notice">Pendentes nesta versão: camadas construtivas, emergência, auditoria, PWA e notificações.</p><p class="notice ver">Astell Home · versão ${APP_VERSION}</p><button class="sair" data-out>Sair da conta</button></div>`;
+    const q = S.q, nome = String((!/@/.test(S.profile.name || '') && S.profile.name) || '').trim().split(/\s+/)[0], P = S.profile;
+    const papel = P.is_super ? 'Superusuário' : P.role === 'admin' ? 'Administrador' : P.role === 'tech' ? 'Técnico' : 'Proprietário';
+    const T = [['dados', 'Dados pessoais', 'Informações cadastrais', 'usr'], ['notificacoes', 'Notificações', 'Alertas e avisos', 'bell'], ['seguranca', 'Segurança', 'Proteção da conta', 'lock'], ['personalizacao', 'Personalização', 'Tema e aparência', 'palette'], ['atendimento', 'Atendimento', 'Suporte técnico', 'phones'], ['sobre', 'Sobre', 'Versão e informações', 'info']];
+    const back = '<a class="btn-cancel" href="#mais">Voltar ao perfil</a>', row = (l, v) => `<div class="pfrow"><span>${l}</span><b>${v}</b></div>`;
+    if (!q || !T.some(t => t[0] === q)) {
+      app.innerHTML = `<div class="pf"><h3 class="pft0">Perfil e configurações</h3><div class="pfhi"><h2>Olá${nome ? ', ' + esc(nome) : ''}!</h2><p>Gerencie sua conta e personalize sua experiência.</p></div>
+      <div class="pfgrid">${T.map(([k, t, s, i]) => `<a class="pftile" href="#mais?${k}">${ico(IC[i])}<b>${t}</b><small>${s}</small></a>`).join('')}</div>
+      <button type="button" class="pfout" data-out>${ico(IC.out)}<span>Sair da conta</span>${ico(IC.chev)}</button></div>`; return;
+    }
+    const tt = T.find(t => t[0] === q)[1]; let body = '';
+    if (q === 'dados') body = `<div class="card">${row('Nome', esc(/@/.test(P.name || '') ? '—' : (P.name || '—')))}${row('E-mail', esc(P.email || '—'))}${row('Tipo de acesso', papel)}${row('CPF', P.cpf_claimed || P.cpf_hash ? 'Vinculado à sua conta' : 'Não vinculado')}${row(S.res.length > 1 ? 'Residências' : 'Residência', S.res.length ? S.res.map(r => esc(r.name)).join(', ') : '—')}</div><p class="mute">Por segurança, o CPF não é exibido. Para corrigir qualquer dado cadastral, fale com a Astell: ${contactAstell('Contate a ASTELL')}</p>`;
+    else if (q === 'notificacoes') body = `<div class="card"><p>Quando a Astell cadastrar algo novo para a sua residência (mídias, documentos, garantias, manutenções, equipamentos e outros), um aviso aparece no sininho no alto da tela.</p><p class="mute">Os avisos são atualizados sempre que você abre o aplicativo. Alterações e exclusões não geram aviso.</p><a class="pbtn" href="#avisos">Ver meus avisos${ico(IC.chev)}</a></div>`;
+    else if (q === 'seguranca') body = `<form class="card" id="pwf"><h3 style="margin-top:0">Alterar senha</h3>${pwInput('pw', 'Nova senha', 'new-password')}<ul class="pwrules" id="pr">${pwList('')}</ul>${pwInput('pw2', 'Confirmar nova senha', 'new-password')}<button class="btn-main">Salvar nova senha</button></form><p class="mute">Se esquecer a senha, use "Esqueci minha senha" na tela de entrada: enviamos um link para o seu e-mail cadastrado.</p>`;
+    else if (q === 'personalizacao') { const cur = applyFs(); body = `<div class="card"><h3 style="margin-top:0">Tamanho do texto</h3><div class="fsopt">${Object.entries(FS).map(([k, [l]]) => `<button type="button" class="${k === cur ? 'on' : ''}" data-fs="${k}">${l}</button>`).join('')}</div></div><div class="card">${row('Tema', 'Escuro')}<p class="mute">O tema escuro é o único disponível por enquanto.</p></div>`; }
+    else if (q === 'atendimento') body = `<div class="card"><h3 style="margin-top:0">Fale com a Astell</h3><p>Dúvidas, orientações ou solicitações sobre a sua residência.</p><p>${contactAstell('Chamar no WhatsApp')} <span class="mute">(54) 99652-8034</span></p></div><div class="card"><h3 style="margin-top:0">Assistência técnica</h3><p>Abra uma solicitação formal para acionar a equipe técnica e acompanhe o andamento no aplicativo.</p><a class="pbtn" href="#assistencia?nova">Nova solicitação${ico(IC.chev)}</a></div><p class="notice">Em risco imediato (gás, fogo, choque), afaste-se e ligue 193 ou 192.</p>`;
+    else if (q === 'sobre') body = `<div class="card"><b>Astell Home</b><p class="mute">Sua casa. Sua história. Tudo em um só lugar.</p>${row('Versão', APP_VERSION)}${row('Desenvolvido por', 'Astell Engenharia')}</div><p class="mute">Aqui você acompanha a documentação, as garantias, as manutenções e o histórico da sua residência, sempre atualizados pela Astell.</p>`;
+    app.innerHTML = `<div class="pfsub"><h2>${tt}</h2>${body}${back}</div>`;
+    if (q === 'seguranca') $('#pwf').onsubmit = async e => {
+      e.preventDefault(); const p = $('#pw').value; if (!strongPw(p)) return toast('A senha não atende a todos os requisitos.', 1); if (p !== $('#pw2').value) return toast('As senhas não são iguais.', 1);
+      const { error } = await sb.auth.updateUser({ password: p }); if (error) return toast('Não foi possível alterar a senha: ' + error.message, 1);
+      e.target.reset(); $('#pr').innerHTML = pwList(''); toast('Senha alterada com sucesso.');
+    };
   },
 };
 
@@ -413,7 +436,8 @@ app.addEventListener('click', async e => {
   { const cd = e.target.closest && e.target.closest('[data-calday]'); if (cd && S.cal) { const n = +cd.dataset.calday; S.cal.sel = !n || S.cal.sel === n ? null : n; calPaint(); } }
   if (d.ct) { S.casaTab = d.ct; $('#mb').innerHTML = mediaBlock(); }
   if (d.lb) { const [g, i] = d.lb.split('|'); S.lb = { g, i: +i }; showLb(); }
-  if (d.out !== undefined) sb.auth.signOut();
+  if (e.target.closest && e.target.closest('[data-out]')) sb.auth.signOut();
+  { const fb = e.target.closest && e.target.closest('[data-fs]'); if (fb) { try { localStorage.setItem('astell_fs', fb.dataset.fs); } catch (x) {} applyFs(); route(); } }
   if (d.print !== undefined) print();
   if (d.place !== undefined) { S.place = !S.place; S.pend = null; route(); }
   if (d.plan && S.place) { const b = e.target.getBoundingClientRect(); S.pend = { x: +((e.clientX - b.left) / b.width * 100).toFixed(2), y: +((e.clientY - b.top) / b.height * 100).toFixed(2) };
@@ -611,8 +635,9 @@ function calPaint() {
   <h3>${sel ? `Avisos do dia ${String(sel).padStart(2, '0')}/${String(m + 1).padStart(2, '0')}` : `Avisos de ${MESES[m].toLowerCase()}`}</h3>${list.length ? list.map(e => `<a class="card calnote" href="#detalhe?${e.k}:${e.id}"><u class="${CAL_K[e.k][1]}"></u><p>${msg(e)}</p>${ico(IC.chev)}</a>`).join('') : '<p class="empty">Nada agendado para este mês.</p>'}`;
 }
 const CR = { avisos: [['', 'Avisos']], midias: [['casa', 'Minha Casa'], ['', 'Mídias']], cronograma: [['casa', 'Minha Casa'], ['', 'Cronograma']], casa: [['casa', 'Minha Casa']], estrutura: [['casa', 'Minha Casa'], ['', 'Estrutura']], sistemas: [['casa', 'Minha Casa'], ['', 'Instalações']], materiais: [['casa', 'Minha Casa'], ['', 'Materiais']], garantias: [['casa', 'Minha Casa'], ['', 'Garantias']], manutencao: [['casa', 'Minha Casa'], ['', 'Manutenção']], equipamentos: [['casa', 'Minha Casa'], ['', 'Equipamentos']], planta: [['casa', 'Minha Casa'], ['', 'Planta técnica']], documentos: [['casa', 'Minha Casa'], ['', 'Documentos']], custos: [['custos', 'Centro de custo']], assistencia: [['assistencia', 'Suporte']], mais: [['mais', 'Perfil']] };
+const PFT = { dados: 'Dados pessoais', notificacoes: 'Notificações', seguranca: 'Segurança', personalizacao: 'Personalização', atendimento: 'Atendimento', sobre: 'Sobre' };
 function crumbs(h) {
-  const c = h === 'custos' && (S.nova || S.xv) ? [['custos', 'Centro de custo'], ['', S.xv ? (S.xv.m === 'ver' ? 'Visualizar despesa' : 'Editar despesa') : 'Lançar despesa']] : h === 'detalhe' ? [['casa', 'Minha Casa'], ['cronograma', 'Cronograma'], ['', 'Detalhe']] : h === 'assistencia' && S.nova ? [['assistencia', 'Suporte'], ['', 'Nova solicitação']] : CR[h]; if (!c || !app.firstElementChild || app.querySelector('.crumbs')) return;
+  const c = h === 'custos' && (S.nova || S.xv) ? [['custos', 'Centro de custo'], ['', S.xv ? (S.xv.m === 'ver' ? 'Visualizar despesa' : 'Editar despesa') : 'Lançar despesa']] : h === 'mais' && S.q && PFT[S.q] ? [['mais', 'Perfil'], ['', PFT[S.q]]] : h === 'detalhe' ? [['casa', 'Minha Casa'], ['cronograma', 'Cronograma'], ['', 'Detalhe']] : h === 'assistencia' && S.nova ? [['assistencia', 'Suporte'], ['', 'Nova solicitação']] : CR[h]; if (!c || !app.firstElementChild || app.querySelector('.crumbs')) return;
   const last = c.length - 1, items = [['home', 'Início'], ...c].map(([href, t], i, a) => i === a.length - 1 ? `<li aria-current="page">${t}</li>` : `<li><a href="#${href}">${t}</a></li>`);
   app.insertAdjacentHTML('afterbegin', `<ol class="crumbs" aria-label="Você está em">${items.join('<li class="sep" aria-hidden="true">›</li>')}</ol>`);
 }

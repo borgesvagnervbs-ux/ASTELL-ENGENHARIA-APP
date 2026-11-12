@@ -305,4 +305,14 @@ button.cday{font:inherit;color:inherit;width:100%;min-width:0;box-sizing:border-
 
 .avn small{display:block;color:var(--mute);margin-top:4px;font-size:.75rem}.avn.unread{border-color:var(--gold);background:#3dc08c14}.avn.unread p{font-weight:700}.avall{width:auto;margin:0 0 12px;padding:8px 14px;background:transparent;color:var(--gold);border:1px solid var(--gold);border-radius:10px;font-size:.85rem}
 
-.gleg{gap:8px}.gleg .wpill{margin-top:0;--wp:#d6f2df;--wpx:#17803d}.gleg .gp-warn{--wp:#fde5d6;--wpx:#a3471f}.gleg .gp-bad{--wp:#fde2e2;--wpx:#d92d20}
+
+.pf{padding:16px;border:1px solid var(--line);border-radius:22px;background:#0d1925aa}.pft0{margin:0 0 4px;font-size:1rem;font-weight:600}
+.pfhi{padding:12px 4px 14px}.pfhi h2{margin:6px 0 4px;font-size:1.4rem}.pfhi p{margin:0;color:var(--mute);font-size:.85rem}
+.pfgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pftile{display:flex;flex-direction:column;gap:4px;padding:14px;min-height:112px;background:var(--card);border:1px solid var(--line);border-radius:14px;color:var(--ink);text-decoration:none}
+.pftile .ico{width:24px;height:24px;color:var(--gold);margin-bottom:8px}.pftile b{font-size:.98rem;font-weight:600}.pftile small{color:var(--mute);font-size:.8rem}.pftile:active,.pftile:hover{border-color:var(--gold);background:#3dc08c14}
+.pfout{display:flex;align-items:center;gap:10px;width:100%;margin:12px 0 0;padding:14px;background:var(--card);border:1px solid var(--line);border-radius:14px;color:#ef5a52;font-weight:700;font-size:.98rem;text-align:left}
+.pfout .ico{width:20px;height:20px;flex:none}.pfout span{flex:1}.pfout .ico:last-child{color:var(--mute)}
+.pfrow{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:.92rem}.pfrow:last-child{border-bottom:0}.pfrow span{color:var(--mute)}.pfrow b{display:block;margin:0;text-align:right;overflow-wrap:anywhere;font-weight:600}
+.fsopt{display:flex;gap:8px;flex-wrap:wrap}.fsopt button{width:auto;flex:1;margin:0;padding:10px 12px;background:transparent;color:var(--ink);border:1px solid var(--line);border-radius:10px;font-size:.9rem}.fsopt button.on{border-color:var(--gold);color:var(--gold);background:#3dc08c1f;font-weight:700}
+.pfsub .btn-cancel{display:block;text-align:center;margin-top:8px}
