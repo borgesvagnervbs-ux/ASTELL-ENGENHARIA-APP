@@ -30,7 +30,7 @@ function ask(msg, ok = 'Excluir') {
   });
 }
 
-const APP_VERSION = '2026.10.21-43'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-44'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 // Dentro do aplicativo (Median/WebView) o Google bloqueia o login por OAuth; lá o acesso é por e-mail e senha.
 let REC_FLOW = /[#&]type=recovery/.test(location.hash);   // aberto pelo link de recuperação de senha
 const IN_APP = /median|gonative/i.test(navigator.userAgent);
@@ -94,11 +94,22 @@ const BCAT = { estrutura: 'Estrutura', sistemas: 'Sistemas', materiais: 'Materia
 const NAV = [['home', 'Início', 'home', ['home']], ['casa', 'Minha Casa', 'layers', ['casa', 'estrutura', 'sistemas', 'materiais', 'garantias', 'manutencao', 'equipamentos', 'planta', 'midias', 'cronograma', 'detalhe', 'documentos']], ['custos', 'Centro de custo', 'dollar', ['custos']], ['assistencia', 'Suporte', 'phones', ['assistencia']]];
 $('#nav').innerHTML = NAV.map(([h, l, i, g]) => `<a href="#${h}" data-g="${g.join(' ')}">${ico(IC[i])}<span>${l}</span></a>`).join('');
 $('#top .bico').innerHTML = ico(IC.casa, 'brandico'); $('#bell').innerHTML = ico(IC.bell); $('#avatar').innerHTML = ico(IC.usr);
-async function refreshBell() {   // número de solicitações de assistência ainda em andamento
+// Avisos: cadastros novos feitos pelo admin na residência (gerados por gatilhos no banco; o texto é montado aqui)
+const AV = { img: ['imagem', 'imagens', 'f', '#midias'], vid: ['vídeo', 'vídeos', 'm', '#midias'], doc: ['documento', 'documentos', 'm', '#documentos'], gar: ['garantia', 'garantias', 'f', '#garantias'], man: ['manutenção', 'manutenções', 'f', '#manutencao'], equip: ['equipamento', 'equipamentos', 'm', '#equipamentos'], plan: ['planta técnica', 'plantas técnicas', 'f', '#planta'], estr: ['item de Estrutura', 'itens de Estrutura', 'm', '#estrutura'], sist: ['item de Instalações', 'itens de Instalações', 'm', '#sistemas'], mat: ['material', 'materiais', 'm', '#materiais'] };
+function avMsg(n) { const [s, p, g] = AV[n.kind] || ['item', 'itens', 'm']; return n.cnt > 1 ? `${n.cnt} ${g === 'f' ? 'novas' : 'novos'} ${p} ${g === 'f' ? 'foram cadastradas' : 'foram cadastrados'} para a sua residência` : `${g === 'f' ? 'Uma nova' : 'Um novo'} ${s} ${g === 'f' ? 'foi cadastrada' : 'foi cadastrado'} para a sua residência`; }
+async function avLoad() {
+  if (!S.cur || !S.profile) return [];
+  const since = new Date(Date.now() - 60 * 864e5).toISOString();
+  const [{ data: ns }, { data: rd }] = await Promise.all([sb.from('notifications').select('id,kind,cnt,updated_at').eq('residence_id', S.cur.id).gte('updated_at', since).order('updated_at', { ascending: false }).limit(50), sb.from('notification_reads').select('notification_id,read_at')]);
+  const rm = {}; (rd || []).forEach(r => rm[r.notification_id] = r.read_at);
+  return (ns || []).filter(n => AV[n.kind]).map(n => ({ ...n, unread: !rm[n.id] || new Date(rm[n.id]) < new Date(n.updated_at) }));
+}
+async function refreshBell() {   // número de avisos não lidos no sininho
   const b = $('#bell'); if (!b || !S.cur) return;
-  const { data } = await sb.from('service_requests').select('status').eq('residence_id', S.cur.id), n = (data || []).filter(x => !['Concluída', 'Encerrada'].includes(x.status)).length;
+  const n = (await avLoad()).filter(x => x.unread).length;
   b.innerHTML = ico(IC.bell) + (n ? `<i class="bdg">${n > 9 ? '9+' : n}</i>` : '');
 }
+setInterval(() => { if (!document.hidden) refreshBell(); }, 60000); document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshBell(); });
 function vsrc(u) { return String(u).replace('/upload/', '/upload/f_mp4,vc_h264,q_auto/').replace(/\.\w+$/, '.mp4'); }
 function vposter(u) { return String(u).replace('/upload/', '/upload/w_480,c_limit,so_0/').replace(/\.\w+$/, '.jpg'); }
 const isVidUrl = u => /\/video\/upload\//.test(u);
@@ -255,6 +266,10 @@ async function listView(k) {
 }
 
 const views = {
+  async avisos() {
+    const l = await avLoad(), fd = s => { const d = new Date(s); return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); };
+    app.innerHTML = `<h2>Avisos</h2>${l.some(x => x.unread) ? '<button type="button" class="avall" data-avall>Marcar todos como lidos</button>' : ''}${l.length ? l.map(n => `<a class="card calnote avn${n.unread ? ' unread' : ''}" href="${AV[n.kind][3]}" data-avread="${n.id}"><u class="cm"></u><p>${esc(avMsg(n))}.<small>${fd(n.updated_at)}</small></p>${ico(IC.chev)}</a>`).join('') : '<p class="empty">Nenhum aviso por enquanto. Quando a Astell cadastrar algo novo para a sua residência, ele aparece aqui.</p>'}`; S.avl = l;
+  },
   async home() {
     const r = S.cur;
     const [{ data: hi }, evs, { data: docs }] = await Promise.all([
@@ -392,6 +407,8 @@ app.addEventListener('click', async e => {
   if (d.xedit) location.hash = '#custos?edit=' + encodeURIComponent(d.xedit);
   if (d.xdel && await ask('Excluir este lançamento?')) { const { error } = await sb.from('expenses').delete().eq('id', d.xdel); if (error) return toast('Não foi possível excluir.', 1); S.exp = (S.exp || []).filter(x => x.id !== d.xdel); xPaint(); toast('Lançamento excluído.'); }
   if (d.gf) { const k = d.gf === 'all' ? null : d.gf; S.gf = S.gf === k ? null : k; gaPaint(); }
+  { const ar = e.target.closest && e.target.closest('[data-avread]'); if (ar) { sb.rpc('mark_notifs_read', { p_ids: [ar.dataset.avread] }).then(refreshBell); } }
+  if (d.avall !== undefined) { await sb.rpc('mark_notifs_read', { p_ids: (S.avl || []).map(x => x.id) }); route(); refreshBell(); }
   if (d.cal && S.cal) { const x = new Date(S.cal.y, S.cal.m + +d.cal, 1); S.cal.y = x.getFullYear(); S.cal.m = x.getMonth(); S.cal.sel = null; calPaint(); }
   { const cd = e.target.closest && e.target.closest('[data-calday]'); if (cd && S.cal) { const n = +cd.dataset.calday; S.cal.sel = !n || S.cal.sel === n ? null : n; calPaint(); } }
   if (d.ct) { S.casaTab = d.ct; $('#mb').innerHTML = mediaBlock(); }
@@ -593,7 +610,7 @@ function calPaint() {
   <div class="callegend">${[...new Map(Object.values(CAL_K).map(([l, c]) => [l, c]))].map(([l, c]) => `<span><u class="${c}"></u>${l}</span>`).join('')}</div>
   <h3>${sel ? `Avisos do dia ${String(sel).padStart(2, '0')}/${String(m + 1).padStart(2, '0')}` : `Avisos de ${MESES[m].toLowerCase()}`}</h3>${list.length ? list.map(e => `<a class="card calnote" href="#detalhe?${e.k}:${e.id}"><u class="${CAL_K[e.k][1]}"></u><p>${msg(e)}</p>${ico(IC.chev)}</a>`).join('') : '<p class="empty">Nada agendado para este mês.</p>'}`;
 }
-const CR = { midias: [['casa', 'Minha Casa'], ['', 'Mídias']], cronograma: [['casa', 'Minha Casa'], ['', 'Cronograma']], casa: [['casa', 'Minha Casa']], estrutura: [['casa', 'Minha Casa'], ['', 'Estrutura']], sistemas: [['casa', 'Minha Casa'], ['', 'Instalações']], materiais: [['casa', 'Minha Casa'], ['', 'Materiais']], garantias: [['casa', 'Minha Casa'], ['', 'Garantias']], manutencao: [['casa', 'Minha Casa'], ['', 'Manutenção']], equipamentos: [['casa', 'Minha Casa'], ['', 'Equipamentos']], planta: [['casa', 'Minha Casa'], ['', 'Planta técnica']], documentos: [['casa', 'Minha Casa'], ['', 'Documentos']], custos: [['custos', 'Centro de custo']], assistencia: [['assistencia', 'Suporte']], mais: [['mais', 'Perfil']] };
+const CR = { avisos: [['', 'Avisos']], midias: [['casa', 'Minha Casa'], ['', 'Mídias']], cronograma: [['casa', 'Minha Casa'], ['', 'Cronograma']], casa: [['casa', 'Minha Casa']], estrutura: [['casa', 'Minha Casa'], ['', 'Estrutura']], sistemas: [['casa', 'Minha Casa'], ['', 'Instalações']], materiais: [['casa', 'Minha Casa'], ['', 'Materiais']], garantias: [['casa', 'Minha Casa'], ['', 'Garantias']], manutencao: [['casa', 'Minha Casa'], ['', 'Manutenção']], equipamentos: [['casa', 'Minha Casa'], ['', 'Equipamentos']], planta: [['casa', 'Minha Casa'], ['', 'Planta técnica']], documentos: [['casa', 'Minha Casa'], ['', 'Documentos']], custos: [['custos', 'Centro de custo']], assistencia: [['assistencia', 'Suporte']], mais: [['mais', 'Perfil']] };
 function crumbs(h) {
   const c = h === 'custos' && (S.nova || S.xv) ? [['custos', 'Centro de custo'], ['', S.xv ? (S.xv.m === 'ver' ? 'Visualizar despesa' : 'Editar despesa') : 'Lançar despesa']] : h === 'detalhe' ? [['casa', 'Minha Casa'], ['cronograma', 'Cronograma'], ['', 'Detalhe']] : h === 'assistencia' && S.nova ? [['assistencia', 'Suporte'], ['', 'Nova solicitação']] : CR[h]; if (!c || !app.firstElementChild || app.querySelector('.crumbs')) return;
   const last = c.length - 1, items = [['home', 'Início'], ...c].map(([href, t], i, a) => i === a.length - 1 ? `<li aria-current="page">${t}</li>` : `<li><a href="#${href}">${t}</a></li>`);
