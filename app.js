@@ -30,7 +30,7 @@ function ask(msg, ok = 'Excluir') {
   });
 }
 
-const APP_VERSION = '2026.10.21-44'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-45'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 // Dentro do aplicativo (Median/WebView) o Google bloqueia o login por OAuth; lá o acesso é por e-mail e senha.
 let REC_FLOW = /[#&]type=recovery/.test(location.hash);   // aberto pelo link de recuperação de senha
 const IN_APP = /median|gonative/i.test(navigator.userAgent);
@@ -234,7 +234,7 @@ function gaPaint() {   // resumo (números = filtros) + lista filtrada
   const gs = $('#gs'), gl = $('#gl'); if (!gs || !gl) return;
   gs.innerHTML = `<div class="gnums">${box('ok', n('ok'), 'Garantias vigentes', 'n-ok')}${box('warn', n('warn'), 'Próximas do vencimento', 'n-warn')}${box('bad', n('bad'), 'Garantias expiradas', 'n-bad')}${box(null, tot, 'Total de garantias', 'n-all')}</div>
   <h4>Distribuição das garantias</h4><div class="gdist" role="img" aria-label="Distribuição das garantias">${tot ? `<i class="gok" style="width:${pc(n('ok'))}%"></i><i class="gwarn" style="width:${pc(n('warn'))}%"></i><i class="gbad" style="width:${pc(n('bad'))}%"></i>` : ''}</div>
-  <div class="gleg"><span><u class="gok"></u>Vigentes</span><span><u class="gwarn"></u>Próximas do vencimento</span><span><u class="gbad"></u>Expiradas</span></div>`;
+  <div class="gleg"><span class="wpill gp-ok">Vigente</span><span class="wpill gp-warn">Próxima do vencimento</span><span class="wpill gp-bad">Expirada</span></div>`;
   const rows = all.filter(x => !f || x.k === f);
   gl.innerHTML = rows.map(x => warCard(x.r)).join('') || `<p class="empty">${all.length ? 'Nenhuma garantia neste status.' : 'Nenhuma garantia cadastrada ainda.'}</p>`;
 }

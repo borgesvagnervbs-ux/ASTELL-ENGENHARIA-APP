@@ -229,10 +229,10 @@ a.calnote{color:var(--ink);text-decoration:none;align-items:center}a.calnote p{f
 .gnums{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
 .gnum{display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin:0;padding:12px;min-height:84px;text-align:left;background:#0b1623aa;border:1px solid #ffffff1f;border-radius:14px;color:var(--ink);font-weight:400}
 .gnum b{font-size:1.9rem;line-height:1;margin:0}.gnum span{font-size:.82rem;color:var(--mute)}
-.gnum.n-ok b{color:#2fbf71}.gnum.n-warn b{color:#f08a3c}.gnum.n-bad b{color:#9aa5b1}.gnum.n-all b{color:#fff}
+.gnum.n-ok b{color:#2fbf71}.gnum.n-warn b{color:#f08a3c}.gnum.n-bad b{color:#e5534b}.gnum.n-all b{color:#fff}
 .gnum.on{border-color:var(--gold);background:#3dc08c1f}.gnum.on span{color:#fff}
 .gdist{display:flex;height:12px;border-radius:6px;overflow:hidden;background:#ffffff14;gap:2px}.gdist i{display:block;height:100%}
-.gok{background:#2fbf71}.gwarn{background:#f08a3c}.gbad{background:#8d99a6}
+.gok{background:#2fbf71}.gwarn{background:#f08a3c}.gbad{background:#e5534b}
 .gleg{display:flex;flex-wrap:wrap;gap:6px 14px;margin:10px 0 14px;font-size:.8rem;color:var(--mute)}.gleg span{display:flex;align-items:center;gap:6px}.gleg u{width:9px;height:9px;border-radius:50%;display:inline-block}
 /* Cartão de confirmação de exclusão: sobreposto no centro; o elemento fica no fundo com borda verde */
 .askov{position:fixed;inset:0;z-index:1000;background:#04090f99}
@@ -304,3 +304,5 @@ html.in-app button,html.in-app .brand,html.in-app nav a,html.in-app .card a.ccar
 button.cday{font:inherit;color:inherit;width:100%;min-width:0;box-sizing:border-box;margin:0;cursor:pointer;-webkit-tap-highlight-color:transparent}button.cday.has,.cday.has{border:1px solid var(--gold)}button.cday.sel{outline:2px solid var(--gold);outline-offset:1px;background:#3dc08c22}button.cday.hoje.sel{background:var(--gold)}
 
 .avn small{display:block;color:var(--mute);margin-top:4px;font-size:.75rem}.avn.unread{border-color:var(--gold);background:#3dc08c14}.avn.unread p{font-weight:700}.avall{width:auto;margin:0 0 12px;padding:8px 14px;background:transparent;color:var(--gold);border:1px solid var(--gold);border-radius:10px;font-size:.85rem}
+
+.gleg{gap:8px}.gleg .wpill{margin-top:0;--wp:#d6f2df;--wpx:#17803d}.gleg .gp-warn{--wp:#fde5d6;--wpx:#a3471f}.gleg .gp-bad{--wp:#fde2e2;--wpx:#d92d20}
