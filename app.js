@@ -30,7 +30,7 @@ function ask(msg, ok = 'Excluir') {
   });
 }
 
-const APP_VERSION = '2026.10.21-51'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-52'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 // Dentro do aplicativo (Median/WebView) o Google bloqueia o login por OAuth; lá o acesso é por e-mail e senha.
 let REC_FLOW = /[#&]type=recovery/.test(location.hash);   // aberto pelo link de recuperação de senha
 const IN_APP = /median|gonative/i.test(navigator.userAgent);
@@ -86,7 +86,7 @@ const T = {
     row: r => `<b>${esc(r.name)}</b><span class="mute">${esc(r.category)} · ${esc(r.location)}</span><p>${esc(r.maker)} ${esc(r.model)} ${r.serial ? '· Série ' + esc(r.serial) : ''}</p>` },
 };
 const REQ_CATS = ['Elétrica','Hidráulica','Cobertura','Esquadrias','Revestimentos','Pintura','Steel Frame','Equipamentos','Outros'];
-const STATUS = ['Recebida','Em análise','Aguardando informações','Agendada','Em atendimento','Atrasada','Concluída','Encerrada'];
+const STATUS = ['Recebida','Em análise','Aguardando informações','Agendada','Em atendimento','Concluída','Encerrada'];
 const DOC_CATS = ['Projeto arquitetônico','Projeto estrutural','Projeto elétrico','Projeto hidráulico','Projeto sanitário','Climatização','Cobertura','Memorial descritivo','Manuais','Notas e comprovantes','Termo de entrega','Garantia','Outros'];
 
 const PT_CATS = ['Elétrica','Hidráulica','Gás','Climatização','Estrutura','Paredes','Equipamentos'];
@@ -224,7 +224,7 @@ async function itemsView(k) {
 const reqCard = r => { const fotos = (r.media || []).filter(x => x.url).map(x => x.url), hj = new Date(), hjI = hj.getFullYear() + '-' + String(hj.getMonth() + 1).padStart(2, '0') + '-' + String(hj.getDate()).padStart(2, '0'),
     late = r.status === 'Atrasada' || (r.scheduled_for && String(r.scheduled_for) < hjI && !['Concluída', 'Encerrada'].includes(r.status)), base = r.status === 'Atrasada' ? (r.status_before || 'Agendada') : r.status;   // atrasada: mantém a situação de antes e acrescenta a etiqueta vermelha
   return `<div class="card"><b>${esc(r.protocol)}</b> <span class="badge ${REQ_ST[base] || ''}">${esc(base)}</span> <span class="badge ${REQ_UR[r.urgency] || 'u-med'}">${esc(r.urgency || 'Média')}</span>${late ? ' <span class="badge s-late">Atrasada</span>' : ''}<p>${esc(r.category)} · ${esc(r.place)}</p><p>${esc(r.description)}</p>${r.preferred_date || r.contact_time ? `<p class="mute">Sua sugestão: ${r.preferred_date ? 'dia ' + fmt(r.preferred_date) : ''}${r.preferred_date && r.contact_time ? ' · ' : ''}${r.contact_time ? 'horário ' + esc(r.contact_time) : ''}</p>` : ''}${r.scheduled_for ? `<p class="sched">${ico(IC.calendar)}<span>Data prevista de atendimento: <b>${fmt(r.scheduled_for)}</b></span></p>` : ''}${fotos.length ? grp('req' + r.id, fotos) : ''}${r.staff_note ? `<div class="astnote"><span class="lbl">Assistência que será feita</span><p>${esc(r.staff_note)}</p></div>` : ''}
-      ${staff() ? `<form data-form="upd" data-id="${r.id}">${sel('status', 'Situação', STATUS).replace(`<option>${r.status}`, `<option selected>${r.status}`)}<label>Comentário<input name="staff_note" value="${esc(r.staff_note || '')}"></label><button>Atualizar</button></form>` : ''}</div>`; };
+      ${staff() ? `<form data-form="upd" data-id="${r.id}">${sel('status', 'Situação', STATUS).replace(`<option>${base}`, `<option selected>${base}`)}<label>Comentário<input name="staff_note" value="${esc(r.staff_note || '')}"></label><button>Atualizar</button></form>` : ''}</div>`; };
 const warCard = r => { const w = wInfo(r); return `<div class="card"><b>${esc(r.system)}</b><div class="wbox w-${w.kind}">${w.kind === 'warn' ? `<p class="wwarn">Garantia próxima do vencimento - faltam ${w.txt}</p>` : w.kind === 'bad' ? `<p class="wexp">Garantia expirada em ${w.end.toLocaleDateString('pt-BR')}</p>` : ''}<div class="wfig"><div><span class="wnum wtot">${w.total}</span><span class="wlbl">Prazo total</span></div><div><span class="wnum wrem">${w.kind === 'bad' ? 'Expirada' : w.big}</span><span class="wlbl">${w.kind === 'bad' ? 'Vencida' : 'Restantes'}</span></div></div><div class="wbar" role="img" aria-label="Tempo restante da garantia"><i style="width:${w.pct.toFixed(1)}%"></i></div><span class="wpill">${w.s}</span></div>${r.coverage ? `<p>${esc(r.coverage)}</p>` : ''}${r.fromExp ? xSup(r) : `<p><a class="xcontact" href="https://wa.me/5554996528034" target="_blank" rel="noopener">Contate a ASTELL</a></p>`}<span class="mute">${fmt(r.start_date)} até ${w.end.toLocaleDateString('pt-BR')}</span>${r.notes ? `<p class="mute">${esc(r.notes)}</p>` : ''}${staff() && !r.fromExp ? `<button class="link" data-del="warranties:${r.id}">Excluir</button>` : ''}</div>`; };
 const expWar = e => ({ id: e.id, system: e.description, coverage: 'Item do Centro de custo', supplier: e.supplier, supplier_phone: e.supplier_phone, start_date: e.spent_on, months: e.warranty_months, notes: e.notes, fromExp: true });   // garantia cadastrada junto da despesa (só aparece no app do cliente)
 async function garantiasView() {
@@ -636,7 +636,7 @@ async function calEvents(rid) {   // tudo que tem data no cronograma da residên
   (xr || []).forEach(x => { const e = addMonths(x.spent_on, +x.warranty_months); if (!isNaN(e)) ev.push({ d: iso(e), k: 'gex', id: x.id, t: x.description, s: iso(e) < hj ? 'exp' : '' }); });
   return ev.sort((a, b) => String(a.d).localeCompare(String(b.d)));
 }
-const CAL_S = { exp: 'cx', late: 'cy', ok: 'cok' };   // cor do círculo conforme a situação
+const CAL_S = { exp: 'cx', late: 'cx', ok: 'cok' };   // cor do círculo conforme a situação
 const calCls = e => CAL_S[e.s] || CAL_K[e.k][1];
 const CAL_K = { man: ['Manutenção', 'cm'], ast: ['Assistência', 'ca'], gar: ['Garantia', 'cg'], gex: ['Garantia', 'cg'] };
 function calPaint() {
