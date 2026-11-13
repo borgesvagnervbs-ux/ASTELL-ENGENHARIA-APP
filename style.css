@@ -326,3 +326,8 @@ body.app .avatar.hasimg{padding:0;overflow:hidden}body.app .avatar .avimg{width:
 .dpop{scroll-margin-bottom:130px}.cday .dots2{flex-wrap:wrap;justify-content:center;max-width:100%}
 
 .dpop.up{top:auto;bottom:calc(100% + 6px)}
+
+/* Aviso de salvo/erro: faixa no topo da tela, nas cores do sistema */
+#toast,body.app #toast{position:fixed;top:calc(env(safe-area-inset-top,0px) + 12px);bottom:auto;left:50%;right:auto;z-index:300;display:flex;align-items:center;gap:12px;width:max-content;max-width:calc(100vw - 32px);box-sizing:border-box;padding:14px 18px;border-radius:14px;background:var(--gold);color:#06231a;font-weight:700;font-size:1rem;line-height:1.3;box-shadow:0 12px 32px #000b,0 0 0 1px #ffffff26 inset;opacity:0;transform:translate(-50%,-160%);transition:transform .3s cubic-bezier(.2,.9,.3,1),opacity .25s;pointer-events:none}
+#toast.show,body.app #toast.show{opacity:1;transform:translate(-50%,0)}#toast.err,body.app #toast.err{background:#e5534b;color:#fff}
+#toast .tic{flex:none;display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:#06231a;color:var(--gold);font-style:normal;font-weight:800;font-size:1rem}#toast.err .tic{background:#fff;color:#e5534b}

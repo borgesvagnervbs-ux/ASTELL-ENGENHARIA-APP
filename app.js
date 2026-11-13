@@ -30,7 +30,7 @@ function ask(msg, ok = 'Excluir') {
   });
 }
 
-const APP_VERSION = '2026.10.21-53'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-54'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 // Dentro do aplicativo (Median/WebView) o Google bloqueia o login por OAuth; lá o acesso é por e-mail e senha.
 let REC_FLOW = /[#&]type=recovery/.test(location.hash);   // aberto pelo link de recuperação de senha
 const IN_APP = /median|gonative/i.test(navigator.userAgent);
@@ -48,7 +48,13 @@ function applyFs() { let k = 'n'; try { k = localStorage.getItem('astell_fs') ||
 applyFs();
 const S = { profile: null, res: [], cur: null, groups: {} };
 const staff = () => false; // este app é somente de consulta do cliente
-function toast(m, err) { const t = $('#toast'); t.textContent = m; t.className = 'show' + (err ? ' err' : ''); setTimeout(() => t.className = '', 3500); }
+let toastTimer;
+function toast(m, err) {   // aviso no topo da tela: verde (salvo/sucesso) ou vermelho (erro), com ícone
+  const t = $('#toast'); t.setAttribute('role', err ? 'alert' : 'status'); t.textContent = '';
+  const ic = document.createElement('i'); ic.className = 'tic'; ic.textContent = err ? '!' : '✓';
+  const tx = document.createElement('span'); tx.textContent = m; t.append(ic, tx);
+  t.className = 'show' + (err ? ' err' : ' ok'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.className = '', err ? 5000 : 3500);
+}
 const addMonths = (d, m) => { const x = new Date(d + 'T00:00'); x.setMonth(x.getMonth() + m); return x; };
 function wState(w) { const start = new Date(w.start_date + 'T00:00'), end = w._end || addMonths(w.start_date, w.months), left = end - new Date(), total = end - start;   // vigente; próxima do vencimento = resta 1/4 do prazo ou menos; expirada
   return left <= 0 ? ['Expirada', 'bad', end] : left <= total / 4 ? ['Próxima do vencimento', 'warn', end] : ['Vigente', 'ok', end]; }
