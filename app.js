@@ -30,7 +30,7 @@ function ask(msg, ok = 'Excluir') {
   });
 }
 
-const APP_VERSION = '2026.10.21-49'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-50'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 // Dentro do aplicativo (Median/WebView) o Google bloqueia o login por OAuth; lá o acesso é por e-mail e senha.
 let REC_FLOW = /[#&]type=recovery/.test(location.hash);   // aberto pelo link de recuperação de senha
 const IN_APP = /median|gonative/i.test(navigator.userAgent);
@@ -626,26 +626,30 @@ async function calEvents(rid) {   // tudo que tem data no cronograma da residên
     sb.from('warranties').select('id,system,start_date,months').eq('residence_id', rid),
     sb.from('expenses').select('id,description,spent_on,warranty_months').eq('residence_id', rid).not('warranty_months', 'is', null)]);
   const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'), ev = [];
-  (mt || []).filter(x => !['Concluída', 'Cancelada'].includes(effSt(x))).forEach(x => ev.push({ d: x.next_due, k: 'man', id: x.id, t: x.name }));
-  (sr || []).filter(x => x.scheduled_for && !['Concluída', 'Encerrada'].includes(x.status)).forEach(x => ev.push({ d: x.scheduled_for, k: 'ast', id: x.id, t: `${x.category || 'Assistência'} (${x.protocol})` }));
-  (wr || []).filter(x => x.start_date && x.months != null).forEach(x => { const e = addMonths(x.start_date, +x.months); if (!isNaN(e)) ev.push({ d: iso(e), k: 'gar', id: x.id, t: x.system }); });
-  (xr || []).forEach(x => { const e = addMonths(x.spent_on, +x.warranty_months); if (!isNaN(e)) ev.push({ d: iso(e), k: 'gex', id: x.id, t: x.description }); });
+  const hj = iso(new Date());   // s (situação): exp = garantia expirada (vermelho) · late = atrasada (amarelo) · ok = realizada (verde); sem s = ainda por vir
+  (mt || []).filter(x => x.status !== 'Cancelada').forEach(x => { const past = String(x.next_due) < hj, done = x.status === 'Concluída'; if (past) ev.push({ d: x.next_due, k: 'man', id: x.id, t: x.name, s: done ? 'ok' : 'late' }); else if (!(done && effSt(x) === 'Concluída')) ev.push({ d: x.next_due, k: 'man', id: x.id, t: x.name }); });
+  (sr || []).filter(x => x.scheduled_for).forEach(x => { const past = String(x.scheduled_for) < hj, done = ['Concluída', 'Encerrada'].includes(x.status), t = `${x.category || 'Assistência'} (${x.protocol})`; if (past) ev.push({ d: x.scheduled_for, k: 'ast', id: x.id, t, s: done ? 'ok' : 'late' }); else if (!done) ev.push({ d: x.scheduled_for, k: 'ast', id: x.id, t }); });
+  (wr || []).filter(x => x.start_date && x.months != null).forEach(x => { const e = addMonths(x.start_date, +x.months); if (!isNaN(e)) ev.push({ d: iso(e), k: 'gar', id: x.id, t: x.system, s: iso(e) < hj ? 'exp' : '' }); });
+  (xr || []).forEach(x => { const e = addMonths(x.spent_on, +x.warranty_months); if (!isNaN(e)) ev.push({ d: iso(e), k: 'gex', id: x.id, t: x.description, s: iso(e) < hj ? 'exp' : '' }); });
   return ev.sort((a, b) => String(a.d).localeCompare(String(b.d)));
 }
+const CAL_S = { exp: 'cx', late: 'cy', ok: 'cok' };   // cor do círculo conforme a situação
+const calCls = e => CAL_S[e.s] || CAL_K[e.k][1];
 const CAL_K = { man: ['Manutenção', 'cm'], ast: ['Assistência', 'ca'], gar: ['Garantia', 'cg'], gex: ['Garantia', 'cg'] };
 function calPaint() {
   const { y, m, ev } = S.cal, el = $('#cal'); if (!el) return;
   const pre = y + '-' + String(m + 1).padStart(2, '0') + '-', first = new Date(y, m, 1).getDay(), nd = new Date(y, m + 1, 0).getDate(), t = new Date(), hoje = t.getFullYear() === y && t.getMonth() === m ? t.getDate() : 0;
   const by = {}; ev.filter(e => String(e.d).startsWith(pre)).forEach(e => (by[+String(e.d).slice(8, 10)] = by[+String(e.d).slice(8, 10)] || []).push(e));
   let cells = ''; for (let i = 0; i < first; i++) cells += '<span class="cd0"></span>';
-  for (let d = 1; d <= nd; d++) cells += by[d] ? `<button type="button" class="cday has${d === hoje ? ' hoje' : ''}${S.cal.sel === d ? ' sel' : ''}" data-calday="${d}" aria-pressed="${S.cal.sel === d}" aria-label="Dia ${d}: ${by[d].length} aviso(s)"><b>${d}</b><i class="dots2">${[...new Set(by[d].map(e => e.k))].map(k => `<u class="${CAL_K[k][1]}"></u>`).join('')}</i></button>` : `<span class="cday${d === hoje ? ' hoje' : ''}" data-calday="0"><b>${d}</b></span>`;
+  for (let d = 1; d <= nd; d++) cells += by[d] ? `<button type="button" class="cday has${d === hoje ? ' hoje' : ''}${S.cal.sel === d ? ' sel' : ''}" data-calday="${d}" aria-pressed="${S.cal.sel === d}" aria-label="Dia ${d}: ${by[d].length} aviso(s)"><b>${d}</b><i class="dots2">${[...new Set(by[d].map(calCls))].map(c => `<u class="${c}"></u>`).join('')}</i></button>` : `<span class="cday${d === hoje ? ' hoje' : ''}" data-calday="0"><b>${d}</b></span>`;
   if (S.cal.sel && !by[S.cal.sel]) S.cal.sel = null; const sel = S.cal.sel;
   const list = Object.keys(by).map(Number).sort((a, b) => a - b).filter(d => !sel || d === sel).flatMap(d => by[d].map(e => ({ ...e, day: d })));
-  const msg = e => { const dd = String(e.day).padStart(2, '0') + '/' + String(m + 1).padStart(2, '0'); return e.k === 'man' ? `Dia <b>${dd}</b>: deve ser feita a manutenção <b>${esc(e.t)}</b>.` : e.k === 'ast' ? `Dia <b>${dd}</b>: será atendida a assistência <b>${esc(e.t)}</b>.` : `Dia <b>${dd}</b>: expira a garantia de <b>${esc(e.t)}</b>.`; };
+  const msg = e => { const dd = String(e.day).padStart(2, '0') + '/' + String(m + 1).padStart(2, '0'); const T = e.k === 'man' ? 'a manutenção' : 'a assistência'; if (e.s === 'exp') return `Dia <b>${dd}</b>: <b>EXPIRADA</b> a garantia de <b>${esc(e.t)}</b>.`; if (e.s === 'late') return `Dia <b>${dd}</b>: <b>ATRASADA</b> ${T} <b>${esc(e.t)}</b>.`; if (e.s === 'ok') return `Dia <b>${dd}</b>: <b>REALIZADA</b> ${T} <b>${esc(e.t)}</b>.`;
+    return e.k === 'man' ? `Dia <b>${dd}</b>: deve ser feita a manutenção <b>${esc(e.t)}</b>.` : e.k === 'ast' ? `Dia <b>${dd}</b>: será atendida a assistência <b>${esc(e.t)}</b>.` : `Dia <b>${dd}</b>: expira a garantia de <b>${esc(e.t)}</b>.`; };
   el.innerHTML = `<div class="calhead"><button type="button" data-cal="-1" aria-label="Mês anterior">‹</button><b>${MESES[m]} ${y}</b><button type="button" data-cal="1" aria-label="Próximo mês">›</button></div>
   <div class="calgrid">${['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map(x => `<span class="cwd">${x}</span>`).join('')}${cells}</div>
   <div class="callegend">${[...new Map(Object.values(CAL_K).map(([l, c]) => [l, c]))].map(([l, c]) => `<span><u class="${c}"></u>${l}</span>`).join('')}</div>
-  <h3>${sel ? `Avisos do dia ${String(sel).padStart(2, '0')}/${String(m + 1).padStart(2, '0')}` : `Avisos de ${MESES[m].toLowerCase()}`}</h3>${list.length ? list.map(e => `<a class="card calnote" href="#detalhe?${e.k}:${e.id}"><u class="${CAL_K[e.k][1]}"></u><p>${msg(e)}</p>${ico(IC.chev)}</a>`).join('') : '<p class="empty">Nada agendado para este mês.</p>'}`;
+  <h3>${sel ? `Avisos do dia ${String(sel).padStart(2, '0')}/${String(m + 1).padStart(2, '0')}` : `Avisos de ${MESES[m].toLowerCase()}`}</h3>${list.length ? list.map(e => `<a class="card calnote" href="#detalhe?${e.k}:${e.id}"><u class="${calCls(e)}"></u><p>${msg(e)}</p>${ico(IC.chev)}</a>`).join('') : '<p class="empty">Nada agendado para este mês.</p>'}`;
 }
 const CR = { avisos: [['', 'Avisos']], midias: [['casa', 'Minha Casa'], ['', 'Mídias']], cronograma: [['casa', 'Minha Casa'], ['', 'Cronograma']], casa: [['casa', 'Minha Casa']], estrutura: [['casa', 'Minha Casa'], ['', 'Estrutura']], sistemas: [['casa', 'Minha Casa'], ['', 'Instalações']], materiais: [['casa', 'Minha Casa'], ['', 'Materiais']], garantias: [['casa', 'Minha Casa'], ['', 'Garantias']], manutencao: [['casa', 'Minha Casa'], ['', 'Manutenção']], equipamentos: [['casa', 'Minha Casa'], ['', 'Equipamentos']], planta: [['casa', 'Minha Casa'], ['', 'Planta técnica']], documentos: [['casa', 'Minha Casa'], ['', 'Documentos']], custos: [['custos', 'Centro de custo']], assistencia: [['assistencia', 'Suporte']], mais: [['mais', 'Perfil']] };
 const PFT = { dados: 'Dados pessoais', notificacoes: 'Notificações', seguranca: 'Segurança', personalizacao: 'Personalização', atendimento: 'Atendimento', sobre: 'Sobre' };

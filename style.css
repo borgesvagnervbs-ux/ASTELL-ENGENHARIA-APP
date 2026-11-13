@@ -217,7 +217,7 @@ body.app #toast{bottom:96px}
 .cday{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:3px;min-height:52px;padding:6px 0;border:1px solid var(--line);border-radius:10px;background:var(--card)}
 .cday b{font-weight:500;font-size:.9rem}.cday.hoje{border-color:var(--gold);background:var(--gold);color:#04231a}.cday.hoje b{font-weight:800}
 .dots2{display:flex;gap:3px}.calgrid u,.callegend u,.calnote u{display:inline-block;width:8px;height:8px;border-radius:50%;text-decoration:none}
-.cm{background:#3dc08c}.ca{background:#4aa3ff}.cg{background:#f08a3c}.cday.hoje .cm{background:#04231a}
+.cm{background:#b07cf5}.cx{background:#e5534b}.cy{background:#f2c94c}.cok{background:#3dc08c}.ca{background:#4aa3ff}.cg{background:#f08a3c}.cday.hoje .cm,.cday.hoje .cok{background:#04231a}
 .callegend{display:flex;flex-wrap:wrap;gap:6px 16px;margin:12px 0;color:var(--mute);font-size:.82rem}.callegend span{display:flex;align-items:center;gap:6px}
 .calnote{display:flex;gap:10px;align-items:flex-start;padding:12px}.calnote u{margin-top:6px;flex:none}.calnote p{margin:0}
 .calnote b{display:inline;margin:0}
