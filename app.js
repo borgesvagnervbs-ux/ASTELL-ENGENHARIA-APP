@@ -30,7 +30,7 @@ function ask(msg, ok = 'Excluir') {
   });
 }
 
-const APP_VERSION = '2026.10.21-48'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-49'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 // Dentro do aplicativo (Median/WebView) o Google bloqueia o login por OAuth; lá o acesso é por e-mail e senha.
 let REC_FLOW = /[#&]type=recovery/.test(location.hash);   // aberto pelo link de recuperação de senha
 const IN_APP = /median|gonative/i.test(navigator.userAgent);
@@ -97,9 +97,14 @@ const BCAT = { estrutura: 'Estrutura', sistemas: 'Sistemas', materiais: 'Materia
 const NAV = [['home', 'Início', 'home', ['home']], ['casa', 'Minha Casa', 'layers', ['casa', 'estrutura', 'sistemas', 'materiais', 'garantias', 'manutencao', 'equipamentos', 'planta', 'midias', 'cronograma', 'detalhe', 'documentos']], ['custos', 'Centro de custo', 'dollar', ['custos']], ['assistencia', 'Suporte', 'phones', ['assistencia']]];
 $('#nav').innerHTML = NAV.map(([h, l, i, g]) => `<a href="#${h}" data-g="${g.join(' ')}">${ico(IC[i])}<span>${l}</span></a>`).join('');
 $('#top .bico').innerHTML = ico(IC.casa, 'brandico'); $('#bell').innerHTML = ico(IC.bell); $('#avatar').innerHTML = ico(IC.usr);
+function paintAvatar() { const el = $('#avatar'), v = S.profile && S.profile.avatar; if (el) { el.innerHTML = v ? `<img class="avimg" src="${v}" alt="Perfil">` : ico(IC.usr); el.classList.toggle('hasimg', !!v); } }
 // Avisos: cadastros novos feitos pelo admin na residência (gerados por gatilhos no banco; o texto é montado aqui)
 const AV = { img: ['imagem', 'imagens', 'f', '#midias'], vid: ['vídeo', 'vídeos', 'm', '#midias'], doc: ['documento', 'documentos', 'm', '#documentos'], gar: ['garantia', 'garantias', 'f', '#garantias'], man: ['manutenção', 'manutenções', 'f', '#manutencao'], equip: ['equipamento', 'equipamentos', 'm', '#equipamentos'], plan: ['planta técnica', 'plantas técnicas', 'f', '#planta'], estr: ['item de Estrutura', 'itens de Estrutura', 'm', '#estrutura'], sist: ['item de Instalações', 'itens de Instalações', 'm', '#sistemas'], mat: ['material', 'materiais', 'm', '#materiais'] };
 function avMsg(n) { const [s, p, g] = AV[n.kind] || ['item', 'itens', 'm']; return n.cnt > 1 ? `${n.cnt} ${g === 'f' ? 'novas' : 'novos'} ${p} ${g === 'f' ? 'foram cadastradas' : 'foram cadastrados'} para a sua residência` : `${g === 'f' ? 'Uma nova' : 'Um novo'} ${s} ${g === 'f' ? 'foi cadastrada' : 'foi cadastrado'} para a sua residência`; }
+function fotoParaJpeg(file) {   // recorta no centro, reduz para 256x256 e converte em JPEG leve (~20 KB)
+  return new Promise((ok, fail) => { const u = URL.createObjectURL(file), im = new Image(); im.onerror = () => { URL.revokeObjectURL(u); fail(new Error('img')); };
+    im.onload = () => { const s = Math.min(im.width, im.height), c = document.createElement('canvas'); c.width = c.height = 256; c.getContext('2d').drawImage(im, (im.width - s) / 2, (im.height - s) / 2, s, s, 0, 0, 256, 256); URL.revokeObjectURL(u); ok(c.toDataURL('image/jpeg', 0.82)); }; im.src = u; });
+}
 async function avLoad() {
   if (!S.cur || !S.profile) return [];
   const since = new Date(Date.now() - 60 * 864e5).toISOString();
@@ -366,18 +371,24 @@ const views = {
     const tt = T.find(t => t[0] === q)[1]; let body = '', cpfTxt = '—', minhas = [];
     if (q === 'dados') { const { data: vr } = await sb.from('residence_users').select('residence_id').eq('user_id', P.id), ids = (vr || []).map(x => x.residence_id); minhas = S.res.filter(r => ids.includes(r.id)); }   // só as residências vinculadas ao CPF do usuário no painel (superusuário sem vínculo: nenhuma)
     if (q === 'dados') { const { data: { session } } = await sb.auth.getSession(), c = String(((session && session.user && session.user.user_metadata) || {}).cpf || ''); if (/^\d{11}$/.test(c)) cpfTxt = '***.' + c.slice(3, 6) + '.' + c.slice(6, 9) + '-**'; }
-    if (q === 'dados') body = `<div class="card">${row('Nome', esc(/@/.test(P.name || '') ? '—' : (P.name || '—')))}${row('E-mail', esc(P.email || '—'))}${row('Tipo de acesso', papel)}${row('CPF', cpfTxt)}${row(minhas.length > 1 ? 'Residências' : 'Residência', minhas.length ? minhas.map(r => esc(r.name)).join(', ') : '—')}</div><p class="mute">Por segurança, o CPF é exibido parcialmente. Para corrigir qualquer dado cadastral, fale com a Astell: ${contactAstell('Contate a ASTELL')}</p>`;
+    if (q === 'dados') body = `<div class="card pfphoto"><span class="pfav">${P.avatar ? `<img src="${P.avatar}" alt="Sua foto">` : ico(IC.usr)}</span><div><label class="pbtn pfpick">${P.avatar ? 'Trocar foto' : 'Adicionar foto'}<input type="file" id="pffile" accept="image/*" hidden></label>${P.avatar ? '<button type="button" class="link danger" id="pfrm">Remover foto</button>' : ''}<p class="mute">A foto aparece no lugar do ícone de perfil.</p></div></div><div class="card">${row('Nome', esc(/@/.test(P.name || '') ? '—' : (P.name || '—')))}${row('E-mail', esc(P.email || '—'))}${row('Tipo de acesso', papel)}${row('CPF', cpfTxt)}${row(minhas.length > 1 ? 'Residências' : 'Residência', minhas.length ? minhas.map(r => esc(r.name)).join(', ') : '—')}</div><p class="mute">Por segurança, o CPF é exibido parcialmente. Para corrigir qualquer dado cadastral, fale com a Astell: ${contactAstell('Contate a ASTELL')}</p>`;
     else if (q === 'notificacoes') body = `<div class="card"><p>Quando a Astell cadastrar algo novo para a sua residência (mídias, documentos, garantias, manutenções, equipamentos e outros), um aviso aparece no sininho no alto da tela.</p><p class="mute">Os avisos são atualizados sempre que você abre o aplicativo. Alterações e exclusões não geram aviso.</p><a class="pbtn" href="#avisos">Ver meus avisos${ico(IC.chev)}</a></div>`;
-    else if (q === 'seguranca') body = `<form class="card" id="pwf"><h3 style="margin-top:0">Alterar senha</h3>${pwInput('pw', 'Nova senha', 'new-password')}<ul class="pwrules" id="pr">${pwList('')}</ul>${pwInput('pw2', 'Confirmar nova senha', 'new-password')}<button class="btn-main">Salvar nova senha</button></form><p class="mute">Se esquecer a senha, use "Esqueci minha senha" na tela de entrada: enviamos um link para o seu e-mail cadastrado.</p>`;
+    else if (q === 'seguranca') body = `<div class="card"><h3 style="margin-top:0">Alterar senha</h3><p>Por segurança, enviaremos um link de redefinição para o e-mail da sua conta${P.email ? ': <b>' + esc(P.email) + '</b>' : ''}. A tela para criar a nova senha só abre quando você clicar nesse link.</p><button type="button" class="btn-main" id="pwmail">Enviar link para o meu e-mail</button><p class="mute" id="pwmsg"></p></div><p class="mute">Se o e-mail não chegar em alguns minutos, confira a caixa de spam.</p>`;
     else if (q === 'personalizacao') { const cur = applyFs(); body = `<div class="card"><h3 style="margin-top:0">Tamanho do texto</h3><div class="fsopt">${Object.entries(FS).map(([k, [l]]) => `<button type="button" class="${k === cur ? 'on' : ''}" data-fs="${k}">${l}</button>`).join('')}</div></div><div class="card">${row('Tema', 'Escuro')}<p class="mute">O tema escuro é o único disponível por enquanto.</p></div>`; }
     else if (q === 'atendimento') body = `<div class="card"><h3 style="margin-top:0">Fale com a Astell</h3><p>Dúvidas, orientações ou solicitações sobre a sua residência.</p><p>${contactAstell('Chamar no WhatsApp')} <span class="mute">(54) 99652-8034</span></p></div><div class="card"><h3 style="margin-top:0">Assistência técnica</h3><p>Abra uma solicitação formal para acionar a equipe técnica e acompanhe o andamento no aplicativo.</p><a class="pbtn" href="#assistencia?nova">Nova solicitação${ico(IC.chev)}</a></div><p class="notice">Em risco imediato (gás, fogo, choque), afaste-se e ligue 193 ou 192.</p>`;
     else if (q === 'sobre') body = `<div class="card"><b>Astell Home</b><p class="mute">Sua casa. Sua história. Tudo em um só lugar.</p>${row('Versão', APP_VERSION)}${row('Desenvolvido por', 'Astell Engenharia')}</div><p class="mute">Aqui você acompanha a documentação, as garantias, as manutenções e o histórico da sua residência, sempre atualizados pela Astell.</p>`;
     app.innerHTML = `<div class="pfsub"><h2>${tt}</h2>${body}${back}</div>`;
-    if (q === 'seguranca') $('#pwf').onsubmit = async e => {
-      e.preventDefault(); const p = $('#pw').value; if (!strongPw(p)) return toast('A senha não atende a todos os requisitos.', 1); if (p !== $('#pw2').value) return toast('As senhas não são iguais.', 1);
-      const { error } = await sb.auth.updateUser({ password: p }); if (error) return toast('Não foi possível alterar a senha: ' + error.message, 1);
-      e.target.reset(); $('#pr').innerHTML = pwList(''); toast('Senha alterada com sucesso.');
+    if (q === 'seguranca') $('#pwmail').onclick = async e => {
+      const b = e.currentTarget, m = $('#pwmsg'); if (!P.email) return toast('Sua conta não tem e-mail cadastrado.', 1);
+      b.disabled = true; const { error } = await sb.auth.resetPasswordForEmail(P.email, { redirectTo: location.origin + location.pathname });
+      if (error) { b.disabled = false; return toast('Não foi possível enviar o e-mail agora: ' + error.message, 1); }
+      m.textContent = 'Link enviado para ' + P.email + '. Abra o e-mail e toque no link para criar a nova senha.'; let n = 60; const t = setInterval(() => { b.textContent = `Reenviar em ${--n}s`; if (n <= 0) { clearInterval(t); b.disabled = false; b.textContent = 'Enviar link novamente'; } }, 1000); b.textContent = 'Reenviar em 60s';
     };
+    if (q === 'dados') {
+      const f = $('#pffile'), rm = $('#pfrm'), salvar = async v => { const { error } = await sb.rpc('set_my_avatar', { p_avatar: v }); if (error) return toast('Não foi possível salvar a foto: ' + error.message, 1); S.profile.avatar = v || null; paintAvatar(); route(); toast(v ? 'Foto atualizada.' : 'Foto removida.'); };
+      f.onchange = async () => { const file = f.files[0]; if (!file) return; if (!/^image\//.test(file.type)) return toast('Escolha uma imagem.', 1); try { await salvar(await fotoParaJpeg(file)); } catch (x) { toast('Não foi possível usar essa imagem.', 1); } };
+      if (rm) rm.onclick = () => salvar('');
+    }
   },
 };
 
@@ -808,12 +819,12 @@ async function start(session) {
   if (!session) { S.profile = null; S.cur = null; return loginScreen(); }
   const { data } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
   if (!data) return fail('Sua conta existe, mas ainda não tem perfil no banco. Peça à Astell para conferir se o schema.sql foi executado antes da criação do usuário.');
-  S.profile = data;
+  S.profile = data; paintAvatar();
   const metaCpf = /^\d{11}$/.test(String((session.user.user_metadata || {}).cpf || ''));
   if (metaCpf && data.role === 'client') {   // acesso criado com CPF + e-mail: vincula as residências cadastradas pela Astell
     const { data: c } = await sb.rpc('claim_my_cpf');
     if (c && c.code === 'UNCONFIRMED') return confirmScreen(session.user.email);
-    if (c && c.ok) { const { data: p2 } = await sb.from('profiles').select('*').eq('id', session.user.id).single(); if (p2) S.profile = p2; }
+    if (c && c.ok) { const { data: p2 } = await sb.from('profiles').select('*').eq('id', session.user.id).single(); if (p2) { S.profile = p2; paintAvatar(); } }
     const { data: rs } = await sb.from('residences').select('id').limit(1);
     if (!(rs || []).length) return semCasaScreen(c && c.code === 'DENIED' ? 'O CPF ou o e-mail desta conta não conferem com o cadastro da Astell.' : '');
   }

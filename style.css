@@ -316,3 +316,7 @@ button.cday{font:inherit;color:inherit;width:100%;min-width:0;box-sizing:border-
 .pfrow{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:.92rem}.pfrow:last-child{border-bottom:0}.pfrow span{color:var(--mute)}.pfrow b{display:block;margin:0;text-align:right;overflow-wrap:anywhere;font-weight:600}
 .fsopt{display:flex;gap:8px;flex-wrap:wrap}.fsopt button{width:auto;flex:1;margin:0;padding:10px 12px;background:transparent;color:var(--ink);border:1px solid var(--line);border-radius:10px;font-size:.9rem}.fsopt button.on{border-color:var(--gold);color:var(--gold);background:#3dc08c1f;font-weight:700}
 .pfsub .btn-cancel{display:block;text-align:center;margin-top:8px}
+
+body.app .avatar.hasimg{padding:0;overflow:hidden}body.app .avatar .avimg{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block}
+.pfphoto{display:flex;align-items:center;gap:16px}.pfav{flex:none;display:flex;align-items:center;justify-content:center;width:84px;height:84px;border-radius:50%;border:2px solid var(--gold);overflow:hidden;color:var(--mute);background:var(--bg2,#0d1925)}.pfav img{width:100%;height:100%;object-fit:cover}.pfav .ico{width:38px;height:38px}
+.pfpick{display:inline-flex;width:auto;cursor:pointer;margin:0 10px 6px 0}.pfphoto .link{margin:0}.pfphoto p{margin:6px 0 0;font-size:.8rem}
