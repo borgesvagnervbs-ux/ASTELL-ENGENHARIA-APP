@@ -30,7 +30,7 @@ function ask(msg, ok = 'Excluir') {
   });
 }
 
-const APP_VERSION = '2026.10.21-52'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-53'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 // Dentro do aplicativo (Median/WebView) o Google bloqueia o login por OAuth; lá o acesso é por e-mail e senha.
 let REC_FLOW = /[#&]type=recovery/.test(location.hash);   // aberto pelo link de recuperação de senha
 const IN_APP = /median|gonative/i.test(navigator.userAgent);
@@ -572,14 +572,18 @@ function tpOpen(box) {
   ov.addEventListener('click', e => { e.stopPropagation(); if (e.target === ov || e.target.closest('.tpno')) end(false); else if (e.target.closest('.tpok')) end(true); });
   ih.focus();
 }
+function dpReveal(pop) {   // sem espaço embaixo (menu inferior): abre para cima; se também não couber, rola a tela
+  pop.classList.remove('up'); const br = pop.parentElement.getBoundingClientRect(), h = pop.offsetHeight;
+  if (br.bottom + 6 + h > innerHeight - 110 && br.top - 6 - h > 70) pop.classList.add('up'); else requestAnimationFrame(() => pop.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' }));
+}   // mantém o calendário inteiro visível (a margem do CSS evita o menu de baixo)
 function dpCloseAll(except) { let any = false; document.querySelectorAll('.dpop:not([hidden])').forEach(p => { if (!except || !p.closest('[data-dp]').contains(except)) { p.hidden = true; any = true; } }); return any; }
 function dpSetTime(box, v) { const t = box.querySelector('.dptxt'); t.value = v; t.setCustomValidity(''); }
 document.addEventListener('click', e => {
   const t = e.target, box = t.closest && t.closest('[data-dp]');
   if (!box) { dpCloseAll(); return; } dpCloseAll(box);
   const pop = box.querySelector('.dpop'), isDate = box.dataset.dp === 'date';
-  if (t.closest('[data-dpbtn]')) { if (!pop.hidden) pop.hidden = true; else { if (isDate) { const v = box.querySelector('[type=hidden]').value, d = v ? new Date(v + 'T00:00') : new Date(); dpRender(box, d.getFullYear(), d.getMonth()); } else { tpOpen(box); return; } pop.hidden = false; const r = pop.getBoundingClientRect(); if (r.bottom > innerHeight - 100) scrollBy({ top: r.bottom - innerHeight + 110, behavior: 'smooth' }); } return; }
-  const nav = t.closest('[data-dpnav]'); if (nav) { const d = new Date(+pop.dataset.y, +pop.dataset.m + +nav.dataset.dpnav, 1); dpRender(box, d.getFullYear(), d.getMonth()); return; }
+  if (t.closest('[data-dpbtn]')) { if (!pop.hidden) pop.hidden = true; else { if (isDate) { const v = box.querySelector('[type=hidden]').value, d = v ? new Date(v + 'T00:00') : new Date(); dpRender(box, d.getFullYear(), d.getMonth()); } else { tpOpen(box); return; } pop.hidden = false; dpReveal(pop); } return; }
+  const nav = t.closest('[data-dpnav]'); if (nav) { const d = new Date(+pop.dataset.y, +pop.dataset.m + +nav.dataset.dpnav, 1); dpRender(box, d.getFullYear(), d.getMonth()); dpReveal(pop); return; }
   const day = t.closest('[data-dpday]'); if (day) { box.querySelector('[type=hidden]').value = day.dataset.dpday; const tx = box.querySelector('.dptxt'); tx.value = dpBr(day.dataset.dpday); tx.setCustomValidity(''); pop.hidden = true; return; }
   if (t.closest('[data-dptoday]')) { const n = new Date(), iso = dpIso(n.getFullYear(), n.getMonth(), n.getDate()); box.querySelector('[type=hidden]').value = iso; const tx = box.querySelector('.dptxt'); tx.value = dpBr(iso); tx.setCustomValidity(''); pop.hidden = true; return; }
   if (t.closest('[data-dpclear]')) { if (isDate) { box.querySelector('[type=hidden]').value = ''; box.querySelector('.dptxt').value = ''; } else dpSetTime(box, ''); box.querySelector('.dptxt').setCustomValidity(''); pop.hidden = true; return; }
@@ -644,7 +648,7 @@ function calPaint() {
   const pre = y + '-' + String(m + 1).padStart(2, '0') + '-', first = new Date(y, m, 1).getDay(), nd = new Date(y, m + 1, 0).getDate(), t = new Date(), hoje = t.getFullYear() === y && t.getMonth() === m ? t.getDate() : 0;
   const by = {}; ev.filter(e => String(e.d).startsWith(pre)).forEach(e => (by[+String(e.d).slice(8, 10)] = by[+String(e.d).slice(8, 10)] || []).push(e));
   let cells = ''; for (let i = 0; i < first; i++) cells += '<span class="cd0"></span>';
-  for (let d = 1; d <= nd; d++) cells += by[d] ? `<button type="button" class="cday has${d === hoje ? ' hoje' : ''}${S.cal.sel === d ? ' sel' : ''}" data-calday="${d}" aria-pressed="${S.cal.sel === d}" aria-label="Dia ${d}: ${by[d].length} aviso(s)"><b>${d}</b><i class="dots2">${[...new Set(by[d].map(calCls))].map(c => `<u class="${c}"></u>`).join('')}</i></button>` : `<span class="cday${d === hoje ? ' hoje' : ''}" data-calday="0"><b>${d}</b></span>`;
+  for (let d = 1; d <= nd; d++) cells += by[d] ? `<button type="button" class="cday has${d === hoje ? ' hoje' : ''}${S.cal.sel === d ? ' sel' : ''}" data-calday="${d}" aria-pressed="${S.cal.sel === d}" aria-label="Dia ${d}: ${by[d].length} aviso(s)"><b>${d}</b><i class="dots2">${by[d].map(e => `<u class="${calCls(e)}"></u>`).join('')}</i></button>` : `<span class="cday${d === hoje ? ' hoje' : ''}" data-calday="0"><b>${d}</b></span>`;
   if (S.cal.sel && !by[S.cal.sel]) S.cal.sel = null; const sel = S.cal.sel;
   const list = Object.keys(by).map(Number).sort((a, b) => a - b).filter(d => !sel || d === sel).flatMap(d => by[d].map(e => ({ ...e, day: d })));
   const msg = e => { const dd = String(e.day).padStart(2, '0') + '/' + String(m + 1).padStart(2, '0'); const T = e.k === 'man' ? 'a manutenção' : 'a assistência'; if (e.s === 'exp') return `Dia <b>${dd}</b>: <b>EXPIRADA</b> a garantia de <b>${esc(e.t)}</b>.`; if (e.s === 'late') return `Dia <b>${dd}</b>: <b>ATRASADA</b> ${T} <b>${esc(e.t)}</b>.`; if (e.s === 'ok') return `Dia <b>${dd}</b>: <b>REALIZADA</b> ${T} <b>${esc(e.t)}</b>.`;
