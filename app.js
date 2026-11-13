@@ -30,7 +30,7 @@ function ask(msg, ok = 'Excluir') {
   });
 }
 
-const APP_VERSION = '2026.10.21-47'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-48'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 // Dentro do aplicativo (Median/WebView) o Google bloqueia o login por OAuth; lá o acesso é por e-mail e senha.
 let REC_FLOW = /[#&]type=recovery/.test(location.hash);   // aberto pelo link de recuperação de senha
 const IN_APP = /median|gonative/i.test(navigator.userAgent);
@@ -363,9 +363,10 @@ const views = {
       <div class="pfgrid">${T.map(([k, t, s, i]) => `<a class="pftile" href="#mais?${k}">${ico(IC[i])}<b>${t}</b><small>${s}</small></a>`).join('')}</div>
       <button type="button" class="pfout" data-out>${ico(IC.out)}<span>Sair da conta</span>${ico(IC.chev)}</button></div>`; return;
     }
-    const tt = T.find(t => t[0] === q)[1]; let body = '', cpfTxt = '—';
+    const tt = T.find(t => t[0] === q)[1]; let body = '', cpfTxt = '—', minhas = [];
+    if (q === 'dados') { const { data: vr } = await sb.from('residence_users').select('residence_id').eq('user_id', P.id), ids = (vr || []).map(x => x.residence_id); minhas = S.res.filter(r => ids.includes(r.id)); }   // só as residências vinculadas ao CPF do usuário no painel (superusuário sem vínculo: nenhuma)
     if (q === 'dados') { const { data: { session } } = await sb.auth.getSession(), c = String(((session && session.user && session.user.user_metadata) || {}).cpf || ''); if (/^\d{11}$/.test(c)) cpfTxt = '***.' + c.slice(3, 6) + '.' + c.slice(6, 9) + '-**'; }
-    if (q === 'dados') body = `<div class="card">${row('Nome', esc(/@/.test(P.name || '') ? '—' : (P.name || '—')))}${row('E-mail', esc(P.email || '—'))}${row('Tipo de acesso', papel)}${row('CPF', cpfTxt)}${row(S.res.length > 1 ? 'Residências' : 'Residência', S.res.length ? S.res.map(r => esc(r.name)).join(', ') : '—')}</div><p class="mute">Por segurança, o CPF é exibido parcialmente. Para corrigir qualquer dado cadastral, fale com a Astell: ${contactAstell('Contate a ASTELL')}</p>`;
+    if (q === 'dados') body = `<div class="card">${row('Nome', esc(/@/.test(P.name || '') ? '—' : (P.name || '—')))}${row('E-mail', esc(P.email || '—'))}${row('Tipo de acesso', papel)}${row('CPF', cpfTxt)}${row(minhas.length > 1 ? 'Residências' : 'Residência', minhas.length ? minhas.map(r => esc(r.name)).join(', ') : '—')}</div><p class="mute">Por segurança, o CPF é exibido parcialmente. Para corrigir qualquer dado cadastral, fale com a Astell: ${contactAstell('Contate a ASTELL')}</p>`;
     else if (q === 'notificacoes') body = `<div class="card"><p>Quando a Astell cadastrar algo novo para a sua residência (mídias, documentos, garantias, manutenções, equipamentos e outros), um aviso aparece no sininho no alto da tela.</p><p class="mute">Os avisos são atualizados sempre que você abre o aplicativo. Alterações e exclusões não geram aviso.</p><a class="pbtn" href="#avisos">Ver meus avisos${ico(IC.chev)}</a></div>`;
     else if (q === 'seguranca') body = `<form class="card" id="pwf"><h3 style="margin-top:0">Alterar senha</h3>${pwInput('pw', 'Nova senha', 'new-password')}<ul class="pwrules" id="pr">${pwList('')}</ul>${pwInput('pw2', 'Confirmar nova senha', 'new-password')}<button class="btn-main">Salvar nova senha</button></form><p class="mute">Se esquecer a senha, use "Esqueci minha senha" na tela de entrada: enviamos um link para o seu e-mail cadastrado.</p>`;
     else if (q === 'personalizacao') { const cur = applyFs(); body = `<div class="card"><h3 style="margin-top:0">Tamanho do texto</h3><div class="fsopt">${Object.entries(FS).map(([k, [l]]) => `<button type="button" class="${k === cur ? 'on' : ''}" data-fs="${k}">${l}</button>`).join('')}</div></div><div class="card">${row('Tema', 'Escuro')}<p class="mute">O tema escuro é o único disponível por enquanto.</p></div>`; }
