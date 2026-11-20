@@ -331,3 +331,14 @@ body.app .avatar.hasimg{padding:0;overflow:hidden}body.app .avatar .avimg{width:
 #toast,body.app #toast{position:fixed;top:calc(env(safe-area-inset-top,0px) + 12px);bottom:auto;left:50%;right:auto;z-index:300;display:flex;align-items:center;gap:12px;width:max-content;max-width:calc(100vw - 32px);box-sizing:border-box;padding:14px 18px;border-radius:14px;background:var(--gold);color:#06231a;font-weight:700;font-size:1rem;line-height:1.3;box-shadow:0 12px 32px #000b,0 0 0 1px #ffffff26 inset;opacity:0;transform:translate(-50%,-160%);transition:transform .3s cubic-bezier(.2,.9,.3,1),opacity .25s;pointer-events:none}
 #toast.show,body.app #toast.show{opacity:1;transform:translate(-50%,0)}#toast.err,body.app #toast.err{background:#e5534b;color:#fff}
 #toast .tic{flex:none;display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:#06231a;color:var(--gold);font-style:normal;font-weight:800;font-size:1rem}#toast.err .tic{background:#fff;color:#e5534b}
+
+.fcard h3{margin:0 0 6px;font-size:.95rem;letter-spacing:.04em}.fbig{font-size:2rem;font-weight:800;color:var(--gold);line-height:1.15}.fsub{margin:2px 0 6px}.fedt{background:none;border:0;padding:4px 0;margin:0 0 4px;width:auto;color:var(--gold);font-weight:700;text-decoration:underline;font-size:.95rem}
+.fedit label{display:block}.fedit input{font-size:1.4rem;font-weight:700}.frow{display:flex;gap:10px;margin-top:10px}.frow>*{flex:1;margin:0}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:18px 12px;margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+.fmet .ico{width:24px;height:24px;color:var(--gold)}.fmet:nth-child(2) .ico{color:#e0a43a}.fmet:nth-child(3) .ico{color:#5aa7e8}.fmet:nth-child(4) .ico{color:#e5534b}
+.fmet b{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px;margin-top:8px;font-size:1.15rem}.fmet b small{color:var(--mute);font-size:.78rem;font-weight:600}.fmet b.neg{color:#e5534b}.fmet span{display:block;color:var(--mute);font-size:.82rem;margin-top:2px}
+.ccard small{color:var(--mute);font-size:.78rem;margin-top:-4px}
+
+.fcard .fedt{color:var(--gold)!important;background:none!important}
+
+.fedit label{margin-bottom:6px}.fedit input{margin-top:6px}.frow .btn-cancel{background:transparent!important;color:var(--ink)!important;border:1px solid var(--line)!important;border-radius:12px;padding:12px;font-weight:600}
