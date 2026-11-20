@@ -30,7 +30,7 @@ function ask(msg, ok = 'Excluir') {
   });
 }
 
-const APP_VERSION = '2026.10.21-56'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-57'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 // Dentro do aplicativo (Median/WebView) o Google bloqueia o login por OAuth; lá o acesso é por e-mail e senha.
 let REC_FLOW = /[#&]type=recovery/.test(location.hash);   // aberto pelo link de recuperação de senha
 const IN_APP = /median|gonative/i.test(navigator.userAgent);
@@ -103,7 +103,7 @@ const BCAT = { estrutura: 'Estrutura', sistemas: 'Sistemas', materiais: 'Materia
 const pct = (v, t) => t > 0 ? Math.round(v / t * 100) + '%' : '0%';
 function finPaint(edit) {
   const f = S.fin, saldo = f.budget - f.spent, card = ([ic, lbl, v, neg]) => `<div class="fmet">${ico(IC[ic])}<b class="${neg ? 'neg' : ''}">${brl(v)}<small>${pct(v, f.budget)}</small></b><span>${lbl}</span></div>`;
-  $('#fin').innerHTML = `<div class="card fcard"><h3>ORÇAMENTO DA OBRA</h3>${edit ? `<form id="fbf" class="fedit"><label>Orçamento total planejado<input id="fbv" inputmode="numeric" autocomplete="off" value="${brl(f.budget)}"></label><div class="frow"><button class="btn-main">Salvar</button><button type="button" class="btn-cancel" data-fcancel>Cancelar</button></div></form>` : `<div class="fbig">${brl(f.budget)}</div><p class="mute fsub">Orçamento total planejado</p><button type="button" class="link fedt" data-fedit>Editar</button>`}
+  $('#fin').innerHTML = `<div class="card fcard"><h3>ORÇAMENTO DA OBRA</h3>${f.budget > 0 && !edit ? `<span class="obadge ${f.all > f.budget ? 'bad' : 'good'} fbadge">${f.all > f.budget ? 'Acima do limite' : 'Dentro do limite'}</span>` : ''}${edit ? `<form id="fbf" class="fedit"><label>Orçamento total planejado<input id="fbv" inputmode="numeric" autocomplete="off" value="${brl(f.budget)}"></label><div class="frow"><button class="btn-main">Salvar</button><button type="button" class="btn-cancel" data-fcancel>Cancelar</button></div></form>` : `<div class="fbig">${brl(f.budget)}</div><p class="mute fsub">Orçamento total planejado</p>${f.budget > 0 ? `${oBar(pctN(f.all, f.budget), f.all > f.budget ? 'r' : 'g')}<div class="oleg"><span>${pctN(f.all, f.budget)}% utilizado</span><span>${Math.max(0, 100 - pctN(f.all, f.budget))}% disponível</span></div>` : ''}<button type="button" class="link fedt" data-fedit>Editar</button>`}
     <div class="fgrid">${[['wallet', 'Total realizado', f.spent], ['calclock', 'Contas a pagar', f.pay], ['trend', 'Saldo do orçamento', saldo, saldo < 0], ['alert', 'Contas vencidas', f.late]].map(card).join('')}</div></div>
     <div class="cgrid">${[['orcamentos', 'Orçamentos', 'Planejado x realizado', 'pie'], ['contas', 'Contas a pagar', 'Vencimentos e pagamentos', 'calendar'], ['custos', 'Despesas', 'Lançamentos financeiros', 'receipt'], ['relatorios', 'Relatórios', 'Gráficos e indicadores', 'trend']].map(([h, t, s, i]) => `<a class="card ccard" href="${h === 'custos' ? '#custos' : '#financeiro?' + h}">${ico(IC[i])}<b>${t}</b><small class="mute">${s}</small></a>`).join('')}</div>`;
   if (edit) { const i = $('#fbv'); i.focus(); const fm = () => { const d = i.value.replace(/\D/g, '').slice(0, 14); i.value = brl(Number(d || 0) / 100); }; i.oninput = fm; i.select();
@@ -118,18 +118,27 @@ function splitPay(list) { const t = todayIso(); let pago = 0, comp = 0; list.for
 const barTone = p => p > 100 ? 'r' : p >= 80 ? 'g' : p >= 40 ? 'o' : 'b';
 const oBar = (p, tone, sub) => `<div class="obar" role="progressbar" aria-valuenow="${Math.min(p, 100)}" aria-valuemin="0" aria-valuemax="100"><i style="width:${Math.min(p, 100)}%;background:${(sub ? OTONE_SUB : OTONE)[tone]}"></i></div>`;
 const encQ = t => encodeURIComponent(t);
+async function seedCats() {   // 1ª vez: as categorias já lançadas viram categorias orçadas, dividindo o orçamento geral em partes iguais
+  const f = S.fin, k = 'astell_seed_' + f.id; let done = false; try { done = !!localStorage.getItem(k); } catch (_) {}
+  if (done || (S.cbud || []).length || !(f.budget > 0)) return;
+  const cats = []; S.exp.forEach(e => { const c = (S.xcats || []).find(x => nrm(x) === nrm(e.category)) || e.category; if (c && !cats.some(x => nrm(x) === nrm(c))) cats.push(c); });
+  if (!cats.length) return;
+  const cents = Math.round(f.budget * 100), base = Math.floor(cents / cats.length), rest = cents - base * cats.length;
+  const rows = cats.map((c, i) => ({ residence_id: f.id, category: c, amount: (base + (i < rest ? 1 : 0)) / 100, pct: null }));
+  const { data, error } = await sb.from('category_budgets').insert(rows).select(); if (error) return;
+  S.cbud = data && data.length ? data : rows; try { localStorage.setItem(k, '1'); } catch (_) {}
+}
 async function finLoad() {
   const rid = S.cur.id, [{ data: rs }, { data: ex }, { data: cb }, { data: cs }, { data: ss }] = await Promise.all([sb.from('residences').select('budget').eq('id', rid).single(), sb.from('expenses').select('*').eq('residence_id', rid).order('spent_on', { ascending: false }).order('created_at', { ascending: false }), sb.from('category_budgets').select('*').eq('residence_id', rid).order('created_at'), sb.from('expense_categories').select('name').order('name'), sb.from('expense_subcategories').select('category,name')]);
   S.exp = ex || []; S.xcats = xCats(cs || [], S.exp); S.xsubs = ss || []; S.cbud = cb || [];
-  const sp = splitPay(S.exp); S.fin = { id: rid, budget: Number((rs && rs.budget) || 0), spent: sp.pago, pay: sp.comp, late: 0 };
+  const sp = splitPay(S.exp); S.fin = { id: rid, budget: Number((rs && rs.budget) || 0), spent: sp.pago, pay: sp.comp, late: 0, all: sp.pago + sp.comp };
+  await seedCats();
 }
-function orcView() {   // visão geral: orçamento da construção + categorias
-  const f = S.fin, all = S.exp.reduce((a, e) => a + Number(e.amount), 0), usedP = pctN(all, f.budget), over = f.budget > 0 && all > f.budget, tone = over ? 'r' : 'g';
-  const alloc = (S.cbud || []).reduce((a, b) => a + cbEff(b), 0);
+function orcView() {   // categorias orçadas (o orçamento geral fica na tela Financeiro)
+  const f = S.fin, alloc = (S.cbud || []).reduce((a, b) => a + cbEff(b), 0);
   const rows = (S.cbud || []).map((b, i) => { const eff = cbEff(b), u = S.exp.filter(e => inCat(e, b.category)).reduce((a, e) => a + Number(e.amount), 0), p = pctN(u, eff), tn = barTone(p);
     return `<a class="orow" href="#financeiro?cat=${encQ(b.category)}"><span class="onum">${i + 1}.</span><span class="obody"><span class="otop"><b>${esc(b.category)}</b><strong>${brl(eff)}</strong></span>${oBar(p, tn)}<small class="mute">${p}% do orçamento consumido${b.pct != null ? ` · ${String(b.pct).replace('.', ',')}% do geral` : ''}</small></span><span class="oarr" aria-hidden="true">›</span></a>`; }).join('');
-  return `<div class="card ocard"><div class="otitle"><b>Orçamento da construção</b><span class="obadge ${over ? 'bad' : 'good'}">${f.budget > 0 ? (over ? 'Acima do limite' : 'Dentro do limite') : 'Sem orçamento'}</span></div><div class="fbig">${brl(f.budget)}</div><p class="mute fsub">Orçamento previsto para a construção</p>${f.budget > 0 ? `${oBar(usedP, tone)}<div class="oleg"><span>${usedP}% utilizado</span><span>${Math.max(0, 100 - usedP)}% disponível</span></div>` : '<p class="mute">Defina o orçamento total na tela Financeiro para acompanhar o consumo.</p>'}
-    <hr class="odiv"><div class="ohead"><b>Orçamento por categoria</b><small class="mute">Distribuído: ${brl(alloc)}${f.budget > 0 ? ` (${pctN(alloc, f.budget)}% do geral)` : ''}</small></div>${alloc > f.budget && f.budget > 0 ? '<p class="owarn">A soma das categorias passa do orçamento geral.</p>' : ''}${rows || '<p class="empty">Nenhuma categoria orçada ainda.</p>'}</div><a class="newreq" href="#financeiro?orcnova">+ Lançar orçamento de categoria</a><a class="btn-cancel" href="#financeiro">Voltar ao Financeiro</a>`;
+  return `<h2>Orçamentos</h2><div class="card ocard"><div class="ohead"><b>Orçamento por categoria</b><small class="mute">Distribuído: ${brl(alloc)}${f.budget > 0 ? ` (${pctN(alloc, f.budget)}% do geral)` : ''}</small></div>${alloc > f.budget && f.budget > 0 ? '<p class="owarn">A soma das categorias passa do orçamento geral.</p>' : ''}${f.budget > 0 ? '' : '<p class="mute">Defina o orçamento total na tela Financeiro.</p>'}${rows || '<p class="empty">Nenhuma categoria orçada ainda.</p>'}</div><a class="newreq" href="#financeiro?orcnova">+ Lançar orçamento de categoria</a><a class="btn-cancel" href="#financeiro">Voltar ao Financeiro</a>`;
 }
 function orcForm(cat) {
   const b = cat ? cbOf(cat) : null, byPct = b && b.pct != null, val = b ? (byPct ? String(b.pct).replace('.', ',') : brl(b.amount)) : brl(0);

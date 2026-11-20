@@ -366,3 +366,4 @@ body.app .avatar.hasimg{padding:0;overflow:hidden}body.app .avatar .avimg{width:
 .xsubt{background:transparent;border:1px solid color-mix(in srgb,var(--c) 50%,transparent)}
 .xpct{color:var(--gold);font-weight:600;font-size:.88rem;margin:4px 0}
 #obf .link{color:var(--bad)}
+.fbadge{display:inline-block;margin:4px 0 2px}.fcard .obar{margin-top:12px}.fcard .oleg{margin-bottom:6px}
