@@ -30,7 +30,7 @@ function ask(msg, ok = 'Excluir') {
   });
 }
 
-const APP_VERSION = '2026.10.21-55'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-56'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 // Dentro do aplicativo (Median/WebView) o Google bloqueia o login por OAuth; lá o acesso é por e-mail e senha.
 let REC_FLOW = /[#&]type=recovery/.test(location.hash);   // aberto pelo link de recuperação de senha
 const IN_APP = /median|gonative/i.test(navigator.userAgent);
@@ -108,6 +108,67 @@ function finPaint(edit) {
     <div class="cgrid">${[['orcamentos', 'Orçamentos', 'Planejado x realizado', 'pie'], ['contas', 'Contas a pagar', 'Vencimentos e pagamentos', 'calendar'], ['custos', 'Despesas', 'Lançamentos financeiros', 'receipt'], ['relatorios', 'Relatórios', 'Gráficos e indicadores', 'trend']].map(([h, t, s, i]) => `<a class="card ccard" href="${h === 'custos' ? '#custos' : '#financeiro?' + h}">${ico(IC[i])}<b>${t}</b><small class="mute">${s}</small></a>`).join('')}</div>`;
   if (edit) { const i = $('#fbv'); i.focus(); const fm = () => { const d = i.value.replace(/\D/g, '').slice(0, 14); i.value = brl(Number(d || 0) / 100); }; i.oninput = fm; i.select();
     $('#fbf').onsubmit = async e => { e.preventDefault(); const v = Number(i.value.replace(/\D/g, '') || 0) / 100, { data, error } = await sb.rpc('set_residence_budget', { p_id: f.id, p_value: v }); if (error) return toast('Não foi possível salvar o orçamento: ' + error.message, 1); f.budget = Number(data ?? v); finPaint(); toast('Orçamento salvo.'); }; }
+}
+// ---- Orçamento por categoria (etapa da obra) ----
+const OTONE = { g: '#1fa855', o: '#d97706', b: '#3b82f6', r: '#dc2626', s: '#64748b' }, OTONE_SUB = { g: '#6fcf97', o: '#f0a65a', b: '#7db2f7', r: '#ef7b7b', s: '#94a3b8' };
+const todayIso = () => xIso(new Date()), pctN = (v, t) => t > 0 ? Math.round(v / t * 100) : 0, inCat = (e, c) => nrm(e.category) === nrm(c), subOf = e => e.subcategory || 'Outros';
+const cbEff = b => b.pct != null ? S.fin.budget * Number(b.pct) / 100 : Number(b.amount || 0);
+const cbOf = c => (S.cbud || []).find(b => nrm(b.category) === nrm(c));
+function splitPay(list) { const t = todayIso(); let pago = 0, comp = 0; list.forEach(e => { if (e.spent_on <= t) pago += Number(e.amount); else comp += Number(e.amount); }); return { pago, comp }; }
+const barTone = p => p > 100 ? 'r' : p >= 80 ? 'g' : p >= 40 ? 'o' : 'b';
+const oBar = (p, tone, sub) => `<div class="obar" role="progressbar" aria-valuenow="${Math.min(p, 100)}" aria-valuemin="0" aria-valuemax="100"><i style="width:${Math.min(p, 100)}%;background:${(sub ? OTONE_SUB : OTONE)[tone]}"></i></div>`;
+const encQ = t => encodeURIComponent(t);
+async function finLoad() {
+  const rid = S.cur.id, [{ data: rs }, { data: ex }, { data: cb }, { data: cs }, { data: ss }] = await Promise.all([sb.from('residences').select('budget').eq('id', rid).single(), sb.from('expenses').select('*').eq('residence_id', rid).order('spent_on', { ascending: false }).order('created_at', { ascending: false }), sb.from('category_budgets').select('*').eq('residence_id', rid).order('created_at'), sb.from('expense_categories').select('name').order('name'), sb.from('expense_subcategories').select('category,name')]);
+  S.exp = ex || []; S.xcats = xCats(cs || [], S.exp); S.xsubs = ss || []; S.cbud = cb || [];
+  const sp = splitPay(S.exp); S.fin = { id: rid, budget: Number((rs && rs.budget) || 0), spent: sp.pago, pay: sp.comp, late: 0 };
+}
+function orcView() {   // visão geral: orçamento da construção + categorias
+  const f = S.fin, all = S.exp.reduce((a, e) => a + Number(e.amount), 0), usedP = pctN(all, f.budget), over = f.budget > 0 && all > f.budget, tone = over ? 'r' : 'g';
+  const alloc = (S.cbud || []).reduce((a, b) => a + cbEff(b), 0);
+  const rows = (S.cbud || []).map((b, i) => { const eff = cbEff(b), u = S.exp.filter(e => inCat(e, b.category)).reduce((a, e) => a + Number(e.amount), 0), p = pctN(u, eff), tn = barTone(p);
+    return `<a class="orow" href="#financeiro?cat=${encQ(b.category)}"><span class="onum">${i + 1}.</span><span class="obody"><span class="otop"><b>${esc(b.category)}</b><strong>${brl(eff)}</strong></span>${oBar(p, tn)}<small class="mute">${p}% do orçamento consumido${b.pct != null ? ` · ${String(b.pct).replace('.', ',')}% do geral` : ''}</small></span><span class="oarr" aria-hidden="true">›</span></a>`; }).join('');
+  return `<div class="card ocard"><div class="otitle"><b>Orçamento da construção</b><span class="obadge ${over ? 'bad' : 'good'}">${f.budget > 0 ? (over ? 'Acima do limite' : 'Dentro do limite') : 'Sem orçamento'}</span></div><div class="fbig">${brl(f.budget)}</div><p class="mute fsub">Orçamento previsto para a construção</p>${f.budget > 0 ? `${oBar(usedP, tone)}<div class="oleg"><span>${usedP}% utilizado</span><span>${Math.max(0, 100 - usedP)}% disponível</span></div>` : '<p class="mute">Defina o orçamento total na tela Financeiro para acompanhar o consumo.</p>'}
+    <hr class="odiv"><div class="ohead"><b>Orçamento por categoria</b><small class="mute">Distribuído: ${brl(alloc)}${f.budget > 0 ? ` (${pctN(alloc, f.budget)}% do geral)` : ''}</small></div>${alloc > f.budget && f.budget > 0 ? '<p class="owarn">A soma das categorias passa do orçamento geral.</p>' : ''}${rows || '<p class="empty">Nenhuma categoria orçada ainda.</p>'}</div><a class="newreq" href="#financeiro?orcnova">+ Lançar orçamento de categoria</a><a class="btn-cancel" href="#financeiro">Voltar ao Financeiro</a>`;
+}
+function orcForm(cat) {
+  const b = cat ? cbOf(cat) : null, byPct = b && b.pct != null, val = b ? (byPct ? String(b.pct).replace('.', ',') : brl(b.amount)) : brl(0);
+  return `<h2>${b ? 'Editar orçamento' : 'Lançar orçamento'}</h2><form class="card" id="obf"><label>Categoria (etapa da obra)<div class="comboin" data-combo="cat"><input class="comboq" type="search" name="category" required maxlength="60" autocomplete="off" role="combobox" aria-expanded="false" placeholder="Pesquise ou digite uma categoria…" value="${esc(b ? b.category : '')}"${b ? ' readonly' : ''}><ul class="combolist" role="listbox" hidden></ul></div></label>
+    <div class="field"><span class="lbl">Informar o orçamento em</span><div class="omode"><label><input type="radio" name="mode" value="brl"${byPct ? '' : ' checked'}> Reais (R$)</label><label><input type="radio" name="mode" value="pct"${byPct ? ' checked' : ''}> % do orçamento geral</label></div></div>
+    <label><span id="ovl">${byPct ? 'Percentual (%)' : 'Valor (R$)'}</span><input id="ov" inputmode="${byPct ? 'decimal' : 'numeric'}" autocomplete="off" value="${esc(val)}"></label><p class="mute" id="oeq"></p>
+    <button>Salvar orçamento</button><a class="btn-cancel" href="#financeiro?${b ? 'cat=' + encQ(b.category) : 'orcamentos'}">Cancelar</a>${b ? '<button type="button" class="link" id="odel">Excluir orçamento desta categoria</button>' : ''}</form>`;
+}
+function orcFormInit(cat) {
+  const f = $('#obf'), ov = $('#ov'), eq = $('#oeq'), mode = () => f.mode.value, B = S.fin.budget;
+  const num = () => mode() === 'brl' ? Number(ov.value.replace(/\D/g, '') || 0) / 100 : Math.min(100, parseFloat(ov.value.replace(',', '.').replace(/[^\d.]/g, '')) || 0);
+  const upd = () => { const v = num(); eq.textContent = mode() === 'brl' ? (B > 0 ? `Equivale a ${pctN(v, B)}% do orçamento geral (${brl(B)}).` : '') : `Equivale a ${brl(B * v / 100)} do orçamento geral de ${brl(B)}.`; };
+  ov.addEventListener('input', () => { if (mode() === 'brl') ov.value = brl(Number(ov.value.replace(/\D/g, '').slice(0, 14) || 0) / 100); else ov.value = ov.value.replace(/[^\d,]/g, '').replace(/(,.*?),/g, '$1').slice(0, 6); upd(); });
+  f.querySelectorAll('[name=mode]').forEach(r => r.addEventListener('change', () => { $('#ovl').textContent = mode() === 'brl' ? 'Valor (R$)' : 'Percentual (%)'; ov.inputMode = mode() === 'brl' ? 'numeric' : 'decimal'; ov.value = mode() === 'brl' ? brl(0) : ''; upd(); }));
+  upd();
+  f.onsubmit = async e => { e.preventDefault(); const typed = String(f.category.value || '').trim().replace(/\s+/g, ' '), v = num(); if (!typed) return toast('Informe a categoria.', 1);
+    if (!(v > 0)) return toast('Informe um valor maior que zero.', 1); if (mode() === 'pct' && !(B > 0)) return toast('Defina primeiro o orçamento total em Financeiro.', 1);
+    const known = (S.xcats || XDEF).find(x => nrm(x) === nrm(typed)), name = known || typed, ex = cbOf(name); if (!cat && ex) return toast('Esta categoria já tem orçamento. Abra-a para editar.', 1);
+    if (!known) await sb.from('expense_categories').insert({ name });
+    const row = mode() === 'pct' ? { amount: Math.round(B * v) / 100, pct: v } : { amount: v, pct: null };
+    const { error } = ex ? await sb.from('category_budgets').update(row).eq('id', ex.id) : await sb.from('category_budgets').insert({ residence_id: S.cur.id, category: name, ...row });
+    if (error) return toast('Não foi possível salvar: ' + error.message, 1); toast('Orçamento da categoria salvo.'); location.hash = '#financeiro?cat=' + encQ(name); };
+  const dl = $('#odel'); if (dl) dl.onclick = async () => { if (!await ask('Excluir o orçamento desta categoria? As despesas lançadas continuam salvas.')) return; const b = cbOf(cat), { error } = await sb.from('category_budgets').delete().eq('id', b.id); if (error) return toast('Não foi possível excluir.', 1); toast('Orçamento excluído.'); location.hash = '#financeiro?orcamentos'; };
+}
+function catView(cat) {
+  const b = cbOf(cat); if (!b) return '<p class="empty">Esta categoria não tem orçamento lançado.</p><a class="btn-cancel" href="#financeiro?orcamentos">Voltar</a>';
+  const eff = cbEff(b), list = S.exp.filter(e => inCat(e, b.category)), { pago, comp } = splitPay(list), disp = Math.max(0, eff - pago - comp), est = pago + comp - eff;
+  const line = (lbl, v, tn) => `<div class="cline"><div class="ctop"><span>${lbl}</span><b>${brl(v)}</b></div>${oBar(pctN(v, eff), tn)}</div>`;
+  const by = {}; list.forEach(e => { const k = subOf(e), key = nrm(k); (by[key] = by[key] || { name: k, items: [] }).items.push(e); });
+  const subs = Object.values(by).sort((a, b) => b.items.reduce((s, e) => s + +e.amount, 0) - a.items.reduce((s, e) => s + +e.amount, 0));
+  const srows = subs.map((s, i) => { const tot = s.items.reduce((a, e) => a + Number(e.amount), 0), p = pctN(tot, eff), sp = splitPay(s.items), big = s.items.reduce((m, e) => Number(e.amount) > Number(m.amount) ? e : m, s.items[0]), last = s.items[0];   // lista já vem da mais recente para a mais antiga
+    return `<div class="orow sub"><a class="olinkrow" href="#financeiro?sub=${encQ(b.category)}&${encQ(s.name)}"><span class="onum">${i + 1}.</span><span class="obody"><span class="otop"><b>${esc(s.name)}</b><strong>${brl(tot)}</strong></span>${oBar(p, barTone(p), true)}<small class="mute">${p}% do orçamento da categoria</small></span></a><button type="button" class="oarr" data-subx aria-expanded="false" aria-label="Ver detalhes de ${esc(s.name)}"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>
+      <div class="opanel" hidden><div class="pgrid"><span>Realizado (pago)</span><b>${brl(sp.pago)}</b><span>Comprometido (a pagar)</span><b>${brl(sp.comp)}</b><span>Lançamentos</span><b>${s.items.length}</b><span>Maior lançamento</span><b>${brl(big.amount)}<small class="mute"> ${esc(big.description)}</small></b><span>Último lançamento</span><b>${fmt(last.spent_on)}</b></div><a class="link olist" href="#financeiro?sub=${encQ(b.category)}&${encQ(s.name)}">Ver todos os lançamentos ›</a></div>`; }).join('');
+  return `<div class="card ocat"><h3>${esc(b.category)}</h3><div class="fbig">${brl(eff)}</div><p class="mute fsub">Orçamento previsto${b.pct != null ? ` · ${String(b.pct).replace('.', ',')}% do orçamento geral` : ''}</p>${line('Realizado (pago)', pago, 'g')}${line('Comprometido (a pagar)', comp, 'o')}${line('Disponível', disp, 's')}<span class="opill">${pctN(pago, eff)}% já pago</span>${est > 0 ? `<p class="owarn">Acima do orçamento da categoria em ${brl(est)}.</p>` : ''}<div class="acts"><a class="link" href="#financeiro?orcedit=${encQ(b.category)}">Editar orçamento</a></div></div>
+    <h3 class="osec">Gastos por subcategoria</h3>${srows ? `<div class="card ocard">${srows}</div>` : '<p class="empty">Nenhuma despesa lançada nesta categoria.</p>'}<a class="btn-cancel" href="#financeiro?orcamentos">Voltar aos orçamentos</a>`;
+}
+function subView(cat, sub) {
+  const b = cbOf(cat), eff = b ? cbEff(b) : 0, list = S.exp.filter(e => inCat(e, cat) && nrm(subOf(e)) === nrm(sub)), tot = list.reduce((a, e) => a + Number(e.amount), 0);   // S.exp já em ordem: mais recente primeiro
+  return `<h2>${esc(sub)}</h2><p class="mute">${esc(cat)} · ${list.length} ${list.length === 1 ? 'lançamento' : 'lançamentos'} · ${brl(tot)}${eff ? ` · ${pctN(tot, eff)}% do orçamento da categoria` : ''}</p>${list.map(e => xCardHtml(e, `<p class="xpct">${eff ? pctN(Number(e.amount), eff) : 0}% do orçamento da categoria</p>`)).join('') || '<p class="empty">Nenhum lançamento nesta subcategoria.</p>'}<a class="btn-cancel" href="#financeiro?cat=${encQ(cat)}">Voltar à categoria</a>`;
 }
 const NAV = [['home', 'Início', 'home', ['home']], ['casa', 'Minha Casa', 'layers', ['casa', 'estrutura', 'sistemas', 'materiais', 'garantias', 'manutencao', 'equipamentos', 'planta', 'midias', 'cronograma', 'detalhe', 'documentos']], ['financeiro', 'Financeiro', 'dollar', ['financeiro', 'custos']], ['assistencia', 'Suporte', 'phones', ['assistencia']]];
 $('#nav').innerHTML = NAV.map(([h, l, i, g]) => `<a href="#${h}" data-g="${g.join(' ')}">${ico(IC[i])}<span>${l}</span></a>`).join('');
@@ -326,15 +387,20 @@ const views = {
     app.innerHTML = `<h2>${esc(r.name)}</h2><div class="card">${rows.map(([a, b]) => `<p><span class="mute">${a}</span><br>${esc(b || '—')}</p>`).join('')}</div><div class="cgrid">${CARDS.map(([h, t, i]) => `<a class="card ccard" href="#${h}">${ico(IC[i])}<b>${t}</b></a>`).join('')}</div>`;
   },
   async financeiro() {
-    const q = S.q, rid = S.cur.id, SUB = { orcamentos: ['Orçamentos', 'Comparativo entre o planejado e o realizado.'], contas: ['Contas a pagar', 'Vencimentos e pagamentos.'], relatorios: ['Relatórios', 'Gráficos e indicadores.'] };
+    const q = S.q, SUB = { contas: ['Contas a pagar', 'Vencimentos e pagamentos.'], relatorios: ['Relatórios', 'Gráficos e indicadores.'] };
     if (SUB[q]) { app.innerHTML = `<h2>${SUB[q][0]}</h2><div class="card"><p>${SUB[q][1]}</p><p class="mute">Esta área está em desenvolvimento e ficará disponível em breve.</p></div><a class="btn-cancel" href="#financeiro">Voltar ao Financeiro</a>`; return; }
-    const [{ data: rs }, { data: ex }] = await Promise.all([sb.from('residences').select('budget').eq('id', rid).single(), sb.from('expenses').select('amount').eq('residence_id', rid)]);
-    S.fin = { id: rid, budget: Number((rs && rs.budget) || 0), spent: (ex || []).reduce((s, x) => s + Number(x.amount || 0), 0), pay: 0, late: 0 };   // contas a pagar/vencidas: R$ 0,00 até o módulo de contas existir
+    await finLoad(); const dq = t => { try { return decodeURIComponent(t); } catch { return t; } };
+    if (q === 'orcamentos') { app.innerHTML = orcView(); return; }
+    if (q === 'orcnova') { app.innerHTML = orcForm(); orcFormInit(); return; }
+    let m;
+    if ((m = /^orcedit=(.+)$/.exec(q))) { const c = dq(m[1]); if (!cbOf(c)) { app.innerHTML = '<p class="empty">Esta categoria não tem orçamento lançado.</p><a class="btn-cancel" href="#financeiro?orcamentos">Voltar</a>'; return; } app.innerHTML = orcForm(c); orcFormInit(c); return; }
+    if ((m = /^cat=(.+)$/.exec(q))) { app.innerHTML = catView(dq(m[1])); return; }
+    if ((m = /^sub=([^&]+)&(.+)$/.exec(q))) { app.innerHTML = subView(dq(m[1]), dq(m[2])); return; }
     app.innerHTML = '<div id="fin"></div>'; finPaint();
   },
   async custos() {
-    const rid = S.cur.id, [{ data: ex }, { data: cs }] = await Promise.all([sb.from('expenses').select('*').eq('residence_id', rid).order('spent_on', { ascending: false }).order('created_at', { ascending: false }), sb.from('expense_categories').select('name').order('name')]);
-    S.exp = ex || []; S.xcats = xCats(cs || [], S.exp);
+    const rid = S.cur.id, [{ data: ex }, { data: cs }, { data: ss }] = await Promise.all([sb.from('expenses').select('*').eq('residence_id', rid).order('spent_on', { ascending: false }).order('created_at', { ascending: false }), sb.from('expense_categories').select('name').order('name'), sb.from('expense_subcategories').select('category,name')]);
+    S.exp = ex || []; S.xcats = xCats(cs || [], S.exp); S.xsubs = ss || [];
     if (S.nova) { app.innerHTML = xForm({}, 'new'); return; }
     if (S.xv) { const x = S.exp.find(z => String(z.id) === S.xv.id); if (!x) return app.innerHTML = '<p class="empty">Não foi possível encontrar este lançamento.</p><a class="btn-cancel" href="#custos">Voltar</a>'; app.innerHTML = xForm(x, S.xv.m === 'ver' ? 'view' : 'edit'); return; }
     const now = new Date(); S.xm = { y: now.getFullYear(), m: now.getMonth() };
@@ -445,7 +511,9 @@ app.addEventListener('submit', async e => {
     catch (err) { if (btn) btn.disabled = false; return toast('Não foi possível enviar os arquivos: ' + err.message, 1); }
     const typed = String(o.category || '').trim().replace(/\s+/g, ' '), known = (S.xcats || XDEF).find(x => x.toLowerCase() === typed.toLowerCase());
     if (!known) await sb.from('expense_categories').insert({ name: typed });   // nova categoria fica cadastrada para as próximas vezes
-    const row = { description: String(o.description).trim(), amount: amt, spent_on: o.spent_on, category: known || typed, supplier: o.supplier, supplier_phone: o.supplier_phone, notes: o.notes, media, warranty_months: parseInt(o.warranty_months, 10) >= 1 ? parseInt(o.warranty_months, 10) : null };
+    const catF = known || typed, subT = String(o.subcategory || '').trim().replace(/\s+/g, ' ') || 'Outros', subK = subsOf(catF).find(x => nrm(x) === nrm(subT));
+    if (!subK && nrm(subT) !== 'outros') await sb.from('expense_subcategories').insert({ category: catF, name: subT });   // nova subcategoria fica cadastrada dentro da categoria
+    const row = { description: String(o.description).trim(), amount: amt, spent_on: o.spent_on, category: catF, subcategory: subK || (nrm(subT) === 'outros' ? 'Outros' : subT), supplier: o.supplier, supplier_phone: o.supplier_phone, notes: o.notes, media, warranty_months: parseInt(o.warranty_months, 10) >= 1 ? parseInt(o.warranty_months, 10) : null };
     r = eid ? await sb.from('expenses').update({ ...row, media: [...kept, ...media] }).eq('id', eid) : await sb.from('expenses').insert({ residence_id: rid, ...row }); if (btn) btn.disabled = false;
   }
   else if (id === 'upd') { r = await sb.from('service_requests').update(o).eq('id', f.dataset.id); if (!r.error) await sb.from('history_events').insert({ residence_id: rid, category: 'Assistência', description: 'Solicitação atualizada: ' + o.status }); }
@@ -464,9 +532,10 @@ app.addEventListener('click', async e => {
   const d = e.target.dataset;
   if (d.cn && S.carGo) { S.carHold = Date.now() + 8000; S.carGo(S.carIdx() + +d.cn); }
   if (d.xm && S.xm) { const x = new Date(S.xm.y, S.xm.m + +d.xm, 1); S.xm = { y: x.getFullYear(), m: x.getMonth() }; xPaint(); }
+  { const sx = e.target.closest && e.target.closest('[data-subx]'); if (sx) { const row = sx.closest('.orow'), pn = row && row.nextElementSibling; if (pn && pn.classList.contains('opanel')) { const open = pn.hidden; pn.hidden = !open; sx.setAttribute('aria-expanded', String(open)); row.classList.toggle('open', open); } } }
   if (d.xview) location.hash = '#custos?ver=' + encodeURIComponent(d.xview);
   if (d.xedit) location.hash = '#custos?edit=' + encodeURIComponent(d.xedit);
-  if (d.xdel && await ask('Excluir este lançamento?')) { const { error } = await sb.from('expenses').delete().eq('id', d.xdel); if (error) return toast('Não foi possível excluir.', 1); S.exp = (S.exp || []).filter(x => x.id !== d.xdel); xPaint(); toast('Lançamento excluído.'); }
+  if (d.xdel && await ask('Excluir este lançamento?')) { const { error } = await sb.from('expenses').delete().eq('id', d.xdel); if (error) return toast('Não foi possível excluir.', 1); S.exp = (S.exp || []).filter(x => x.id !== d.xdel); toast('Lançamento excluído.'); if ($('#xh')) xPaint(); else route(); }
   if (d.gf) { const k = d.gf === 'all' ? null : d.gf; S.gf = S.gf === k ? null : k; gaPaint(); }
   { const ar = e.target.closest && e.target.closest('[data-avread]'); if (ar) { sb.rpc('mark_notifs_read', { p_ids: [ar.dataset.avread] }).then(refreshBell); } }
   if (d.avall !== undefined) { await sb.rpc('mark_notifs_read', { p_ids: (S.avl || []).map(x => x.id) }); route(); refreshBell(); }
@@ -516,6 +585,7 @@ function xForm(e, mode) {
   const shown = view && md.length ? (md.filter(x => x.type !== 'pdf').length ? grp('xv' + e.id, md.filter(x => x.type !== 'pdf').map(x => x.url)) : '') + (md.some(x => x.type === 'pdf') ? `<div class="xpdf">${md.filter(x => x.type === 'pdf').map(x => `<a href="${esc(x.url)}" target="_blank" rel="noopener">${ico(IC.doc)}<span>${esc(x.name || 'comprovante.pdf')}</span></a>`).join('')}</div>` : '') : '';
   return `<h2>${title}</h2><form class="card" data-form="exp"${e.id ? ` data-id="${esc(e.id)}"` : ''}><fieldset class="xfs"${view ? ' disabled' : ''}><label>O que foi comprado<input name="description" required maxlength="160" value="${vv('description')}"></label><label>Valor (R$)<input name="amount" required inputmode="decimal" placeholder="0,00" autocomplete="off" value="${e.amount != null ? esc(Number(e.amount).toFixed(2).replace('.', ',')) : ''}"></label>${dpField('spent_on', 'Data', e.spent_on || xIso(new Date()), true)}
       <label>Categoria<div class="comboin" data-combo="cat"><input class="comboq" type="search" name="category" required maxlength="60" autocomplete="off" role="combobox" aria-expanded="false" aria-label="Pesquisar categoria" placeholder="Pesquise ou digite uma nova categoria…" value="${vv('category')}"><ul class="combolist" role="listbox" hidden></ul></div></label>${view ? '' : '<p class="mute combohint">Digite parte do nome e escolha na lista. Se a categoria não existir, ela será criada ao salvar e ficará disponível nas próximas pesquisas.</p>'}
+      <label>Subcategoria — opcional<div class="comboin" data-combo="sub"><input class="comboq" type="search" name="subcategory" maxlength="60" autocomplete="off" role="combobox" aria-expanded="false" aria-label="Pesquisar subcategoria" placeholder="Pesquise ou digite uma subcategoria…" value="${esc(e.subcategory && e.subcategory !== 'Outros' ? e.subcategory : '')}"><ul class="combolist" role="listbox" hidden></ul></div></label>${view ? '' : '<p class="mute combohint">As subcategorias ficam dentro da categoria escolhida. Se deixar em branco, o gasto entra em “Outros”.</p>'}
       <label>Garantia do item (meses) — opcional<input name="warranty_months" type="number" min="1" step="1" inputmode="numeric" data-nonneg placeholder="Sem garantia" value="${vv('warranty_months')}"></label><label>Fornecedor<input name="supplier" maxlength="120" value="${vv('supplier')}"></label><label>Telefone do fornecedor<input name="supplier_phone" class="tel" type="tel" inputmode="numeric" maxlength="15" placeholder="(00) 00000-0000" autocomplete="off" value="${esc(ph)}"></label><label>Descrição adicional<textarea name="notes" rows="3">${vv('notes')}</textarea></label>
       ${view ? '' : keep + (CLOUD_OK ? '<label>Comprovantes e notas (imagens ou PDF)<input name="files" type="file" accept="image/*,application/pdf" multiple></label><p class="mute">Até 6 arquivos de até 10 MB cada.</p>' : '')}</fieldset>${shown}${view ? `<button type="button" data-xedit="${esc(e.id)}">Editar</button><a class="btn-cancel" href="#custos">Voltar</a>` : `<button>${mode === 'edit' ? 'Salvar alterações' : 'Salvar despesa'}</button><a class="btn-cancel" href="#custos">Cancelar</a>`}</form>`;
 }
@@ -523,7 +593,16 @@ function xCats(custom, ex) {   // categorias padrão + criadas pelo cliente (sem
   const out = [...XDEF], has = n => out.some(x => x.toLowerCase() === String(n).toLowerCase());
   [...(custom || []).map(c => c.name), ...(ex || []).map(e => e.category)].filter(Boolean).forEach(n => { if (!has(n)) out.push(n); }); return out;
 }
+function subsOf(cat) {   // subcategorias de uma categoria (criadas + usadas nas despesas); "Outros" sempre existe
+  const out = ['Outros'], has = n => out.some(x => nrm(x) === nrm(n));
+  [...(S.xsubs || []).filter(x => nrm(x.category) === nrm(cat)).map(x => x.name), ...(S.exp || []).filter(x => nrm(x.category) === nrm(cat)).map(x => x.subcategory)].filter(Boolean).forEach(n => { if (!has(n)) out.push(n); });
+  return [out[0], ...out.slice(1).sort((a, b) => a.localeCompare(b, 'pt-BR'))];
+}
 const xColor = c => XCOL[Math.max(0, (S.xcats || []).findIndex(x => x.toLowerCase() === String(c).toLowerCase())) % XCOL.length];
+function xCardHtml(e, extra = '') {
+  const md = e.media || [], im = md.filter(x => x.type !== 'pdf').map(x => x.url), pd = md.filter(x => x.type === 'pdf');
+      return `<div class="card xcard"><div class="xtop"><b>${esc(e.description)}</b><strong>${brl(e.amount)}</strong></div><p class="mute"><span class="xcat" style="--c:${xColor(e.category)}">${esc(e.category)}</span>${e.subcategory ? `<span class="xcat xsubt" style="--c:${xColor(e.category)}">${esc(e.subcategory)}</span>` : ''} ${fmt(e.spent_on)}</p>${extra}${xSup(e)}${e.warranty_months ? `<p class="mute xwar">Garantia: ${e.warranty_months} ${e.warranty_months === 1 ? 'mês' : 'meses'} (até ${addMonths(e.spent_on, e.warranty_months).toLocaleDateString('pt-BR')})</p>` : ''}${e.notes ? `<p>${esc(e.notes)}</p>` : ''}${im.length ? grp('x' + e.id, im) : ''}${pd.length ? `<div class="xpdf">${pd.map(x => `<a href="${esc(x.url)}" target="_blank" rel="noopener">${ico(IC.doc)}<span>${esc(x.name || 'comprovante.pdf')}</span></a>`).join('')}</div>` : ''}<div class="xact"><button type="button" class="link" data-xview="${e.id}">Visualizar</button><button type="button" class="link" data-xedit="${e.id}">Editar</button><button type="button" class="link" data-xdel="${e.id}">Excluir</button></div></div>`;
+}
 function xPaint() {
   const ex = S.exp || [], tot = ex.reduce((a, e) => a + Number(e.amount), 0), by = {};
   ex.forEach(e => { const k = (S.xcats || []).find(x => x.toLowerCase() === String(e.category).toLowerCase()) || e.category; by[k] = (by[k] || 0) + Number(e.amount); });
@@ -533,8 +612,7 @@ function xPaint() {
     <ul class="xleg">${rows.map(([c, v]) => `<li><i style="background:${xColor(c)}"></i><span>${esc(c)}</span><em>${(v / tot * 100).toFixed(1).replace('.', ',')}%</em><b>${brl(v)}</b></li>`).join('')}</ul></div>` : '<p class="empty">Nenhuma despesa lançada ainda.</p>';
   const { y, m } = S.xm, pre = y + '-' + String(m + 1).padStart(2, '0'), mes = ex.filter(e => String(e.spent_on).startsWith(pre)), mt = mes.reduce((a, e) => a + Number(e.amount), 0), xh = $('#xh'); if (!xh) return;
   xh.innerHTML = `<div class="calhead"><button type="button" data-xm="-1" aria-label="Mês anterior">‹</button><b>${MESES[m]} ${y}</b><button type="button" data-xm="1" aria-label="Próximo mês">›</button></div><p class="xmt">Total do mês: <b>${brl(mt)}</b> · ${mes.length} ${mes.length === 1 ? 'lançamento' : 'lançamentos'}</p>` +
-    (mes.map(e => { const md = e.media || [], im = md.filter(x => x.type !== 'pdf').map(x => x.url), pd = md.filter(x => x.type === 'pdf');
-      return `<div class="card xcard"><div class="xtop"><b>${esc(e.description)}</b><strong>${brl(e.amount)}</strong></div><p class="mute"><span class="xcat" style="--c:${xColor(e.category)}">${esc(e.category)}</span> ${fmt(e.spent_on)}</p>${xSup(e)}${e.warranty_months ? `<p class="mute xwar">Garantia: ${e.warranty_months} ${e.warranty_months === 1 ? 'mês' : 'meses'} (até ${addMonths(e.spent_on, e.warranty_months).toLocaleDateString('pt-BR')})</p>` : ''}${e.notes ? `<p>${esc(e.notes)}</p>` : ''}${im.length ? grp('x' + e.id, im) : ''}${pd.length ? `<div class="xpdf">${pd.map(x => `<a href="${esc(x.url)}" target="_blank" rel="noopener">${ico(IC.doc)}<span>${esc(x.name || 'comprovante.pdf')}</span></a>`).join('')}</div>` : ''}<div class="xact"><button type="button" class="link" data-xview="${e.id}">Visualizar</button><button type="button" class="link" data-xedit="${e.id}">Editar</button><button type="button" class="link" data-xdel="${e.id}">Excluir</button></div></div>`; }).join('') || '<p class="empty">Nenhuma despesa neste mês.</p>');
+    (mes.map(e => xCardHtml(e)).join('') || '<p class="empty">Nenhuma despesa neste mês.</p>');
 }
 // Campos de data e hora com seletor verde (o do navegador não aceita cor): digitar com máscara ou abrir o seletor
 const DP_SVG = '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>', TM_SVG = '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
@@ -629,22 +707,26 @@ document.addEventListener('input', e => {
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && dpCloseAll()) { e.preventDefault(); e.stopPropagation(); } }, true);
 // Pesquisa de categoria: mesmo modelo da pesquisa de residências/proprietários do painel admin
 const nrm = t => String(t == null ? '' : t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+function comboOpts(box) {   // categoria: todas; subcategoria: somente as da categoria escolhida no mesmo formulário
+  if (box.dataset.combo !== 'sub') return S.xcats || XDEF;
+  const f = box.closest('form'), c = f && f.querySelector('[name=category]'); return subsOf(c ? c.value : '');
+}
 function catList(box) {
   const inp = box.querySelector('.comboq'), ul = box.querySelector('.combolist'), q = nrm(inp.value).trim();
   if (!q) return catClose(box);   // sem caracteres digitados: nenhuma sugestão
-  const items = (S.xcats || XDEF).filter(c => nrm(c).includes(q) && nrm(c) !== q).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const items = comboOpts(box).filter(c => nrm(c).includes(q) && nrm(c) !== q).sort((a, b) => a.localeCompare(b, 'pt-BR'));
   if (!items.length) return catClose(box);   // nenhuma categoria contém o que foi digitado: a caixa não aparece
   ul.innerHTML = items.map((c, i) => `<li role="option" data-opt="${esc(c)}" class="${i ? '' : 'on'}"><b>${esc(c)}</b></li>`).join(''); ul.hidden = false; inp.setAttribute('aria-expanded', 'true');
 }
 function catClose(box) { const ul = box.querySelector('.combolist'); ul.hidden = true; ul.innerHTML = ''; box.querySelector('.comboq').setAttribute('aria-expanded', 'false'); }
 function catPick(box, v) { box.querySelector('.comboq').value = v; catClose(box); }
-const isCat = e => e.target.classList && e.target.classList.contains('comboq') && e.target.closest('[data-combo=cat]');
-document.addEventListener('input', e => { if (isCat(e)) catList(e.target.closest('[data-combo=cat]')); });
-document.addEventListener('focusin', e => { if (isCat(e)) catList(e.target.closest('[data-combo=cat]')); });
-document.addEventListener('focusout', e => { if (isCat(e)) setTimeout(() => { const b = e.target.closest('[data-combo=cat]'); b && catClose(b); }, 120); });
-document.addEventListener('mousedown', e => { const li = e.target.closest && e.target.closest('[data-combo=cat] .combolist li[data-opt]'); if (!li) return; e.preventDefault(); catPick(li.closest('[data-combo=cat]'), li.dataset.opt); });
+const isCat = e => e.target.classList && e.target.classList.contains('comboq') && e.target.closest('[data-combo]');
+document.addEventListener('input', e => { if (isCat(e)) catList(e.target.closest('[data-combo]')); });
+document.addEventListener('focusin', e => { if (isCat(e)) catList(e.target.closest('[data-combo]')); });
+document.addEventListener('focusout', e => { if (isCat(e)) setTimeout(() => { const b = e.target.closest('[data-combo]'); b && catClose(b); }, 120); });
+document.addEventListener('mousedown', e => { const li = e.target.closest && e.target.closest('[data-combo] .combolist li[data-opt]'); if (!li) return; e.preventDefault(); catPick(li.closest('[data-combo]'), li.dataset.opt); });
 document.addEventListener('keydown', e => {
-  if (!isCat(e)) return; const box = e.target.closest('[data-combo=cat]'), ul = box.querySelector('.combolist'), lis = [...ul.querySelectorAll('li[data-opt]')]; let i = lis.findIndex(l => l.classList.contains('on'));
+  if (!isCat(e)) return; const box = e.target.closest('[data-combo]'), ul = box.querySelector('.combolist'), lis = [...ul.querySelectorAll('li[data-opt]')]; let i = lis.findIndex(l => l.classList.contains('on'));
   if (e.key === 'Escape' && !ul.hidden) { e.preventDefault(); catClose(box); e.stopPropagation(); return; }
   if (e.key === 'Enter') { if (!ul.hidden && i >= 0) { e.preventDefault(); catPick(box, lis[i].dataset.opt); } return; }
   if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); if (ul.hidden) return catList(box); if (!lis.length) return; if (i >= 0) lis[i].classList.remove('on'); i = (i + (e.key === 'ArrowDown' ? 1 : -1) + lis.length) % lis.length; lis[i].classList.add('on'); lis[i].scrollIntoView({ block: 'nearest' }); }
@@ -685,7 +767,9 @@ function calPaint() {
 const CR = { financeiro: [['', 'Financeiro']], custos: [['financeiro', 'Financeiro'], ['', 'Despesas']], avisos: [['', 'Avisos']], midias: [['casa', 'Minha Casa'], ['', 'Mídias']], cronograma: [['casa', 'Minha Casa'], ['', 'Cronograma']], casa: [['casa', 'Minha Casa']], estrutura: [['casa', 'Minha Casa'], ['', 'Estrutura']], sistemas: [['casa', 'Minha Casa'], ['', 'Instalações']], materiais: [['casa', 'Minha Casa'], ['', 'Materiais']], garantias: [['casa', 'Minha Casa'], ['', 'Garantias']], manutencao: [['casa', 'Minha Casa'], ['', 'Manutenção']], equipamentos: [['casa', 'Minha Casa'], ['', 'Equipamentos']], planta: [['casa', 'Minha Casa'], ['', 'Planta técnica']], documentos: [['casa', 'Minha Casa'], ['', 'Documentos']], assistencia: [['assistencia', 'Suporte']], mais: [['mais', 'Perfil']] };
 const PFT = { dados: 'Dados pessoais', notificacoes: 'Notificações', seguranca: 'Segurança', personalizacao: 'Personalização', atendimento: 'Atendimento', sobre: 'Sobre' };
 function crumbs(h) {
-  const c = h === 'custos' && (S.nova || S.xv) ? [['financeiro', 'Financeiro'], ['custos', 'Despesas'], ['', S.xv ? (S.xv.m === 'ver' ? 'Visualizar despesa' : 'Editar despesa') : 'Lançar despesa']] : h === 'mais' && S.q && PFT[S.q] ? [['mais', 'Perfil'], ['', PFT[S.q]]] : h === 'detalhe' ? [['casa', 'Minha Casa'], ['cronograma', 'Cronograma'], ['', 'Detalhe']] : h === 'assistencia' && S.nova ? [['assistencia', 'Suporte'], ['', 'Nova solicitação']] : CR[h]; if (!c || !app.firstElementChild || app.querySelector('.crumbs')) return;
+  const fq = h === 'financeiro' && S.q ? (() => { const dq = t => { try { return decodeURIComponent(t); } catch { return t; } }, F = ['financeiro', 'Financeiro'], O = ['financeiro?orcamentos', 'Orçamentos'], m1 = /^(cat|orcedit)=(.+)$/.exec(S.q), m2 = /^sub=([^&]+)&(.+)$/.exec(S.q);
+    return S.q === 'orcamentos' ? [F, ['', 'Orçamentos']] : S.q === 'orcnova' ? [F, O, ['', 'Lançar orçamento']] : m1 ? (m1[1] === 'cat' ? [F, O, ['', esc(dq(m1[2]))]] : [F, O, ['financeiro?cat=' + m1[2], esc(dq(m1[2]))], ['', 'Editar orçamento']]) : m2 ? [F, O, ['financeiro?cat=' + m2[1], esc(dq(m2[1]))], ['', esc(dq(m2[2]))]] : null; })() : null;
+  const c = fq ? fq : h === 'custos' && (S.nova || S.xv) ? [['financeiro', 'Financeiro'], ['custos', 'Despesas'], ['', S.xv ? (S.xv.m === 'ver' ? 'Visualizar despesa' : 'Editar despesa') : 'Lançar despesa']] : h === 'mais' && S.q && PFT[S.q] ? [['mais', 'Perfil'], ['', PFT[S.q]]] : h === 'detalhe' ? [['casa', 'Minha Casa'], ['cronograma', 'Cronograma'], ['', 'Detalhe']] : h === 'assistencia' && S.nova ? [['assistencia', 'Suporte'], ['', 'Nova solicitação']] : CR[h]; if (!c || !app.firstElementChild || app.querySelector('.crumbs')) return;
   const last = c.length - 1, items = [['home', 'Início'], ...c].map(([href, t], i, a) => i === a.length - 1 ? `<li aria-current="page">${t}</li>` : `<li><a href="#${href}">${t}</a></li>`);
   app.insertAdjacentHTML('afterbegin', `<ol class="crumbs" aria-label="Você está em">${items.join('<li class="sep" aria-hidden="true">›</li>')}</ol>`);
 }
