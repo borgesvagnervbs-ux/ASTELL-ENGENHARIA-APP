@@ -367,3 +367,7 @@ body.app .avatar.hasimg{padding:0;overflow:hidden}body.app .avatar .avimg{width:
 .xpct{color:var(--gold);font-weight:600;font-size:.88rem;margin:4px 0}
 #obf .link{color:var(--bad)}
 .fbadge{display:inline-block;margin:4px 0 2px}.fcard .obar{margin-top:12px}.fcard .oleg{margin-bottom:6px}
+.orow .oarr{color:var(--gold);font-size:2.1rem;line-height:1;width:40px;min-height:40px}.orow.sub .oarr svg{width:28px;height:28px;stroke-width:2.6}
+.ocat .fbig{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 12px}.fpct{font-size:.85rem;font-weight:600;color:var(--mute)}
+.oedit{display:inline-block;margin:2px 0 6px;text-decoration:underline}
+.fpct{white-space:nowrap}

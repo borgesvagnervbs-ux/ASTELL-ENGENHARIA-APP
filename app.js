@@ -30,7 +30,7 @@ function ask(msg, ok = 'Excluir') {
   });
 }
 
-const APP_VERSION = '2026.10.21-57'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-58'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 // Dentro do aplicativo (Median/WebView) o Google bloqueia o login por OAuth; lá o acesso é por e-mail e senha.
 let REC_FLOW = /[#&]type=recovery/.test(location.hash);   // aberto pelo link de recuperação de senha
 const IN_APP = /median|gonative/i.test(navigator.userAgent);
@@ -140,25 +140,25 @@ function orcView() {   // categorias orçadas (o orçamento geral fica na tela F
     return `<a class="orow" href="#financeiro?cat=${encQ(b.category)}"><span class="onum">${i + 1}.</span><span class="obody"><span class="otop"><b>${esc(b.category)}</b><strong>${brl(eff)}</strong></span>${oBar(p, tn)}<small class="mute">${p}% do orçamento consumido${b.pct != null ? ` · ${String(b.pct).replace('.', ',')}% do geral` : ''}</small></span><span class="oarr" aria-hidden="true">›</span></a>`; }).join('');
   return `<h2>Orçamentos</h2><div class="card ocard"><div class="ohead"><b>Orçamento por categoria</b><small class="mute">Distribuído: ${brl(alloc)}${f.budget > 0 ? ` (${pctN(alloc, f.budget)}% do geral)` : ''}</small></div>${alloc > f.budget && f.budget > 0 ? '<p class="owarn">A soma das categorias passa do orçamento geral.</p>' : ''}${f.budget > 0 ? '' : '<p class="mute">Defina o orçamento total na tela Financeiro.</p>'}${rows || '<p class="empty">Nenhuma categoria orçada ainda.</p>'}</div><a class="newreq" href="#financeiro?orcnova">+ Lançar orçamento de categoria</a><a class="btn-cancel" href="#financeiro">Voltar ao Financeiro</a>`;
 }
+const pctTxt = n => String(Math.round(n * 100) / 100).replace('.', ',');
 function orcForm(cat) {
-  const b = cat ? cbOf(cat) : null, byPct = b && b.pct != null, val = b ? (byPct ? String(b.pct).replace('.', ',') : brl(b.amount)) : brl(0);
+  const b = cat ? cbOf(cat) : null, B = S.fin.budget, others = (S.cbud || []).filter(x => !b || x.id !== b.id).reduce((a, x) => a + cbEff(x), 0), rest = Math.max(0, B - others), v0 = b ? cbEff(b) : rest;
   return `<h2>${b ? 'Editar orçamento' : 'Lançar orçamento'}</h2><form class="card" id="obf"><label>Categoria (etapa da obra)<div class="comboin" data-combo="cat"><input class="comboq" type="search" name="category" required maxlength="60" autocomplete="off" role="combobox" aria-expanded="false" placeholder="Pesquise ou digite uma categoria…" value="${esc(b ? b.category : '')}"${b ? ' readonly' : ''}><ul class="combolist" role="listbox" hidden></ul></div></label>
-    <div class="field"><span class="lbl">Informar o orçamento em</span><div class="omode"><label><input type="radio" name="mode" value="brl"${byPct ? '' : ' checked'}> Reais (R$)</label><label><input type="radio" name="mode" value="pct"${byPct ? ' checked' : ''}> % do orçamento geral</label></div></div>
-    <label><span id="ovl">${byPct ? 'Percentual (%)' : 'Valor (R$)'}</span><input id="ov" inputmode="${byPct ? 'decimal' : 'numeric'}" autocomplete="off" value="${esc(val)}"></label><p class="mute" id="oeq"></p>
+    <label>Valor (R$)<input id="ov" inputmode="numeric" autocomplete="off" value="${brl(v0)}"></label>
+    <label>Percentual do orçamento geral (%)<input id="op" inputmode="decimal" autocomplete="off" placeholder="0"${B > 0 ? '' : ' disabled'} value="${B > 0 ? pctTxt(v0 / B * 100) : ''}"></label>
+    <p class="mute" id="oeq">${B > 0 ? `Resta no orçamento geral: ${brl(rest)} (${pctTxt(rest / B * 100)}%).` : 'Defina primeiro o orçamento total em Financeiro para usar o percentual.'}</p>
     <button>Salvar orçamento</button><a class="btn-cancel" href="#financeiro?${b ? 'cat=' + encQ(b.category) : 'orcamentos'}">Cancelar</a>${b ? '<button type="button" class="link" id="odel">Excluir orçamento desta categoria</button>' : ''}</form>`;
 }
 function orcFormInit(cat) {
-  const f = $('#obf'), ov = $('#ov'), eq = $('#oeq'), mode = () => f.mode.value, B = S.fin.budget;
-  const num = () => mode() === 'brl' ? Number(ov.value.replace(/\D/g, '') || 0) / 100 : Math.min(100, parseFloat(ov.value.replace(',', '.').replace(/[^\d.]/g, '')) || 0);
-  const upd = () => { const v = num(); eq.textContent = mode() === 'brl' ? (B > 0 ? `Equivale a ${pctN(v, B)}% do orçamento geral (${brl(B)}).` : '') : `Equivale a ${brl(B * v / 100)} do orçamento geral de ${brl(B)}.`; };
-  ov.addEventListener('input', () => { if (mode() === 'brl') ov.value = brl(Number(ov.value.replace(/\D/g, '').slice(0, 14) || 0) / 100); else ov.value = ov.value.replace(/[^\d,]/g, '').replace(/(,.*?),/g, '$1').slice(0, 6); upd(); });
-  f.querySelectorAll('[name=mode]').forEach(r => r.addEventListener('change', () => { $('#ovl').textContent = mode() === 'brl' ? 'Valor (R$)' : 'Percentual (%)'; ov.inputMode = mode() === 'brl' ? 'numeric' : 'decimal'; ov.value = mode() === 'brl' ? brl(0) : ''; upd(); }));
-  upd();
-  f.onsubmit = async e => { e.preventDefault(); const typed = String(f.category.value || '').trim().replace(/\s+/g, ' '), v = num(); if (!typed) return toast('Informe a categoria.', 1);
-    if (!(v > 0)) return toast('Informe um valor maior que zero.', 1); if (mode() === 'pct' && !(B > 0)) return toast('Defina primeiro o orçamento total em Financeiro.', 1);
+  const f = $('#obf'), ov = $('#ov'), op = $('#op'), B = S.fin.budget; let last = 'brl';   // last: campo que o cliente editou por último (é o que fica gravado)
+  const getV = () => Number(ov.value.replace(/\D/g, '') || 0) / 100, getP = () => Math.min(100, parseFloat(op.value.replace(',', '.')) || 0);
+  ov.addEventListener('input', () => { last = 'brl'; const v = Number(ov.value.replace(/\D/g, '').slice(0, 14) || 0) / 100; ov.value = brl(v); if (B > 0) op.value = v ? pctTxt(v / B * 100) : ''; });
+  op.addEventListener('input', () => { last = 'pct'; op.value = op.value.replace(/[^\d,]/g, '').replace(/(,.*?),/g, '$1').replace(/(,\d{2}).*/, '$1').slice(0, 6); if (getP() >= 100 && parseFloat(op.value.replace(',', '.')) > 100) op.value = '100'; ov.value = brl(Math.round(B * getP()) / 100); });
+  f.onsubmit = async e => { e.preventDefault(); const typed = String(f.category.value || '').trim().replace(/\s+/g, ' '), v = last === 'pct' ? Math.round(B * getP()) / 100 : getV(); if (!typed) return toast('Informe a categoria.', 1);
+    if (!(v > 0)) return toast('Informe um valor maior que zero.', 1);
     const known = (S.xcats || XDEF).find(x => nrm(x) === nrm(typed)), name = known || typed, ex = cbOf(name); if (!cat && ex) return toast('Esta categoria já tem orçamento. Abra-a para editar.', 1);
     if (!known) await sb.from('expense_categories').insert({ name });
-    const row = mode() === 'pct' ? { amount: Math.round(B * v) / 100, pct: v } : { amount: v, pct: null };
+    const row = last === 'pct' ? { amount: v, pct: getP() } : { amount: v, pct: null };
     const { error } = ex ? await sb.from('category_budgets').update(row).eq('id', ex.id) : await sb.from('category_budgets').insert({ residence_id: S.cur.id, category: name, ...row });
     if (error) return toast('Não foi possível salvar: ' + error.message, 1); toast('Orçamento da categoria salvo.'); location.hash = '#financeiro?cat=' + encQ(name); };
   const dl = $('#odel'); if (dl) dl.onclick = async () => { if (!await ask('Excluir o orçamento desta categoria? As despesas lançadas continuam salvas.')) return; const b = cbOf(cat), { error } = await sb.from('category_budgets').delete().eq('id', b.id); if (error) return toast('Não foi possível excluir.', 1); toast('Orçamento excluído.'); location.hash = '#financeiro?orcamentos'; };
@@ -172,7 +172,7 @@ function catView(cat) {
   const srows = subs.map((s, i) => { const tot = s.items.reduce((a, e) => a + Number(e.amount), 0), p = pctN(tot, eff), sp = splitPay(s.items), big = s.items.reduce((m, e) => Number(e.amount) > Number(m.amount) ? e : m, s.items[0]), last = s.items[0];   // lista já vem da mais recente para a mais antiga
     return `<div class="orow sub"><a class="olinkrow" href="#financeiro?sub=${encQ(b.category)}&${encQ(s.name)}"><span class="onum">${i + 1}.</span><span class="obody"><span class="otop"><b>${esc(s.name)}</b><strong>${brl(tot)}</strong></span>${oBar(p, barTone(p), true)}<small class="mute">${p}% do orçamento da categoria</small></span></a><button type="button" class="oarr" data-subx aria-expanded="false" aria-label="Ver detalhes de ${esc(s.name)}"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>
       <div class="opanel" hidden><div class="pgrid"><span>Realizado (pago)</span><b>${brl(sp.pago)}</b><span>Comprometido (a pagar)</span><b>${brl(sp.comp)}</b><span>Lançamentos</span><b>${s.items.length}</b><span>Maior lançamento</span><b>${brl(big.amount)}<small class="mute"> ${esc(big.description)}</small></b><span>Último lançamento</span><b>${fmt(last.spent_on)}</b></div><a class="link olist" href="#financeiro?sub=${encQ(b.category)}&${encQ(s.name)}">Ver todos os lançamentos ›</a></div>`; }).join('');
-  return `<div class="card ocat"><h3>${esc(b.category)}</h3><div class="fbig">${brl(eff)}</div><p class="mute fsub">Orçamento previsto${b.pct != null ? ` · ${String(b.pct).replace('.', ',')}% do orçamento geral` : ''}</p>${line('Realizado (pago)', pago, 'g')}${line('Comprometido (a pagar)', comp, 'o')}${line('Disponível', disp, 's')}<span class="opill">${pctN(pago, eff)}% já pago</span>${est > 0 ? `<p class="owarn">Acima do orçamento da categoria em ${brl(est)}.</p>` : ''}<div class="acts"><a class="link" href="#financeiro?orcedit=${encQ(b.category)}">Editar orçamento</a></div></div>
+  return `<div class="card ocat"><h3>${esc(b.category)}</h3><div class="fbig">${brl(eff)}${S.fin.budget > 0 ? `<small class="fpct">${pctTxt(eff / S.fin.budget * 100)}% do geral</small>` : ''}</div><a class="link fedt oedit" href="#financeiro?orcedit=${encQ(b.category)}">Editar</a><p class="mute fsub">Orçamento previsto</p>${line('Realizado (pago)', pago, 'g')}${line('Comprometido (a pagar)', comp, 'o')}${line('Disponível', disp, 'b')}<span class="opill">${pctN(pago, eff)}% já pago</span>${est > 0 ? `<p class="owarn">Acima do orçamento da categoria em ${brl(est)}.</p>` : ''}</div>
     <h3 class="osec">Gastos por subcategoria</h3>${srows ? `<div class="card ocard">${srows}</div>` : '<p class="empty">Nenhuma despesa lançada nesta categoria.</p>'}<a class="btn-cancel" href="#financeiro?orcamentos">Voltar aos orçamentos</a>`;
 }
 function subView(cat, sub) {
