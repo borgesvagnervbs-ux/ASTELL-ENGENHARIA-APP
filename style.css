@@ -371,3 +371,9 @@ body.app .avatar.hasimg{padding:0;overflow:hidden}body.app .avatar .avimg{width:
 .ocat .fbig{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 12px}.fpct{font-size:.85rem;font-weight:600;color:var(--mute)}
 .oedit{display:inline-block;margin:2px 0 6px;text-decoration:underline}
 .fpct{white-space:nowrap}
+/* Controle financeiro: contas a pagar */
+.cf{background:#8a9aa6}.payopt{border-left:3px solid var(--gold);padding-left:12px;margin:4px 0 8px}.payopt[hidden],.payopt [hidden]{display:none}
+.fsum{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}.fsum div{background:#0b1623;border:1px solid var(--line);border-radius:12px;padding:10px 12px}.fsum small{display:block;color:var(--mute)}.fsum b{font-size:1.05rem}.fsum b.neg{color:#f08a8a}
+.cpay u{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}.cpay p{margin:6px 0}.cst{display:inline;margin:0;font-size:.78rem;letter-spacing:.02em}.cst.paid{color:#4fd68a}.cst.soon{color:#f0a65a}.cst.late{color:#f08a8a}.cst.ok{color:var(--mute)}
+#fcal h3{margin:16px 0 8px}
+.cpay .cst{display:inline!important}

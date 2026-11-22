@@ -30,7 +30,7 @@ function ask(msg, ok = 'Excluir') {
   });
 }
 
-const APP_VERSION = '2026.10.21-58'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-59'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 // Dentro do aplicativo (Median/WebView) o Google bloqueia o login por OAuth; lá o acesso é por e-mail e senha.
 let REC_FLOW = /[#&]type=recovery/.test(location.hash);   // aberto pelo link de recuperação de senha
 const IN_APP = /median|gonative/i.test(navigator.userAgent);
@@ -110,11 +110,26 @@ function finPaint(edit) {
     $('#fbf').onsubmit = async e => { e.preventDefault(); const v = Number(i.value.replace(/\D/g, '') || 0) / 100, { data, error } = await sb.rpc('set_residence_budget', { p_id: f.id, p_value: v }); if (error) return toast('Não foi possível salvar o orçamento: ' + error.message, 1); f.budget = Number(data ?? v); finPaint(); toast('Orçamento salvo.'); }; }
 }
 // ---- Orçamento por categoria (etapa da obra) ----
+// ---- Controle financeiro: parcelas e contas a pagar ----
+const PAYM = ['Pix', 'Débito', 'Crédito', 'Boleto'];
+const addMonIso = (iso, k) => { const [y, m, d] = iso.split('-').map(Number), t = new Date(y, m - 1 + k, 1), last = new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate(); return xIso(new Date(t.getFullYear(), t.getMonth(), Math.min(d, last))); };
+const instOf = id => (S.inst || []).filter(i => String(i.expense_id) === String(id)).sort((a, b) => a.num - b.num);
+const dayDiff = iso => Math.round((new Date(iso + 'T00:00') - new Date(todayIso() + 'T00:00')) / 864e5);
+const instSt = i => i.paid_on ? 'paid' : i.due_on < todayIso() ? 'late' : dayDiff(i.due_on) <= 15 ? 'soon' : 'ok';   // paga · vencida · vence em até 15 dias · a vencer
+const INST_C = { paid: 'cok', soon: 'cg', late: 'cx', ok: 'cf' }, INST_T = { paid: 'PAGA', soon: 'VENCE EM BREVE', late: 'VENCIDA', ok: 'A VENCER' };
+async function instLoad() { const { data } = await sb.from('expense_installments').select('*').eq('residence_id', S.cur.id).order('due_on'); S.inst = data || []; }
+const payLine = e => { const n = instOf(e.id).length, c = e.pay_cond === 'parcelado' ? `Parcelado em ${n || '?'}x` : e.pay_cond === 'avista' ? 'À vista' : ''; return [e.pay_method, c].filter(Boolean).join(' · '); };
 const OTONE = { g: '#1fa855', o: '#d97706', b: '#3b82f6', r: '#dc2626', s: '#64748b' }, OTONE_SUB = { g: '#6fcf97', o: '#f0a65a', b: '#7db2f7', r: '#ef7b7b', s: '#94a3b8' };
 const todayIso = () => xIso(new Date()), pctN = (v, t) => t > 0 ? Math.round(v / t * 100) : 0, inCat = (e, c) => nrm(e.category) === nrm(c), subOf = e => e.subcategory || 'Outros';
 const cbEff = b => b.pct != null ? S.fin.budget * Number(b.pct) / 100 : Number(b.amount || 0);
 const cbOf = c => (S.cbud || []).find(b => nrm(b.category) === nrm(c));
-function splitPay(list) { const t = todayIso(); let pago = 0, comp = 0; list.forEach(e => { if (e.spent_on <= t) pago += Number(e.amount); else comp += Number(e.amount); }); return { pago, comp }; }
+function splitPay(list) {   // despesa parcelada: pago = parcelas pagas, a pagar = parcelas em aberto; demais: pela data da despesa
+  const t = todayIso(); let pago = 0, comp = 0;
+  list.forEach(e => { const ins = instOf(e.id), tot = ins.reduce((a, i) => a + Number(i.amount), 0), rest = Math.max(0, Number(e.amount) - tot);
+    ins.forEach(i => { if (i.paid_on) pago += Number(i.amount); else comp += Number(i.amount); });
+    if (e.spent_on <= t) pago += rest; else comp += rest; });
+  return { pago, comp };
+}
 const barTone = p => p > 100 ? 'r' : p >= 80 ? 'g' : p >= 40 ? 'o' : 'b';
 const oBar = (p, tone, sub) => `<div class="obar" role="progressbar" aria-valuenow="${Math.min(p, 100)}" aria-valuemin="0" aria-valuemax="100"><i style="width:${Math.min(p, 100)}%;background:${(sub ? OTONE_SUB : OTONE)[tone]}"></i></div>`;
 const encQ = t => encodeURIComponent(t);
@@ -129,9 +144,9 @@ async function seedCats() {   // 1ª vez: as categorias já lançadas viram cate
   S.cbud = data && data.length ? data : rows; try { localStorage.setItem(k, '1'); } catch (_) {}
 }
 async function finLoad() {
-  const rid = S.cur.id, [{ data: rs }, { data: ex }, { data: cb }, { data: cs }, { data: ss }] = await Promise.all([sb.from('residences').select('budget').eq('id', rid).single(), sb.from('expenses').select('*').eq('residence_id', rid).order('spent_on', { ascending: false }).order('created_at', { ascending: false }), sb.from('category_budgets').select('*').eq('residence_id', rid).order('created_at'), sb.from('expense_categories').select('name').order('name'), sb.from('expense_subcategories').select('category,name')]);
+  const rid = S.cur.id; await instLoad(); const [{ data: rs }, { data: ex }, { data: cb }, { data: cs }, { data: ss }] = await Promise.all([sb.from('residences').select('budget').eq('id', rid).single(), sb.from('expenses').select('*').eq('residence_id', rid).order('spent_on', { ascending: false }).order('created_at', { ascending: false }), sb.from('category_budgets').select('*').eq('residence_id', rid).order('created_at'), sb.from('expense_categories').select('name').order('name'), sb.from('expense_subcategories').select('category,name')]);
   S.exp = ex || []; S.xcats = xCats(cs || [], S.exp); S.xsubs = ss || []; S.cbud = cb || [];
-  const sp = splitPay(S.exp); S.fin = { id: rid, budget: Number((rs && rs.budget) || 0), spent: sp.pago, pay: sp.comp, late: 0, all: sp.pago + sp.comp };
+  const sp = splitPay(S.exp); const late = S.inst.filter(i => instSt(i) === 'late').reduce((a, i) => a + Number(i.amount), 0); S.fin = { id: rid, budget: Number((rs && rs.budget) || 0), spent: sp.pago, pay: Math.max(0, sp.comp - late), late, all: sp.pago + sp.comp };
   await seedCats();
 }
 function orcView() {   // categorias orçadas (o orçamento geral fica na tela Financeiro)
@@ -178,6 +193,22 @@ function catView(cat) {
 function subView(cat, sub) {
   const b = cbOf(cat), eff = b ? cbEff(b) : 0, list = S.exp.filter(e => inCat(e, cat) && nrm(subOf(e)) === nrm(sub)), tot = list.reduce((a, e) => a + Number(e.amount), 0);   // S.exp já em ordem: mais recente primeiro
   return `<h2>${esc(sub)}</h2><p class="mute">${esc(cat)} · ${list.length} ${list.length === 1 ? 'lançamento' : 'lançamentos'} · ${brl(tot)}${eff ? ` · ${pctN(tot, eff)}% do orçamento da categoria` : ''}</p>${list.map(e => xCardHtml(e, `<p class="xpct">${eff ? pctN(Number(e.amount), eff) : 0}% do orçamento da categoria</p>`)).join('') || '<p class="empty">Nenhum lançamento nesta subcategoria.</p>'}<a class="btn-cancel" href="#financeiro?cat=${encQ(cat)}">Voltar à categoria</a>`;
+}
+function contasPaint() {   // calendário financeiro (mesmo layout do cronograma) + lista de contas do mês/dia
+  const { y, m } = S.fc, el = $('#fcal'); if (!el) return;
+  const pre = y + '-' + String(m + 1).padStart(2, '0') + '-', first = new Date(y, m, 1).getDay(), nd = new Date(y, m + 1, 0).getDate(), t = new Date(), hoje = t.getFullYear() === y && t.getMonth() === m ? t.getDate() : 0;
+  const mine = S.inst.filter(i => String(i.due_on).startsWith(pre)), by = {}; mine.forEach(i => (by[+i.due_on.slice(8, 10)] = by[+i.due_on.slice(8, 10)] || []).push(i));
+  let cells = ''; for (let i = 0; i < first; i++) cells += '<span class="cd0"></span>';
+  for (let d = 1; d <= nd; d++) cells += by[d] ? `<button type="button" class="cday has${d === hoje ? ' hoje' : ''}${S.fc.sel === d ? ' sel' : ''}" data-fcday="${d}" aria-pressed="${S.fc.sel === d}" aria-label="Dia ${d}: ${by[d].length} conta(s)"><b>${d}</b><i class="dots2">${by[d].map(i => `<u class="${INST_C[instSt(i)]}"></u>`).join('')}</i></button>` : `<span class="cday${d === hoje ? ' hoje' : ''}" data-fcday="0"><b>${d}</b></span>`;
+  if (S.fc.sel && !by[S.fc.sel]) S.fc.sel = null; const sel = S.fc.sel, list = mine.filter(i => !sel || +i.due_on.slice(8, 10) === sel).sort((a, b) => a.due_on.localeCompare(b.due_on));
+  const ex = id => S.exp.find(x => String(x.id) === String(id)) || {}, open = S.inst.filter(i => !i.paid_on), sum = f => open.filter(f).reduce((a, i) => a + Number(i.amount), 0);
+  el.innerHTML = `<div class="fsum"><div><small>A pagar</small><b>${brl(sum(i => instSt(i) !== 'late'))}</b></div><div><small>Vencidas</small><b class="neg">${brl(sum(i => instSt(i) === 'late'))}</b></div></div>
+  <div class="calhead"><button type="button" data-fc="-1" aria-label="Mês anterior">‹</button><b>${MESES[m]} ${y}</b><button type="button" data-fc="1" aria-label="Próximo mês">›</button></div>
+  <div class="calgrid">${['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map(x => `<span class="cwd">${x}</span>`).join('')}${cells}</div>
+  <div class="callegend"><span><u class="cok"></u>Paga</span><span><u class="cg"></u>Vence em até 15 dias</span><span><u class="cx"></u>Vencida</span><span><u class="cf"></u>A vencer</span></div>
+  <h3>${sel ? `Contas do dia ${String(sel).padStart(2, '0')}/${String(m + 1).padStart(2, '0')}` : `Contas de ${MESES[m].toLowerCase()}`}</h3>` +
+  (list.map(i => { const e = ex(i.expense_id), st = instSt(i);
+    return `<div class="card cpay"><div class="xtop"><b>${esc(e.description || 'Despesa')}</b><strong>${brl(i.amount)}</strong></div><p class="mute"><u class="${INST_C[st]}"></u><b class="cst ${st}">${INST_T[st]}</b> · Vence em ${fmt(i.due_on)}${i.paid_on ? ` · paga em ${fmt(i.paid_on)}` : ''}</p><p class="mute">${i.total > 1 ? `Parcela ${i.num} de ${i.total}` : 'Pagamento único'}${e.pay_method ? ' · ' + esc(e.pay_method) : ''}</p><div class="xact"><button type="button" class="link" data-paytgl="${i.id}">${i.paid_on ? 'Desfazer pagamento' : 'Marcar como paga'}</button><button type="button" class="link" data-xview="${esc(i.expense_id)}">Ver despesa</button></div></div>`; }).join('') || '<p class="empty">Nenhuma conta com vencimento neste período.</p>');
 }
 const NAV = [['home', 'Início', 'home', ['home']], ['casa', 'Minha Casa', 'layers', ['casa', 'estrutura', 'sistemas', 'materiais', 'garantias', 'manutencao', 'equipamentos', 'planta', 'midias', 'cronograma', 'detalhe', 'documentos']], ['financeiro', 'Financeiro', 'dollar', ['financeiro', 'custos']], ['assistencia', 'Suporte', 'phones', ['assistencia']]];
 $('#nav').innerHTML = NAV.map(([h, l, i, g]) => `<a href="#${h}" data-g="${g.join(' ')}">${ico(IC[i])}<span>${l}</span></a>`).join('');
@@ -396,9 +427,10 @@ const views = {
     app.innerHTML = `<h2>${esc(r.name)}</h2><div class="card">${rows.map(([a, b]) => `<p><span class="mute">${a}</span><br>${esc(b || '—')}</p>`).join('')}</div><div class="cgrid">${CARDS.map(([h, t, i]) => `<a class="card ccard" href="#${h}">${ico(IC[i])}<b>${t}</b></a>`).join('')}</div>`;
   },
   async financeiro() {
-    const q = S.q, SUB = { contas: ['Contas a pagar', 'Vencimentos e pagamentos.'], relatorios: ['Relatórios', 'Gráficos e indicadores.'] };
+    const q = S.q, SUB = { relatorios: ['Relatórios', 'Gráficos e indicadores.'] };
     if (SUB[q]) { app.innerHTML = `<h2>${SUB[q][0]}</h2><div class="card"><p>${SUB[q][1]}</p><p class="mute">Esta área está em desenvolvimento e ficará disponível em breve.</p></div><a class="btn-cancel" href="#financeiro">Voltar ao Financeiro</a>`; return; }
     await finLoad(); const dq = t => { try { return decodeURIComponent(t); } catch { return t; } };
+    if (q === 'contas') { const n = new Date(); S.fc = { y: n.getFullYear(), m: n.getMonth(), sel: null }; app.innerHTML = '<h2>Contas a pagar</h2><div class="card" id="fcal"></div>'; contasPaint(); return; }
     if (q === 'orcamentos') { app.innerHTML = orcView(); return; }
     if (q === 'orcnova') { app.innerHTML = orcForm(); orcFormInit(); return; }
     let m;
@@ -409,7 +441,7 @@ const views = {
   },
   async custos() {
     const rid = S.cur.id, [{ data: ex }, { data: cs }, { data: ss }] = await Promise.all([sb.from('expenses').select('*').eq('residence_id', rid).order('spent_on', { ascending: false }).order('created_at', { ascending: false }), sb.from('expense_categories').select('name').order('name'), sb.from('expense_subcategories').select('category,name')]);
-    S.exp = ex || []; S.xcats = xCats(cs || [], S.exp); S.xsubs = ss || [];
+    S.exp = ex || []; S.xcats = xCats(cs || [], S.exp); S.xsubs = ss || []; await instLoad();
     if (S.nova) { app.innerHTML = xForm({}, 'new'); return; }
     if (S.xv) { const x = S.exp.find(z => String(z.id) === S.xv.id); if (!x) return app.innerHTML = '<p class="empty">Não foi possível encontrar este lançamento.</p><a class="btn-cancel" href="#custos">Voltar</a>'; app.innerHTML = xForm(x, S.xv.m === 'ver' ? 'view' : 'edit'); return; }
     const now = new Date(); S.xm = { y: now.getFullYear(), m: now.getMonth() };
@@ -522,8 +554,18 @@ app.addEventListener('submit', async e => {
     if (!known) await sb.from('expense_categories').insert({ name: typed });   // nova categoria fica cadastrada para as próximas vezes
     const catF = known || typed, subT = String(o.subcategory || '').trim().replace(/\s+/g, ' ') || 'Outros', subK = subsOf(catF).find(x => nrm(x) === nrm(subT));
     if (!subK && nrm(subT) !== 'outros') await sb.from('expense_subcategories').insert({ category: catF, name: subT });   // nova subcategoria fica cadastrada dentro da categoria
-    const row = { description: String(o.description).trim(), amount: amt, spent_on: o.spent_on, category: catF, subcategory: subK || (nrm(subT) === 'outros' ? 'Outros' : subT), supplier: o.supplier, supplier_phone: o.supplier_phone, notes: o.notes, media, warranty_months: parseInt(o.warranty_months, 10) >= 1 ? parseInt(o.warranty_months, 10) : null };
-    r = eid ? await sb.from('expenses').update({ ...row, media: [...kept, ...media] }).eq('id', eid) : await sb.from('expenses').insert({ residence_id: rid, ...row }); if (btn) btn.disabled = false;
+    const cond = o.pay_cond || null, method = o.pay_method || null, due = o.first_due || null; let plan = [];
+    if (cond === 'parcelado') { const n = parseInt(o.pay_n, 10), pv = parseFloat(String(o.pay_v || '').replace(/[^\d,.-]/g, '').replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.')) || Math.floor(amt / n * 100) / 100;
+      if (!(n >= 2 && n <= 60)) { if (btn) btn.disabled = false; return toast('Informe a quantidade de parcelas (de 2 a 60).', 1); } if (!due) { if (btn) btn.disabled = false; return toast('Informe a data de vencimento da 1ª parcela.', 1); } if (!(pv > 0)) { if (btn) btn.disabled = false; return toast('Informe o valor da parcela.', 1); }
+      const last = Math.round((amt - pv * (n - 1)) * 100) / 100; if (!(last > 0)) { if (btn) btn.disabled = false; return toast('O valor das parcelas ultrapassa o valor da despesa.', 1); }
+      plan = Array.from({ length: n }, (_, i) => ({ num: i + 1, total: n, due_on: addMonIso(due, i), amount: i === n - 1 ? last : pv })); }
+    else if (cond === 'avista' && due) plan = [{ num: 1, total: 1, due_on: due, amount: amt }];
+    const row = { pay_method: method, pay_cond: cond, description: String(o.description).trim(), amount: amt, spent_on: o.spent_on, category: catF, subcategory: subK || (nrm(subT) === 'outros' ? 'Outros' : subT), supplier: o.supplier, supplier_phone: o.supplier_phone, notes: o.notes, media, warranty_months: parseInt(o.warranty_months, 10) >= 1 ? parseInt(o.warranty_months, 10) : null };
+    r = eid ? await sb.from('expenses').update({ ...row, media: [...kept, ...media] }).eq('id', eid) : await sb.from('expenses').insert({ residence_id: rid, ...row }).select('id').single();
+    if (!r.error) { const xid = eid || (r.data && r.data.id), oldI = eid ? instOf(eid) : [], paid = {}; oldI.forEach(i => { if (i.paid_on && i.total === plan.length) paid[i.num] = i.paid_on; });   // parcelas já pagas continuam pagas
+      if (xid && (plan.length || oldI.length)) { if (oldI.length) { const d = await sb.from('expense_installments').delete().eq('expense_id', xid); if (d.error) r = d; }
+        if (!r.error && plan.length) { const ii = await sb.from('expense_installments').insert(plan.map(p => ({ ...p, expense_id: xid, residence_id: rid, paid_on: paid[p.num] || null }))); if (ii.error) r = ii; } } }
+    if (btn) btn.disabled = false;
   }
   else if (id === 'upd') { r = await sb.from('service_requests').update(o).eq('id', f.dataset.id); if (!r.error) await sb.from('history_events').insert({ residence_id: rid, category: 'Assistência', description: 'Solicitação atualizada: ' + o.status }); }
   else if (id === 'bitem') r = await sb.from('building_items').insert({ ...o, residence_id: rid });
@@ -542,6 +584,9 @@ app.addEventListener('click', async e => {
   if (d.cn && S.carGo) { S.carHold = Date.now() + 8000; S.carGo(S.carIdx() + +d.cn); }
   if (d.xm && S.xm) { const x = new Date(S.xm.y, S.xm.m + +d.xm, 1); S.xm = { y: x.getFullYear(), m: x.getMonth() }; xPaint(); }
   { const sx = e.target.closest && e.target.closest('[data-subx]'); if (sx) { const row = sx.closest('.orow'), pn = row && row.nextElementSibling; if (pn && pn.classList.contains('opanel')) { const open = pn.hidden; pn.hidden = !open; sx.setAttribute('aria-expanded', String(open)); row.classList.toggle('open', open); } } }
+  if (S.fc) { const fn = e.target.closest && e.target.closest('[data-fc]'); if (fn) { const x = new Date(S.fc.y, S.fc.m + +fn.dataset.fc, 1); S.fc.y = x.getFullYear(); S.fc.m = x.getMonth(); S.fc.sel = null; contasPaint(); }
+    const fd = e.target.closest && e.target.closest('[data-fcday]'); if (fd) { const n = +fd.dataset.fcday; S.fc.sel = !n || S.fc.sel === n ? null : n; contasPaint(); }
+    const pt = e.target.closest && e.target.closest('[data-paytgl]'); if (pt) { const i = S.inst.find(z => String(z.id) === pt.dataset.paytgl); if (i) { const v = i.paid_on ? null : todayIso(), { error } = await sb.from('expense_installments').update({ paid_on: v }).eq('id', i.id); if (error) return toast('Não foi possível atualizar a conta.', 1); i.paid_on = v; contasPaint(); toast(v ? 'Conta marcada como paga.' : 'Pagamento desfeito.'); } } }
   if (d.xview) location.hash = '#custos?ver=' + encodeURIComponent(d.xview);
   if (d.xedit) location.hash = '#custos?edit=' + encodeURIComponent(d.xedit);
   if (d.xdel && await ask('Excluir este lançamento?')) { const { error } = await sb.from('expenses').delete().eq('id', d.xdel); if (error) return toast('Não foi possível excluir.', 1); S.exp = (S.exp || []).filter(x => x.id !== d.xdel); toast('Lançamento excluído.'); if ($('#xh')) xPaint(); else route(); }
@@ -589,12 +634,16 @@ const xSup = e => `${e.supplier ? `<p class="mute">Fornecedor: ${esc(e.supplier)
 // Formulário do lançamento de despesa: novo, visualizar (somente leitura) ou editar
 function xForm(e, mode) {
   const view = mode === 'view', md = e.media || [], ph = telDigits(e.supplier_phone).length >= 10 ? telMask(e.supplier_phone) : (e.supplier_phone || '');
+  const ins = e.id ? instOf(e.id) : [], pn = ins.length > 1 ? ins.length : '', pf = ins[0] ? ins[0].due_on : '', pv = ins[0] ? Number(ins[0].amount) : 0;
   const title = { new: 'Lançar despesa', view: 'Visualizar despesa', edit: 'Editar despesa' }[mode], vv = (k, d = '') => esc(e[k] ?? d);
   const keep = mode === 'edit' && md.length ? `<div class="field"><span class="lbl">Arquivos já anexados (desmarque para remover)</span>${md.map((m, i) => `<label class="xkeep"><input type="checkbox" data-keep="${i}" checked> ${esc(m.name || (m.type === 'pdf' ? 'comprovante.pdf' : 'imagem'))}</label>`).join('')}</div>` : '';
   const shown = view && md.length ? (md.filter(x => x.type !== 'pdf').length ? grp('xv' + e.id, md.filter(x => x.type !== 'pdf').map(x => x.url)) : '') + (md.some(x => x.type === 'pdf') ? `<div class="xpdf">${md.filter(x => x.type === 'pdf').map(x => `<a href="${esc(x.url)}" target="_blank" rel="noopener">${ico(IC.doc)}<span>${esc(x.name || 'comprovante.pdf')}</span></a>`).join('')}</div>` : '') : '';
   return `<h2>${title}</h2><form class="card" data-form="exp"${e.id ? ` data-id="${esc(e.id)}"` : ''}><fieldset class="xfs"${view ? ' disabled' : ''}><label>O que foi comprado<input name="description" required maxlength="160" value="${vv('description')}"></label><label>Valor (R$)<input name="amount" required inputmode="decimal" placeholder="0,00" autocomplete="off" value="${e.amount != null ? esc(Number(e.amount).toFixed(2).replace('.', ',')) : ''}"></label>${dpField('spent_on', 'Data', e.spent_on || xIso(new Date()), true)}
       <label>Categoria<div class="comboin" data-combo="cat"><input class="comboq" type="search" name="category" required maxlength="60" autocomplete="off" role="combobox" aria-expanded="false" aria-label="Pesquisar categoria" placeholder="Pesquise ou digite uma nova categoria…" value="${vv('category')}"><ul class="combolist" role="listbox" hidden></ul></div></label>${view ? '' : '<p class="mute combohint">Digite parte do nome e escolha na lista. Se a categoria não existir, ela será criada ao salvar e ficará disponível nas próximas pesquisas.</p>'}
       <label>Subcategoria — opcional<div class="comboin" data-combo="sub"><input class="comboq" type="search" name="subcategory" maxlength="60" autocomplete="off" role="combobox" aria-expanded="false" aria-label="Pesquisar subcategoria" placeholder="Pesquise ou digite uma subcategoria…" value="${esc(e.subcategory && e.subcategory !== 'Outros' ? e.subcategory : '')}"><ul class="combolist" role="listbox" hidden></ul></div></label>${view ? '' : '<p class="mute combohint">As subcategorias ficam dentro da categoria escolhida. Se deixar em branco, o gasto entra em “Outros”.</p>'}
+      <label>Forma de pagamento — opcional<select name="pay_method"><option value="">Não informar</option>${PAYM.map(m => `<option value="${m}"${e.pay_method === m ? ' selected' : ''}>${m}</option>`).join('')}</select></label>
+      <label>Condição de pagamento — opcional<select name="pay_cond"><option value="">Não informar</option><option value="avista"${e.pay_cond === 'avista' ? ' selected' : ''}>À vista</option><option value="parcelado"${e.pay_cond === 'parcelado' ? ' selected' : ''}>Parcelado</option></select></label>
+      <div class="payopt" data-payopt${e.pay_cond ? '' : ' hidden'}><label data-par${e.pay_cond === 'parcelado' ? '' : ' hidden'}>Quantidade de parcelas<input name="pay_n" type="number" min="2" max="60" step="1" inputmode="numeric" data-nonneg placeholder="Ex.: 5" value="${pn || ''}"></label>${dpField('first_due', e.pay_cond === 'parcelado' ? 'Vencimento da 1ª parcela' : 'Data de vencimento', pf)}<label data-par${e.pay_cond === 'parcelado' ? '' : ' hidden'}>Valor de cada parcela (R$)<input name="pay_v" inputmode="decimal" autocomplete="off" placeholder="0,00" value="${pv ? esc(pv.toFixed(2).replace('.', ',')) : ''}"></label><p class="mute combohint">As datas de vencimento alimentam o calendário de Contas a pagar. As parcelas seguintes vencem a cada mês.</p></div>
       <label>Garantia do item (meses) — opcional<input name="warranty_months" type="number" min="1" step="1" inputmode="numeric" data-nonneg placeholder="Sem garantia" value="${vv('warranty_months')}"></label><label>Fornecedor<input name="supplier" maxlength="120" value="${vv('supplier')}"></label><label>Telefone do fornecedor<input name="supplier_phone" class="tel" type="tel" inputmode="numeric" maxlength="15" placeholder="(00) 00000-0000" autocomplete="off" value="${esc(ph)}"></label><label>Descrição adicional<textarea name="notes" rows="3">${vv('notes')}</textarea></label>
       ${view ? '' : keep + (CLOUD_OK ? '<label>Comprovantes e notas (imagens ou PDF)<input name="files" type="file" accept="image/*,application/pdf" multiple></label><p class="mute">Até 6 arquivos de até 10 MB cada.</p>' : '')}</fieldset>${shown}${view ? `<button type="button" data-xedit="${esc(e.id)}">Editar</button><a class="btn-cancel" href="#custos">Voltar</a>` : `<button>${mode === 'edit' ? 'Salvar alterações' : 'Salvar despesa'}</button><a class="btn-cancel" href="#custos">Cancelar</a>`}</form>`;
 }
@@ -610,7 +659,7 @@ function subsOf(cat) {   // subcategorias de uma categoria (criadas + usadas nas
 const xColor = c => XCOL[Math.max(0, (S.xcats || []).findIndex(x => x.toLowerCase() === String(c).toLowerCase())) % XCOL.length];
 function xCardHtml(e, extra = '') {
   const md = e.media || [], im = md.filter(x => x.type !== 'pdf').map(x => x.url), pd = md.filter(x => x.type === 'pdf');
-      return `<div class="card xcard"><div class="xtop"><b>${esc(e.description)}</b><strong>${brl(e.amount)}</strong></div><p class="mute"><span class="xcat" style="--c:${xColor(e.category)}">${esc(e.category)}</span>${e.subcategory ? `<span class="xcat xsubt" style="--c:${xColor(e.category)}">${esc(e.subcategory)}</span>` : ''} ${fmt(e.spent_on)}</p>${extra}${xSup(e)}${e.warranty_months ? `<p class="mute xwar">Garantia: ${e.warranty_months} ${e.warranty_months === 1 ? 'mês' : 'meses'} (até ${addMonths(e.spent_on, e.warranty_months).toLocaleDateString('pt-BR')})</p>` : ''}${e.notes ? `<p>${esc(e.notes)}</p>` : ''}${im.length ? grp('x' + e.id, im) : ''}${pd.length ? `<div class="xpdf">${pd.map(x => `<a href="${esc(x.url)}" target="_blank" rel="noopener">${ico(IC.doc)}<span>${esc(x.name || 'comprovante.pdf')}</span></a>`).join('')}</div>` : ''}<div class="xact"><button type="button" class="link" data-xview="${e.id}">Visualizar</button><button type="button" class="link" data-xedit="${e.id}">Editar</button><button type="button" class="link" data-xdel="${e.id}">Excluir</button></div></div>`;
+      return `<div class="card xcard"><div class="xtop"><b>${esc(e.description)}</b><strong>${brl(e.amount)}</strong></div><p class="mute"><span class="xcat" style="--c:${xColor(e.category)}">${esc(e.category)}</span>${e.subcategory ? `<span class="xcat xsubt" style="--c:${xColor(e.category)}">${esc(e.subcategory)}</span>` : ''} ${fmt(e.spent_on)}</p>${extra}${payLine(e) ? `<p class="mute">Pagamento: ${esc(payLine(e))}</p>` : ''}${xSup(e)}${e.warranty_months ? `<p class="mute xwar">Garantia: ${e.warranty_months} ${e.warranty_months === 1 ? 'mês' : 'meses'} (até ${addMonths(e.spent_on, e.warranty_months).toLocaleDateString('pt-BR')})</p>` : ''}${e.notes ? `<p>${esc(e.notes)}</p>` : ''}${im.length ? grp('x' + e.id, im) : ''}${pd.length ? `<div class="xpdf">${pd.map(x => `<a href="${esc(x.url)}" target="_blank" rel="noopener">${ico(IC.doc)}<span>${esc(x.name || 'comprovante.pdf')}</span></a>`).join('')}</div>` : ''}<div class="xact"><button type="button" class="link" data-xview="${e.id}">Visualizar</button><button type="button" class="link" data-xedit="${e.id}">Editar</button><button type="button" class="link" data-xdel="${e.id}">Excluir</button></div></div>`;
 }
 function xPaint() {
   const ex = S.exp || [], tot = ex.reduce((a, e) => a + Number(e.amount), 0), by = {};
@@ -740,6 +789,11 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Enter') { if (!ul.hidden && i >= 0) { e.preventDefault(); catPick(box, lis[i].dataset.opt); } return; }
   if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); if (ul.hidden) return catList(box); if (!lis.length) return; if (i >= 0) lis[i].classList.remove('on'); i = (i + (e.key === 'ArrowDown' ? 1 : -1) + lis.length) % lis.length; lis[i].classList.add('on'); lis[i].scrollIntoView({ block: 'nearest' }); }
 });
+document.addEventListener('change', e => { const sel = e.target.closest && e.target.closest('select[name=pay_cond]'); if (!sel) return; const f = sel.closest('form'), box = f.querySelector('[data-payopt]'), par = sel.value === 'parcelado'; box.hidden = !sel.value; box.querySelectorAll('[data-par]').forEach(x => x.hidden = !par); const lb = box.querySelector('.dpbox').previousElementSibling; if (lb) lb.textContent = par ? 'Vencimento da 1ª parcela' : 'Data de vencimento'; payAuto(f); });
+function payAuto(f) {   // valor da parcela sugerido = valor da despesa ÷ quantidade (enquanto não for digitado à mão)
+  const n = parseInt(f.pay_n && f.pay_n.value, 10), a = parseFloat(String(f.amount.value || '').replace(/[^\d,.-]/g, '').replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.')), pv = f.pay_v; if (!pv || pv.dataset.man === '1' || !(n >= 2) || !(a > 0)) return; pv.value = (Math.floor(a / n * 100) / 100).toFixed(2).replace('.', ',');
+}
+document.addEventListener('input', e => { const f = e.target.closest && e.target.closest('form[data-form=exp]'); if (!f) return; if (e.target.name === 'pay_v') e.target.dataset.man = e.target.value ? '1' : ''; if (e.target.name === 'pay_n' || e.target.name === 'amount') payAuto(f); });
 const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 async function calEvents(rid) {   // tudo que tem data no cronograma da residência
   const [{ data: mt }, { data: sr }, { data: wr }, { data: xr }] = await Promise.all([
@@ -777,7 +831,7 @@ const CR = { financeiro: [['', 'Financeiro']], custos: [['financeiro', 'Financei
 const PFT = { dados: 'Dados pessoais', notificacoes: 'Notificações', seguranca: 'Segurança', personalizacao: 'Personalização', atendimento: 'Atendimento', sobre: 'Sobre' };
 function crumbs(h) {
   const fq = h === 'financeiro' && S.q ? (() => { const dq = t => { try { return decodeURIComponent(t); } catch { return t; } }, F = ['financeiro', 'Financeiro'], O = ['financeiro?orcamentos', 'Orçamentos'], m1 = /^(cat|orcedit)=(.+)$/.exec(S.q), m2 = /^sub=([^&]+)&(.+)$/.exec(S.q);
-    return S.q === 'orcamentos' ? [F, ['', 'Orçamentos']] : S.q === 'orcnova' ? [F, O, ['', 'Lançar orçamento']] : m1 ? (m1[1] === 'cat' ? [F, O, ['', esc(dq(m1[2]))]] : [F, O, ['financeiro?cat=' + m1[2], esc(dq(m1[2]))], ['', 'Editar orçamento']]) : m2 ? [F, O, ['financeiro?cat=' + m2[1], esc(dq(m2[1]))], ['', esc(dq(m2[2]))]] : null; })() : null;
+    return S.q === 'contas' ? [F, ['', 'Contas a pagar']] : S.q === 'orcamentos' ? [F, ['', 'Orçamentos']] : S.q === 'orcnova' ? [F, O, ['', 'Lançar orçamento']] : m1 ? (m1[1] === 'cat' ? [F, O, ['', esc(dq(m1[2]))]] : [F, O, ['financeiro?cat=' + m1[2], esc(dq(m1[2]))], ['', 'Editar orçamento']]) : m2 ? [F, O, ['financeiro?cat=' + m2[1], esc(dq(m2[1]))], ['', esc(dq(m2[2]))]] : null; })() : null;
   const c = fq ? fq : h === 'custos' && (S.nova || S.xv) ? [['financeiro', 'Financeiro'], ['custos', 'Despesas'], ['', S.xv ? (S.xv.m === 'ver' ? 'Visualizar despesa' : 'Editar despesa') : 'Lançar despesa']] : h === 'mais' && S.q && PFT[S.q] ? [['mais', 'Perfil'], ['', PFT[S.q]]] : h === 'detalhe' ? [['casa', 'Minha Casa'], ['cronograma', 'Cronograma'], ['', 'Detalhe']] : h === 'assistencia' && S.nova ? [['assistencia', 'Suporte'], ['', 'Nova solicitação']] : CR[h]; if (!c || !app.firstElementChild || app.querySelector('.crumbs')) return;
   const last = c.length - 1, items = [['home', 'Início'], ...c].map(([href, t], i, a) => i === a.length - 1 ? `<li aria-current="page">${t}</li>` : `<li><a href="#${href}">${t}</a></li>`);
   app.insertAdjacentHTML('afterbegin', `<ol class="crumbs" aria-label="Você está em">${items.join('<li class="sep" aria-hidden="true">›</li>')}</ol>`);
