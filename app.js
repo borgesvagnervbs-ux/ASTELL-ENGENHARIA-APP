@@ -30,7 +30,7 @@ function ask(msg, ok = 'Excluir') {
   });
 }
 
-const APP_VERSION = '2026.10.21-60'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-61'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 // Dentro do aplicativo (Median/WebView) o Google bloqueia o login por OAuth; lá o acesso é por e-mail e senha.
 let REC_FLOW = /[#&]type=recovery/.test(location.hash);   // aberto pelo link de recuperação de senha
 const IN_APP = /median|gonative/i.test(navigator.userAgent);
@@ -224,8 +224,8 @@ $('#nav').innerHTML = NAV.map(([h, l, i, g]) => `<a href="#${h}" data-g="${g.joi
 $('#top .bico').innerHTML = ico(IC.casa, 'brandico'); $('#bell').innerHTML = ico(IC.bell); $('#avatar').innerHTML = ico(IC.usr);
 function paintAvatar() { const el = $('#avatar'), v = S.profile && S.profile.avatar; if (el) { el.innerHTML = v ? `<img class="avimg" src="${v}" alt="Perfil">` : ico(IC.usr); el.classList.toggle('hasimg', !!v); } }
 // Avisos: cadastros novos feitos pelo admin na residência (gerados por gatilhos no banco; o texto é montado aqui)
-const AV = { img: ['imagem', 'imagens', 'f', '#midias'], vid: ['vídeo', 'vídeos', 'm', '#midias'], doc: ['documento', 'documentos', 'm', '#documentos'], gar: ['garantia', 'garantias', 'f', '#garantias'], man: ['manutenção', 'manutenções', 'f', '#manutencao'], equip: ['equipamento', 'equipamentos', 'm', '#equipamentos'], plan: ['planta técnica', 'plantas técnicas', 'f', '#planta'], estr: ['item de Estrutura', 'itens de Estrutura', 'm', '#estrutura'], sist: ['item de Instalações', 'itens de Instalações', 'm', '#sistemas'], mat: ['material', 'materiais', 'm', '#materiais'] };
-function avMsg(n) { const [s, p, g] = AV[n.kind] || ['item', 'itens', 'm']; return n.cnt > 1 ? `${n.cnt} ${g === 'f' ? 'novas' : 'novos'} ${p} ${g === 'f' ? 'foram cadastradas' : 'foram cadastrados'} para a sua residência` : `${g === 'f' ? 'Uma nova' : 'Um novo'} ${s} ${g === 'f' ? 'foi cadastrada' : 'foi cadastrado'} para a sua residência`; }
+const AV = { ast: ['atualização', 'atualizações', 'f', '#assistencia'], img: ['imagem', 'imagens', 'f', '#midias'], vid: ['vídeo', 'vídeos', 'm', '#midias'], doc: ['documento', 'documentos', 'm', '#documentos'], gar: ['garantia', 'garantias', 'f', '#garantias'], man: ['manutenção', 'manutenções', 'f', '#manutencao'], equip: ['equipamento', 'equipamentos', 'm', '#equipamentos'], plan: ['planta técnica', 'plantas técnicas', 'f', '#planta'], estr: ['item de Estrutura', 'itens de Estrutura', 'm', '#estrutura'], sist: ['item de Instalações', 'itens de Instalações', 'm', '#sistemas'], mat: ['material', 'materiais', 'm', '#materiais'] };
+function avMsg(n) { if (n.kind === 'ast' && n.info) return n.info; const [s, p, g] = AV[n.kind] || ['item', 'itens', 'm']; return n.cnt > 1 ? `${n.cnt} ${g === 'f' ? 'novas' : 'novos'} ${p} ${g === 'f' ? 'foram cadastradas' : 'foram cadastrados'} para a sua residência` : `${g === 'f' ? 'Uma nova' : 'Um novo'} ${s} ${g === 'f' ? 'foi cadastrada' : 'foi cadastrado'} para a sua residência`; }
 function fotoParaJpeg(file) {   // recorta no centro, reduz para 256x256 e converte em JPEG leve (~20 KB)
   return new Promise((ok, fail) => { const u = URL.createObjectURL(file), im = new Image(); im.onerror = () => { URL.revokeObjectURL(u); fail(new Error('img')); };
     im.onload = () => { const s = Math.min(im.width, im.height), c = document.createElement('canvas'); c.width = c.height = 256; c.getContext('2d').drawImage(im, (im.width - s) / 2, (im.height - s) / 2, s, s, 0, 0, 256, 256); URL.revokeObjectURL(u); ok(c.toDataURL('image/jpeg', 0.82)); }; im.src = u; });
@@ -233,7 +233,7 @@ function fotoParaJpeg(file) {   // recorta no centro, reduz para 256x256 e conve
 async function avLoad() {
   if (!S.cur || !S.profile) return [];
   const since = new Date(Date.now() - 60 * 864e5).toISOString();
-  const [{ data: ns }, { data: rd }] = await Promise.all([sb.from('notifications').select('id,kind,cnt,updated_at').eq('residence_id', S.cur.id).gte('updated_at', since).order('updated_at', { ascending: false }).limit(50), sb.from('notification_reads').select('notification_id,read_at')]);
+  const [{ data: ns }, { data: rd }] = await Promise.all([sb.from('notifications').select('id,kind,cnt,info,updated_at').eq('residence_id', S.cur.id).gte('updated_at', since).order('updated_at', { ascending: false }).limit(50), sb.from('notification_reads').select('notification_id,read_at')]);
   const rm = {}; (rd || []).forEach(r => rm[r.notification_id] = r.read_at);
   return (ns || []).filter(n => AV[n.kind]).map(n => ({ ...n, unread: !rm[n.id] || new Date(rm[n.id]) < new Date(n.updated_at) }));
 }
@@ -403,7 +403,7 @@ async function listView(k) {
 const views = {
   async avisos() {
     const l = await avLoad(), fd = s => { const d = new Date(s); return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); };
-    app.innerHTML = `<h2>Avisos</h2>${l.some(x => x.unread) ? '<button type="button" class="avall" data-avall>Marcar todos como lidos</button>' : ''}${l.length ? l.map(n => `<a class="card calnote avn${n.unread ? ' unread' : ''}" href="${AV[n.kind][3]}" data-avread="${n.id}"><u class="cm"></u><p>${esc(avMsg(n))}.<small>${fd(n.updated_at)}</small></p>${ico(IC.chev)}</a>`).join('') : '<p class="empty">Nenhum aviso por enquanto. Quando a Astell cadastrar algo novo para a sua residência, ele aparece aqui.</p>'}`; S.avl = l;
+    app.innerHTML = `<h2>Avisos</h2>${l.some(x => x.unread) ? '<button type="button" class="avall" data-avall>Marcar todos como lidos</button>' : ''}${l.length ? l.map(n => `<a class="card calnote avn${n.unread ? ' unread' : ''}" href="${AV[n.kind][3]}" data-avread="${n.id}"><u class="cm"></u><p>${esc(avMsg(n))}.<small>${fd(n.updated_at)}</small></p>${ico(IC.chev)}</a>`).join('') : '<p class="empty">Nenhum aviso por enquanto. Quando a Astell cadastrar algo novo ou responder às suas assistências, o aviso aparece aqui.</p>'}`; S.avl = l;
   },
   async home() {
     const r = S.cur;
