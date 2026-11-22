@@ -377,3 +377,7 @@ body.app .avatar.hasimg{padding:0;overflow:hidden}body.app .avatar .avimg{width:
 .cpay u{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}.cpay p{margin:6px 0}.cst{display:inline;margin:0;font-size:.78rem;letter-spacing:.02em}.cst.paid{color:#4fd68a}.cst.soon{color:#f0a65a}.cst.late{color:#f08a8a}.cst.ok{color:var(--mute)}
 #fcal h3{margin:16px 0 8px}
 .cpay .cst{display:inline!important}
+/* Documentos por pasta */
+.dcard .meta{display:block;margin-top:2px}.dfiles{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.dfile{display:flex;align-items:center;gap:10px;width:100%;margin:0;min-height:44px;padding:8px 12px;text-align:left;background:#0b1623;color:var(--ink);border:1px solid var(--line);border-radius:12px;font-weight:500}
+.dfile span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dfile .ico{width:20px;height:20px;color:var(--gold);flex:none}
