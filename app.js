@@ -30,7 +30,7 @@ function ask(msg, ok = 'Excluir') {
   });
 }
 
-const APP_VERSION = '2026.10.21-61'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-63'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 // Dentro do aplicativo (Median/WebView) o Google bloqueia o login por OAuth; lá o acesso é por e-mail e senha.
 let REC_FLOW = /[#&]type=recovery/.test(location.hash);   // aberto pelo link de recuperação de senha
 const IN_APP = /median|gonative/i.test(navigator.userAgent);
@@ -275,7 +275,7 @@ function initCarousel() {
 const CLD_NAME = typeof CLOUDINARY_CLOUD_NAME !== 'undefined' ? String(CLOUDINARY_CLOUD_NAME).trim() : '';
 const CLD_PRESET = typeof CLOUDINARY_UPLOAD_PRESET !== 'undefined' ? String(CLOUDINARY_UPLOAD_PRESET).trim() : (typeof CLOUDINARY_PRESET !== 'undefined' ? String(CLOUDINARY_PRESET).trim() : '');
 const CLOUD_OK = !!(CLD_NAME && CLD_PRESET) && !/COLE_AQUI/.test(CLD_NAME + CLD_PRESET);
-const REQ_ST = { 'Recebida': 's-pend', 'Em análise': 's-ana', 'Agendada': 's-agd', 'Em atendimento': 's-and', 'Atrasada': 's-late', 'Concluída': 's-conc' }, REQ_UR = { 'Crítica': 'u-crit', 'Alta': 'u-alta', 'Média': 'u-med', 'Baixa': 'u-baixa' };
+const REQ_ST = { 'Recebida': 's-pend', 'Aguardando informações': 's-ana', 'Encerrada': 's-conc', 'Em análise': 's-ana', 'Agendada': 's-agd', 'Em atendimento': 's-and', 'Atrasada': 's-late', 'Concluída': 's-conc' }, REQ_UR = { 'Crítica': 'u-crit', 'Alta': 'u-alta', 'Média': 'u-med', 'Baixa': 'u-baixa' };
 async function cldPost(file, folder) {
   const fd = new FormData(); fd.append('file', file); fd.append('upload_preset', CLD_PRESET); fd.append('folder', folder);
   const resp = await fetch(`https://api.cloudinary.com/v1_1/${CLD_NAME}/auto/upload`, { method: 'POST', body: fd });
@@ -346,9 +346,19 @@ async function itemsView(k) {
         `${staff() ? `<button class="link" data-del="building_items:${r.id}">Excluir</button>` : ''}</section>`;
     }).join('') || '<p class="empty">A Astell ainda não publicou as informações desta seção.</p>');
 }
+const rmFmt = d => { const x = new Date(d); return x.toLocaleDateString('pt-BR') + ' ' + x.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); };
+const rmBubbles = id => ((S.rmsgs && S.rmsgs[id]) || []).map(m => `<div class="rm ${m.author_role === 'staff' ? 'st' : 'me'}"><span class="rmw">${m.author_role === 'staff' ? 'Astell' : 'Você'} · ${rmFmt(m.created_at)}</span><p>${esc(m.body)}</p></div>`).join('');
+const reqChat = r => {   // conversa entre o cliente e a equipe dentro do card da solicitação
+  const L = (S.rmsgs && S.rmsgs[r.id]) || [], waiting = L.length && L[L.length - 1].author_role === 'staff';
+  return `<div class="reqchat" id="rc-${r.id}"><span class="lbl">Conversa com a Astell${L.length ? ' (' + L.length + ')' : ''}</span>${L.length ? `<div class="rml">${rmBubbles(r.id)}</div>` : ''}${waiting ? '<p class="rmwait">A Astell aguarda a sua resposta.</p>' : ''}<form data-form="rmsg" data-id="${r.id}" class="rmf"><textarea name="body" rows="2" maxlength="2000" required placeholder="${L.length ? 'Escreva sua resposta…' : 'Quer acrescentar alguma informação? Escreva aqui.'}" aria-label="Mensagem para a Astell"></textarea><button>Enviar</button></form></div>`;
+};
+async function rmReload(id) {
+  const { data } = await sb.from('service_messages').select('*').eq('request_id', id).order('created_at'); S.rmsgs = S.rmsgs || {}; S.rmsgs[id] = data || [];
+  const el = document.getElementById('rc-' + id), r = (S.reqs || []).find(x => x.id === id); if (el && r) { el.outerHTML = reqChat(r); const l = document.querySelector('#rc-' + id + ' .rml'); if (l) l.scrollTop = l.scrollHeight; }
+}
 const reqCard = r => { const fotos = (r.media || []).filter(x => x.url).map(x => x.url), hj = new Date(), hjI = hj.getFullYear() + '-' + String(hj.getMonth() + 1).padStart(2, '0') + '-' + String(hj.getDate()).padStart(2, '0'),
     late = r.status === 'Atrasada' || (r.scheduled_for && String(r.scheduled_for) < hjI && !['Concluída', 'Encerrada'].includes(r.status)), base = r.status === 'Atrasada' ? (r.status_before || 'Agendada') : r.status;   // atrasada: mantém a situação de antes e acrescenta a etiqueta vermelha
-  return `<div class="card"><b>${esc(r.protocol)}</b> <span class="badge ${REQ_ST[base] || ''}">${esc(base)}</span> <span class="badge ${REQ_UR[r.urgency] || 'u-med'}">${esc(r.urgency || 'Média')}</span>${late ? ' <span class="badge s-late">Atrasada</span>' : ''}<p>${esc(r.category)} · ${esc(r.place)}</p><p>${esc(r.description)}</p>${r.preferred_date || r.contact_time ? `<p class="mute">Sua sugestão: ${r.preferred_date ? 'dia ' + fmt(r.preferred_date) : ''}${r.preferred_date && r.contact_time ? ' · ' : ''}${r.contact_time ? 'horário ' + esc(r.contact_time) : ''}</p>` : ''}${r.scheduled_for ? `<p class="sched">${ico(IC.calendar)}<span>Data prevista de atendimento: <b>${fmt(r.scheduled_for)}</b></span></p>` : ''}${fotos.length ? grp('req' + r.id, fotos) : ''}${r.staff_note ? `<div class="astnote"><span class="lbl">Assistência que será feita</span><p>${esc(r.staff_note)}</p></div>` : ''}
+  return `<div class="card"><b>${esc(r.protocol)}</b> <span class="badge ${REQ_ST[base] || ''}">${esc(base)}</span> <span class="badge ${REQ_UR[r.urgency] || 'u-med'}">${esc(r.urgency || 'Média')}</span>${late ? ' <span class="badge s-late">Atrasada</span>' : ''}<p>${esc(r.category)} · ${esc(r.place)}</p><p>${esc(r.description)}</p>${r.preferred_date || r.contact_time ? `<p class="mute">Sua sugestão: ${r.preferred_date ? 'dia ' + fmt(r.preferred_date) : ''}${r.preferred_date && r.contact_time ? ' · ' : ''}${r.contact_time ? 'horário ' + esc(r.contact_time) : ''}</p>` : ''}${r.scheduled_for ? `<p class="sched">${ico(IC.calendar)}<span>Data prevista de atendimento: <b>${fmt(r.scheduled_for)}</b></span></p>` : ''}${fotos.length ? grp('req' + r.id, fotos) : ''}${r.staff_note ? `<div class="astnote"><span class="lbl">Assistência que será feita</span><p>${esc(r.staff_note)}</p></div>` : ''}${reqChat(r)}
       ${staff() ? `<form data-form="upd" data-id="${r.id}">${sel('status', 'Situação', STATUS).replace(`<option>${base}`, `<option selected>${base}`)}<label>Comentário<input name="staff_note" value="${esc(r.staff_note || '')}"></label><button>Atualizar</button></form>` : ''}</div>`; };
 const warCard = r => { const w = wInfo(r); return `<div class="card"><b>${esc(r.system)}</b><div class="wbox w-${w.kind}">${w.kind === 'warn' ? `<p class="wwarn">Garantia próxima do vencimento - faltam ${w.txt}</p>` : w.kind === 'bad' ? `<p class="wexp">Garantia expirada em ${w.end.toLocaleDateString('pt-BR')}</p>` : ''}<div class="wfig"><div><span class="wnum wtot">${w.total}</span><span class="wlbl">Prazo total</span></div><div><span class="wnum wrem">${w.kind === 'bad' ? 'Expirada' : w.big}</span><span class="wlbl">${w.kind === 'bad' ? 'Vencida' : 'Restantes'}</span></div></div><div class="wbar" role="img" aria-label="Tempo restante da garantia"><i style="width:${w.pct.toFixed(1)}%"></i></div><span class="wpill">${w.s}</span></div>${r.coverage ? `<p>${esc(r.coverage)}</p>` : ''}${r.fromExp ? xSup(r) : `<p><a class="xcontact" href="https://wa.me/5554996528034" target="_blank" rel="noopener">Contate a ASTELL</a></p>`}<span class="mute">${fmt(r.start_date)} até ${w.end.toLocaleDateString('pt-BR')}</span>${r.notes ? `<p class="mute">${esc(r.notes)}</p>` : ''}${staff() && !r.fromExp ? `<button class="link" data-del="warranties:${r.id}">Excluir</button>` : ''}</div>`; };
 const expWar = e => ({ id: e.id, system: e.description, coverage: 'Item de Despesas', supplier: e.supplier, supplier_phone: e.supplier_phone, start_date: e.spent_on, months: e.warranty_months, notes: e.notes, fromExp: true });   // garantia cadastrada junto da despesa (só aparece no app do cliente)
@@ -495,6 +505,7 @@ const views = {
     if (S.nova) { app.innerHTML = `<h2>Nova solicitação de assistência</h2><p class="notice">Esta é uma solicitação formal. Em risco imediato (gás, fogo, choque), afaste-se e ligue 193 ou 192.</p><form class="card" data-form="req">${fields}<button>Enviar solicitação</button><a class="btn-cancel" href="#assistencia">Cancelar</a></form>`; return; }
     await sb.rpc('mark_late_requests');
     const { data } = await sb.from('service_requests').select('*').eq('residence_id', S.cur.id).order('created_at', { ascending: false });
+    S.reqs = data || []; S.rmsgs = {}; if (S.reqs.length) { const { data: ms } = await sb.from('service_messages').select('*').in('request_id', S.reqs.map(r => r.id)).order('created_at'); (ms || []).forEach(m => (S.rmsgs[m.request_id] = S.rmsgs[m.request_id] || []).push(m)); }
     app.innerHTML = `<h2>Assistência técnica</h2><p class="notice">Esta é uma solicitação formal. Em risco imediato (gás, fogo, choque), afaste-se e ligue 193 ou 192.</p><a class="newreq" href="#assistencia?nova">+ Nova solicitação</a>` +
       ((data || []).map(reqCard).join('') || '<p class="empty">Você ainda não abriu solicitações.</p>');
   },
@@ -548,6 +559,7 @@ const views = {
 // Eventos
 app.addEventListener('submit', async e => {
   e.preventDefault(); if (!e.target.dataset.form) return; const f = e.target, id = f.dataset.form, o = clean(Object.fromEntries(new FormData(f))), rid = S.cur?.id; let r;
+  if (id === 'rmsg') { const body = String(o.body || '').trim(); if (!body) return; const bt = f.querySelector('button'); bt.disabled = true; const w = await sb.from('service_messages').insert({ request_id: f.dataset.id, body }); bt.disabled = false; if (w.error) return toast('Não foi possível enviar a mensagem.', 1); await rmReload(f.dataset.id); return toast('Mensagem enviada à Astell.'); }
   if (id.startsWith('edit:')) { r = await sb.from(id.slice(5)).update(o).eq('id', f.dataset.id); S.edit = null; }
   else if (id === 'editres') { r = await sb.from('residences').update(o).eq('id', rid); if (!r.error) { await loadRes(rid); return toast('Dados da residência salvos.'); } }
   else if (T[id]) r = await sb.from(id).insert({ ...o, residence_id: rid });
@@ -1253,13 +1265,13 @@ async function qWarr(sl) {
   if (warn.length) t += '\n\nPróximas do vencimento:\n' + warn.map(x => `• ${x.w.system} — vence em ${x.i.end.toLocaleDateString('pt-BR')} (faltam ${x.i.txt})`).join('\n');
   else if (only) t += '\n\nNenhuma garantia está próxima do vencimento no momento.';
   if (!only && bad.length) t += '\n\nExpiradas:\n' + bad.slice(0, 4).map(x => `• ${x.w.system} — expirou em ${x.i.end.toLocaleDateString('pt-BR')}`).join('\n');
-  return rp(t, { ctx: { k: 'warr', res: R }, offer: warn.length ? { t: 'abrir assistência técnica', l: 'Abrir assistência técnica' } : null, ask: warn.length ? 'Se precisar acionar alguma garantia, posso abrir uma solicitação de assistência. Quer?' : 'Quer saber das manutenções preventivas agendadas?', chips: [{ l: 'Abrir garantias', go: '#garantias' }] });
+  return rp(t, { ctx: { k: 'warr', res: R }, offer: warn.length ? { t: 'abrir uma nova solicitação de assistência', l: 'Abrir assistência técnica' } : null, ask: warn.length ? 'Se precisar acionar alguma garantia, posso abrir uma solicitação de assistência. Quer?' : 'Quer saber das manutenções preventivas agendadas?', chips: [{ l: 'Abrir garantias', go: '#garantias' }] });
 }
 async function qServ(sl) {
   const R = sl.res, D = await asData(R.list.map(r => r.id)), L = D.sr.slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
-  if (!L.length) return rp('Você ainda não tem solicitações de assistência técnica.', { ask: 'Quer abrir uma agora?', offer: { t: 'abrir assistência técnica', l: 'Abrir assistência' } });
+  if (!L.length) return rp('Você ainda não tem solicitações de assistência técnica.', { ask: 'Quer abrir uma agora?', offer: { t: 'abrir uma nova solicitação de assistência', l: 'Abrir assistência' } });
   const open = L.filter(r => !/conclu|cancel/i.test(r.status || 'Recebida')); let t = `Você tem ${asPlural(L.length, 'solicitação', 'solicitações')} de assistência, ${open.length} em andamento.\n` + L.slice(0, 5).map(r => `• ${r.protocol} — ${r.category || 'Assistência'}${r.place ? ' (' + r.place + ')' : ''} — **${r.status || 'Recebida'}**${r.scheduled_for ? ` · atendimento previsto para ${fmt(r.scheduled_for)}` : ''}`).join('\n');
-  return rp(t, { ctx: { k: 'serv', res: R }, offer: { t: 'abrir assistência técnica', l: 'Abrir nova assistência' }, ask: 'Precisa abrir uma nova solicitação?', chips: [{ l: 'Abrir Suporte', go: '#assistencia' }] });
+  return rp(t, { ctx: { k: 'serv', res: R }, offer: { t: 'abrir uma nova solicitação de assistência', l: 'Abrir nova assistência' }, ask: 'Precisa abrir uma nova solicitação?', chips: [{ l: 'Abrir Suporte', go: '#assistencia' }] });
 }
 async function qMaint(sl) {
   const R = sl.res, D = await asData(R.list.map(r => r.id)), L = D.mt.filter(m => m.next_due && !/cancel/i.test(m.status || '')).sort((a, b) => a.next_due.localeCompare(b.next_due));
@@ -1298,11 +1310,31 @@ async function qSummary(sl) {
   const t = `Resumo de **${R.list[0].name || R.list[0].code}**:\n• Gastos lançados: ${brl(tot)}${gen > 0 ? ` (${pctN(tot, gen)}% do orçamento de ${brl(gen)})` : ''}\n• Contas vencidas: ${late.length}${late.length ? ' (' + brl(asSum(late, i => i.amount)) + ')' : ''}\n• Contas vencendo em até 15 dias: ${soon.length}\n• Garantias próximas do vencimento: ${war.length}\n• Assistências em andamento: ${op.length}`;
   return rp(t, { ctx: { k: 'summary', res: R }, ask: 'Quer detalhar algum desses pontos?', chips: [{ l: 'Contas a vencer', t: 'contas a vencer' }, { l: 'Garantias', t: 'garantias próximas do vencimento' }, { l: 'Assistências', t: 'minhas assistências' }] });
 }
-const AS_NAV = [[/\bfinanceiro\b/, '#financeiro', 'Financeiro'], [/\b(despesas?|custos)\b/, '#custos', 'Despesas'], [/\bcontas a pagar|calendario financeiro\b/, '#financeiro?contas', 'Contas a pagar'], [/\bgarantias?\b/, '#garantias', 'Garantias'], [/\bdocumentos?\b/, '#documentos', 'Documentos'], [/\b(suporte|assistencia)\b/, '#assistencia', 'Suporte'], [/\bmanutenc/, '#manutencao', 'Manutenção'], [/\bcronograma|agenda\b/, '#cronograma', 'Cronograma'], [/\bplantas?\b/, '#planta', 'Plantas técnicas'], [/\b(fotos|videos?|midias?|imagens)\b/, '#midias', 'Mídias'], [/\bequipamentos?\b/, '#equipamentos', 'Equipamentos'], [/\bavisos|notificacoes\b/, '#avisos', 'Avisos'], [/\b(minha casa)\b/, '#casa', 'Minha Casa'], [/\bperfil\b/, '#mais', 'Perfil'], [/\b(inicio|home|tela inicial)\b/, '#home', 'Início']];
-function qNav(t) { const h = AS_NAV.find(x => x[0].test(t)); if (!h) return null; return rp(`Pronto, abrindo **${h[2]}** para você.`, { go: h[1], ask: 'Precisa de mais alguma coisa por aqui?' }); }
-const qHelp = () => rp('Posso ajudar com tudo o que existe no app, nas suas residências:\n• **Consultar**: gastos, orçamento por categoria, contas a vencer, garantias, manutenções, assistências, cronograma e avisos da Astell.\n• **Cadastrar** (sempre com o seu OK antes de salvar): lançar despesas, abrir solicitação de assistência, marcar contas como pagas e definir orçamentos.\n\nPode falar ou digitar. Por onde quer começar?', { chips: [{ l: 'Quanto já gastamos?', t: 'quanto já gastamos com a construção' }, { l: 'Contas da semana', t: 'quais contas vencem esta semana' }, { l: 'Lançar despesa', t: 'lançar uma despesa' }, { l: 'Abrir assistência', t: 'abrir assistência técnica' }] });
+const AS_NAV = [   // [expressão, destino, nome da tela] — do mais específico para o mais geral
+  [/\bmanual do proprietario\b/, '#documentos?cons', 'Manual do Proprietário'], [/\bplantas? tecnicas?\b/, '#documentos?plan', 'Plantas Técnicas'], [/\bdocumentos? (gerais|geral)\b/, '#documentos?geral', 'Documentos gerais'],
+  [/\b(documentos?|pastas?) (da |de |das )?(prefeitura)\b|\bprefeitura\b/, '#documentos?pref', 'Documentos da Prefeitura'], [/\b(documentos?|pastas?) (de |dos |do )?bancos?\b|\bbancos\b/, '#documentos?banc', 'Documentos de Bancos'],
+  [/\bconstrutoras?\b/, '#documentos?cons', 'Construtoras'], [/\barquitetura\b/, '#documentos?arq', 'Arquitetura'], [/\b(planta interativa|pontos da planta|planta da casa)\b/, '#planta', 'Planta técnica'],
+  [/\b(documentos?|arquivos|pdfs?)\b/, '#documentos', 'Documentos'],
+  [/\b(contas a pagar|calendario financeiro|calendario de contas)\b/, '#financeiro?contas', 'Contas a pagar'], [/\borcamentos?\b/, '#financeiro?orcamentos', 'Orçamentos'], [/\b(despesas?|gastos|custos|lancamentos)\b/, '#custos', 'Despesas'], [/\b(financeiro|financas)\b/, '#financeiro', 'Financeiro'],
+  [/\bgarantias?\b/, '#garantias', 'Garantias'], [/\b(manutencoes|manutencao|inspecoes)\b/, '#manutencao', 'Manutenções'], [/\bequipamentos?\b/, '#equipamentos', 'Equipamentos'],
+  [/\b(instalacoes|sistemas|eletrica|hidraulica)\b/, '#sistemas', 'Instalações'], [/\bmateriais\b/, '#materiais', 'Materiais'], [/\bestrutura\b/, '#estrutura', 'Estrutura'],
+  [/\b(midias?|fotos|videos?|imagens|galeria)\b/, '#midias', 'Mídias'], [/\b(cronograma|agenda|calendario|compromissos)\b/, '#cronograma', 'Cronograma'],
+  [/\b(nova solicitacao|nova assistencia)\b/, '#assistencia?nova', 'Nova solicitação'], [/\b(assistencias?|suporte|chamados?|solicitacoes)\b/, '#assistencia', 'Assistência técnica'],
+  [/\b(avisos?|notificacoes?|sininho)\b/, '#avisos', 'Avisos'], [/\b(dados pessoais|meus dados)\b/, '#mais?dados', 'Dados pessoais'], [/\bseguranca\b|\btrocar senha\b|\balterar senha\b/, '#mais?seguranca', 'Segurança'], [/\b(personalizacao|tamanho do texto|tamanho da letra)\b/, '#mais?personalizacao', 'Personalização'],
+  [/\b(perfil|configuracoes|minha conta)\b/, '#mais', 'Perfil'], [/\b(minha casa|dados da (casa|obra|residencia)|a casa)\b/, '#casa', 'Minha Casa'], [/\b(inicio|home|tela inicial|pagina inicial)\b/, '#home', 'Início']];
+const AS_VIEWV = /\b(ver|veja|visualizar|visualize|mostrar|mostre|mostra|exibir|exiba|abrir|abra|abre|acessar|acesse|ir para|ir pra|va para|vai para|me leve|me leva|levar|entrar|entre|navegar|quero ver|preciso ver|gostaria de ver|consultar|tela de|tela do|tela da|aba de|aba do|aba da|menu de|menu do|menu da)\b/;
+const AS_QUAL = /\b(quanto|quantos|quantas|quais|qual|quando|vencimento|vencer|vence\w*|vencid\w*|proxim\w*|total|esta semana|este mes|ultim\w*|maior\w*|resumo|situacao|status)\b/;
+const AS_CRIAR = /\b(lanc\w*|regist\w*|cadastr\w*|adicion\w*|inclu\w*|anot\w*|inser\w*|cri(e|ar)|nova|novo|uma?|solicit\w*|preciso de|quero abrir)\b/;
+function asNavMatch(t) {   // tela pedida pelo usuário, ou null
+  if (!AS_VIEWV.test(t) || AS_QUAL.test(t)) return null; const h = AS_NAV.find(x => x[0].test(t)); if (!h) return null;
+  if (h[1] === '#assistencia' && /\b(abrir|abra|abre)\b/.test(t) && !/\b(tela|suporte|minhas|lista|solicitacoes|chamados|menu|aba)\b/.test(t)) return null;   // “abrir assistência” = criar uma nova
+  if (AS_CRIAR.test(t) && /\b(despesas?|gastos|assistencia|solicitacao|garantia|manutencao)\b/.test(t) && !/\b(tela|aba|menu|ver|mostrar|visualizar|exibir)\b/.test(t)) return null;
+  return h;
+}
+function qNav(t) { const h = asNavMatch(t) || AS_NAV.find(x => x[0].test(t)); if (!h) return null; return rp(`Abrindo a tela **${h[2]}** para você.`, { go: h[1], ask: 'Se precisar de mais alguma coisa, é só pedir.' }); }
+const qHelp = () => rp('Posso ajudar com tudo o que existe no app, nas suas residências:\n• **Consultar**: gastos, orçamento por categoria, contas a vencer, garantias, manutenções, assistências, cronograma e avisos da Astell.\n• **Cadastrar** (sempre com o seu OK antes de salvar): lançar despesas, abrir solicitação de assistência, marcar contas como pagas e definir orçamentos.\n\nPode falar ou digitar. Por onde quer começar?', { chips: [{ l: 'Quanto já gastamos?', t: 'quanto já gastamos com a construção' }, { l: 'Contas da semana', t: 'quais contas vencem esta semana' }, { l: 'Lançar despesa', t: 'lançar uma despesa' }, { l: 'Abrir assistência', t: 'abrir uma nova solicitação de assistência' }] });
 const qHowTo = t => /assistencia|chamado|solicitacao/.test(t)
-  ? rp('É simples: no menu, toque em **Suporte** e depois em "Nova solicitação". Informe a categoria, o local da casa e descreva o problema (fotos e vídeos são opcionais).\n\nSe preferir, eu faço isso por você agora mesmo: é só me contar o que aconteceu.', { offer: { t: 'abrir assistência técnica', l: 'Abrir assistência agora' }, ask: 'Quer que eu abra a solicitação agora?', chips: [{ l: 'Abrir Suporte', go: '#assistencia' }] })
+  ? rp('É simples: no menu, toque em **Suporte** e depois em "Nova solicitação". Informe a categoria, o local da casa e descreva o problema (fotos e vídeos são opcionais).\n\nSe preferir, eu faço isso por você agora mesmo: é só me contar o que aconteceu.', { offer: { t: 'abrir uma nova solicitação de assistência', l: 'Abrir assistência agora' }, ask: 'Quer que eu abra a solicitação agora?', chips: [{ l: 'Abrir Suporte', go: '#assistencia' }] })
   : /despesa|gasto|compra/.test(t)
     ? rp('Vá em **Financeiro › Despesas** e toque em lançar. Informe valor, descrição, categoria e a forma de pagamento.\n\nOu me diga aqui, por exemplo: "lançar despesa de 350 reais com tinta no Pix", e eu monto o lançamento para você confirmar.', { offer: { t: 'lançar uma despesa', l: 'Lançar despesa agora' }, ask: 'Quer lançar uma despesa agora?' })
     : qHelp();
@@ -1494,9 +1526,9 @@ function asIntentOf(t, raw) {   // devolve o nome do assunto ou null (usado tamb
   if (/\b(o que (voce|vc) (faz|sabe|pode)|ajuda|como funciona|o que posso (perguntar|fazer)|funcionalidades|comandos)\b/.test(t)) return 'help';
   if (/\b(marc\w+|baix\w+|dar baixa|quit\w+|confirm\w+)\b.*\b(pag[ao]s?|paga|quitad\w+)\b/.test(t) || /\bpaguei\b.*\b(parcela|conta|boleto|fatura)\b/.test(t)) return 'pay';
   if (/\b(defin\w+|alter\w+|ajust\w+|mud\w+|atualiz\w+|cri\w+|coloc\w+|aument\w+|diminu\w+|estabele\w+|fix\w+)\b.*\borcamento/.test(t) || (/\borcamento\b/.test(t) && !q && !/\b(como esta|quanto|qual|quais)\b/.test(t) && asMoney(t))) return 'setbudget';
+  if (asNavMatch(t)) return 'nav';
   if ((AS_INSV.test(t) && /\b(assistencia|chamado|solicitacao|reparo|conserto)\b/.test(t)) || (/\b(preciso|precisamos|quero|queria|gostaria|necessito)\b/.test(t) && /\b(assistencia|reparo|conserto|tecnico)\b/.test(t)) || (AS_PROB.test(t) && !q && !/\bgarantia\b/.test(t))) return 'service';
   if ((AS_INSV.test(t) && /\b(despesa|gasto|compra|pagamento|nota fiscal|lancamento)\b/.test(t)) || (/\b(paguei|comprei|gastei|pagamos|compramos|gastamos)\b/.test(t) && asMoney(t) && !q) || /\b(nova despesa|uma despesa)\b/.test(t) && !q) return 'expense';
-  if (/\b(abrir|abra|ir para|va para|vai para|me leve|levar|mostrar a tela|abrir a tela)\b/.test(t) && AS_NAV.some(x => x[0].test(t))) return 'nav';
   if (/\b(novidades?|atualizacoes|avisos|notificac\w+|o que mudou|o que (a astell|a equipe) (fez|atualizou|postou)|o que ha de novo)\b/.test(t)) return 'news';
   if (/\b(resumo|situacao geral|panorama|visao geral|como esta (a )?(obra|minha casa|tudo))\b/.test(t)) return 'summary';
   if (/\bgarantias?\b/.test(t)) return 'warr';
@@ -1621,7 +1653,7 @@ async function asSend(text, shown) {
   let full = (AS.pre ? AS.pre + '\n\n' : '') + r.t + (r.ask ? '\n\n' + r.ask : ''); AS.pre = ''; const chips = [...(r.offer && !r.confirm ? [{ l: r.offer.l || 'Sim, por favor', t: r.offer.t }] : []), ...(r.chips || [])];
   AS.offer = r.offer && !r.confirm ? r.offer : null; if (r.ctx) AS.ctx = r.ctx; if (r.confirm) AS.offer = null;
   asPush('bot', { t: full, chips, confirm: r.confirm }); asRender(); asSpeak(full);
-  if (r.go) setTimeout(() => { asClose(true); location.hash = r.go; }, 700);
+  if (r.go) setTimeout(() => asGo(r.go), 900);
 }
 async function asInsights() {
   try {
@@ -1651,6 +1683,12 @@ function asClose(keepSpeech, fromPop) {
 }
 window.addEventListener('popstate', () => { if (AS.open) asClose(false, true); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && AS.open) asClose(); });
+function asGo(h) {   // fecha o assistente e abre a tela pedida (sem desfazer a navegação com o “voltar” do histórico)
+  if (AS.open) { AS.open = false; const el = $('#asti'); if (el) el.hidden = true; document.body.classList.remove('as-open'); const m = $('#asMenu'); if (m) m.hidden = true; if (AS.listening && AS.rec) { try { AS.rec.abort(); } catch (_) {} } }
+  S.edit = null;
+  try { if (history.state && history.state.asti) history.replaceState(null, '', h); else location.hash = h; } catch (_) { location.hash = h; }
+  if (location.hash !== h) location.hash = h; route(); window.scrollTo(0, 0);
+}
 function asMenu() {
   const m = $('#asMenu'), cur = asVoiceMode(), g = asGender(); m.hidden = !m.hidden; if (m.hidden) return;
   const o = [['auto', `Automática (voz ${g === 'f' ? 'feminina' : 'masculina'})`], ['f', 'Voz feminina'], ['m', 'Voz masculina'], ['off', 'Sem leitura em voz alta']];
@@ -1666,7 +1704,7 @@ document.addEventListener('click', e => {
   const vm = tg.closest('[data-vm]'); if (vm) { asLs('astell_asti_voice', vm.dataset.vm); $('#asMenu').hidden = true; asPaintVoiceBtn(); asStopSpeak(); if (vm.dataset.vm !== 'off') asSpeak('Olá! Esta é a minha voz. Vou ler as respostas para você.'); else toast('Leitura em voz alta desligada.'); return; }
   if (!tg.closest('.as-menu') && !tg.closest('#asVoice')) { const m = $('#asMenu'); if (m) m.hidden = true; }
   const sg = tg.closest('[data-sug]'); if (sg) return asSend(AS_SUG[+sg.dataset.sug]);
-  const ch = tg.closest('[data-chip]'); if (ch) { const last = AS.msgs[AS.msgs.length - 1], c = last && last.chips && last.chips[+ch.dataset.chip]; if (!c) return; if (c.go) { asClose(); location.hash = c.go; return; } return asSend(c.t, c.l); }
+  const ch = tg.closest('[data-chip]'); if (ch) { const last = AS.msgs[AS.msgs.length - 1], c = last && last.chips && last.chips[+ch.dataset.chip]; if (!c) return; if (c.go) return asGo(c.go); return asSend(c.t, c.l); }
   if (tg.closest('[data-asy]')) return asSend('sim', 'Confirmar');
   if (tg.closest('[data-asn]')) return asSend('não', 'Cancelar');
   if (tg.closest('[data-asf]')) { AS.msgs.push({ role: 'me', t: 'Corrigir' }); asPush('bot', rp('Claro! O que você quer corrigir? Diga, por exemplo: “o valor é R$ 400”, “categoria Acabamentos” ou “foi no Pix”.')); const l = AS.msgs[AS.msgs.length - 1]; l.chips = []; asRender(); asSpeak(l.t); return; }

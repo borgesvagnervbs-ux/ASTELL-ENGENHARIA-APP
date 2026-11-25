@@ -427,3 +427,13 @@ body.as-open{overflow:hidden}
 @keyframes aspulse{0%{box-shadow:0 0 0 0 #e5534b88}100%{box-shadow:0 0 0 14px #e5534b00}}
 .as-foot{margin:0;padding:4px 18px calc(12px + env(safe-area-inset-bottom));font-size:.74rem;color:var(--mute);text-align:center}
 .as-comp input:focus{outline:2px solid var(--gold);outline-offset:0;border-color:var(--gold)}
+
+/* Assistência: conversa com a Astell no card */
+.reqchat{margin:12px 0 4px;padding-top:10px;border-top:1px solid var(--line)}
+.rml{display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto;margin:8px 0}
+.rm{max-width:90%;padding:9px 12px;border-radius:14px;border:1px solid var(--line);background:#0b1623}.rm p{margin:3px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.rm .rmw{display:block;font-size:.74rem;color:var(--mute)}
+.rm.me{align-self:flex-end;background:linear-gradient(145deg,#1d6b52,#17503f);border-color:#2a7a61;color:#eafff6;border-bottom-right-radius:4px}.rm.me .rmw{color:#b9e8d6}
+.rm.st{align-self:flex-start;border-left:3px solid #3dc08c;border-bottom-left-radius:4px}
+.rmwait{margin:6px 0;padding:7px 10px;border-radius:10px;background:#e0a8201f;color:#f0c35a;font-size:.88rem;font-weight:600}
+.rmf{display:flex;gap:8px;align-items:flex-end;margin-top:8px}.rmf textarea{flex:1;min-width:0;margin:0;resize:vertical}.rmf button{flex:none;margin:0;min-height:44px}
