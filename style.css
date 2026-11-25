@@ -437,3 +437,5 @@ body.as-open{overflow:hidden}
 .rm.st{align-self:flex-start;border-left:3px solid #3dc08c;border-bottom-left-radius:4px}
 .rmwait{margin:6px 0;padding:7px 10px;border-radius:10px;background:#e0a8201f;color:#f0c35a;font-size:.88rem;font-weight:600}
 .rmf{display:flex;gap:8px;align-items:flex-end;margin-top:8px}.rmf textarea{flex:1;min-width:0;margin:0;resize:vertical}.rmf button{flex:none;margin:0;min-height:44px}
+
+span.cday.sel{outline:2px solid var(--gold);outline-offset:1px;background:#3dc08c22}

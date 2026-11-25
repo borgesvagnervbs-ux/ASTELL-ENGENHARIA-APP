@@ -30,7 +30,7 @@ function ask(msg, ok = 'Excluir') {
   });
 }
 
-const APP_VERSION = '2026.10.21-63'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-64'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 // Dentro do aplicativo (Median/WebView) o Google bloqueia o login por OAuth; lá o acesso é por e-mail e senha.
 let REC_FLOW = /[#&]type=recovery/.test(location.hash);   // aberto pelo link de recuperação de senha
 const IN_APP = /median|gonative/i.test(navigator.userAgent);
@@ -203,13 +203,15 @@ function subView(cat, sub) {
   const b = cbOf(cat), eff = b ? cbEff(b) : 0, list = S.exp.filter(e => inCat(e, cat) && nrm(subOf(e)) === nrm(sub)), tot = list.reduce((a, e) => a + Number(e.amount), 0);   // S.exp já em ordem: mais recente primeiro
   return `<h2>${esc(sub)}</h2><p class="mute">${esc(cat)} · ${list.length} ${list.length === 1 ? 'lançamento' : 'lançamentos'} · ${brl(tot)}${eff ? ` · ${pctN(tot, eff)}% do orçamento da categoria` : ''}</p>${list.map(e => xCardHtml(e, `<p class="xpct">${eff ? pctN(Number(e.amount), eff) : 0}% do orçamento da categoria</p>`)).join('') || '<p class="empty">Nenhum lançamento nesta subcategoria.</p>'}<a class="btn-cancel" href="#financeiro?cat=${encQ(cat)}">Voltar à categoria</a>`;
 }
+function dayArg(q) { const mm = /(?:^|&)mes=(\d{4})-(\d{2})(?:&|$)/.exec(q || ''); if (mm && +mm[2] >= 1 && +mm[2] <= 12) return { y: +mm[1], m: +mm[2] - 1, d: null }; const m = /(?:^|&)dia=(\d{4})-(\d{2})-(\d{2})(?:&|$)/.exec(q || ''); if (!m) return null; const y = +m[1], mo = +m[2] - 1, d = +m[3], x = new Date(y, mo, d); return x.getMonth() === mo && x.getDate() === d ? { y, m: mo, d } : null; }   // #tela?dia=AAAA-MM-DD (usado pelo ASTI)
+function pinScroll(sel) { setTimeout(() => { const h = document.querySelector(sel + ' h3'); if (h && h.scrollIntoView) h.scrollIntoView({ block: 'start', behavior: 'smooth' }); }, 120); }
 function contasPaint() {   // calendário financeiro (mesmo layout do cronograma) + lista de contas do mês/dia
   const { y, m } = S.fc, el = $('#fcal'); if (!el) return;
   const pre = y + '-' + String(m + 1).padStart(2, '0') + '-', first = new Date(y, m, 1).getDay(), nd = new Date(y, m + 1, 0).getDate(), t = new Date(), hoje = t.getFullYear() === y && t.getMonth() === m ? t.getDate() : 0;
   const mine = S.inst.filter(i => String(i.due_on).startsWith(pre)), by = {}; mine.forEach(i => (by[+i.due_on.slice(8, 10)] = by[+i.due_on.slice(8, 10)] || []).push(i));
   let cells = ''; for (let i = 0; i < first; i++) cells += '<span class="cd0"></span>';
-  for (let d = 1; d <= nd; d++) cells += by[d] ? `<button type="button" class="cday has${d === hoje ? ' hoje' : ''}${S.fc.sel === d ? ' sel' : ''}" data-fcday="${d}" aria-pressed="${S.fc.sel === d}" aria-label="Dia ${d}: ${by[d].length} conta(s)"><b>${d}</b><i class="dots2">${by[d].map(i => `<u class="${INST_C[instSt(i)]}"></u>`).join('')}</i></button>` : `<span class="cday${d === hoje ? ' hoje' : ''}" data-fcday="0"><b>${d}</b></span>`;
-  if (S.fc.sel && !by[S.fc.sel]) S.fc.sel = null; const sel = S.fc.sel, list = mine.filter(i => !sel || +i.due_on.slice(8, 10) === sel).sort((a, b) => a.due_on.localeCompare(b.due_on));
+  for (let d = 1; d <= nd; d++) cells += by[d] ? `<button type="button" class="cday has${d === hoje ? ' hoje' : ''}${S.fc.sel === d ? ' sel' : ''}" data-fcday="${d}" aria-pressed="${S.fc.sel === d}" aria-label="Dia ${d}: ${by[d].length} conta(s)"><b>${d}</b><i class="dots2">${by[d].map(i => `<u class="${INST_C[instSt(i)]}"></u>`).join('')}</i></button>` : `<span class="cday${d === hoje ? ' hoje' : ''}${S.fc.pin && S.fc.sel === d ? ' sel' : ''}" data-fcday="0"><b>${d}</b></span>`;
+  if (S.fc.sel && !by[S.fc.sel] && !S.fc.pin) S.fc.sel = null; const sel = S.fc.sel, list = mine.filter(i => !sel || +i.due_on.slice(8, 10) === sel).sort((a, b) => a.due_on.localeCompare(b.due_on));
   const ex = id => S.exp.find(x => String(x.id) === String(id)) || {}, open = S.inst.filter(i => !i.paid_on), sum = f => open.filter(f).reduce((a, i) => a + Number(i.amount), 0);
   el.innerHTML = `<div class="fsum"><div><small>A pagar</small><b>${brl(sum(i => instSt(i) !== 'late'))}</b></div><div><small>Vencidas</small><b class="neg">${brl(sum(i => instSt(i) === 'late'))}</b></div></div>
   <div class="calhead"><button type="button" data-fc="-1" aria-label="Mês anterior">‹</button><b>${MESES[m]} ${y}</b><button type="button" data-fc="1" aria-label="Próximo mês">›</button></div>
@@ -217,7 +219,7 @@ function contasPaint() {   // calendário financeiro (mesmo layout do cronograma
   <div class="callegend"><span><u class="cok"></u>Paga</span><span><u class="cg"></u>Vence em até 15 dias</span><span><u class="cx"></u>Vencida</span><span><u class="cf"></u>A vencer</span></div>
   <h3>${sel ? `Contas do dia ${String(sel).padStart(2, '0')}/${String(m + 1).padStart(2, '0')}` : `Contas de ${MESES[m].toLowerCase()}`}</h3>` +
   (list.map(i => { const e = ex(i.expense_id), st = instSt(i);
-    return `<div class="card cpay"><div class="xtop"><b>${esc(e.description || 'Despesa')}</b><strong>${brl(i.amount)}</strong></div><p class="mute"><u class="${INST_C[st]}"></u><b class="cst ${st}">${INST_T[st]}</b> · Vence em ${fmt(i.due_on)}${i.paid_on ? ` · paga em ${fmt(i.paid_on)}` : ''}</p><p class="mute">${i.total > 1 ? `Parcela ${i.num} de ${i.total}` : 'Pagamento único'}${e.pay_method ? ' · ' + esc(e.pay_method) : ''}</p><div class="xact"><button type="button" class="link" data-paytgl="${i.id}">${i.paid_on ? 'Desfazer pagamento' : 'Marcar como paga'}</button><button type="button" class="link" data-xview="${esc(i.expense_id)}">Ver despesa</button></div></div>`; }).join('') || '<p class="empty">Nenhuma conta com vencimento neste período.</p>');
+    return `<div class="card cpay"><div class="xtop"><b>${esc(e.description || 'Despesa')}</b><strong>${brl(i.amount)}</strong></div><p class="mute"><u class="${INST_C[st]}"></u><b class="cst ${st}">${INST_T[st]}</b> · Vence em ${fmt(i.due_on)}${i.paid_on ? ` · paga em ${fmt(i.paid_on)}` : ''}</p><p class="mute">${i.total > 1 ? `Parcela ${i.num} de ${i.total}` : 'Pagamento único'}${e.pay_method ? ' · ' + esc(e.pay_method) : ''}</p><div class="xact"><button type="button" class="link" data-paytgl="${i.id}">${i.paid_on ? 'Desfazer pagamento' : 'Marcar como paga'}</button><button type="button" class="link" data-xview="${esc(i.expense_id)}">Ver despesa</button></div></div>`; }).join('') || `<p class="empty">${sel ? 'Nenhuma conta com vencimento neste dia.' : 'Nenhuma conta com vencimento neste período.'}</p>`);
 }
 const NAV = [['home', 'Início', 'home', ['home']], ['casa', 'Minha Casa', 'layers', ['casa', 'estrutura', 'sistemas', 'materiais', 'garantias', 'manutencao', 'equipamentos', 'planta', 'midias', 'cronograma', 'detalhe', 'documentos']], ['financeiro', 'Financeiro', 'dollar', ['financeiro', 'custos']], ['assistencia', 'Suporte', 'phones', ['assistencia']]];
 $('#nav').innerHTML = NAV.map(([h, l, i, g]) => `<a href="#${h}" data-g="${g.join(' ')}">${ico(IC[i])}<span>${l}</span></a>`).join('');
@@ -450,7 +452,7 @@ const views = {
     const q = S.q, SUB = { relatorios: ['Relatórios', 'Gráficos e indicadores.'] };
     if (SUB[q]) { app.innerHTML = `<h2>${SUB[q][0]}</h2><div class="card"><p>${SUB[q][1]}</p><p class="mute">Esta área está em desenvolvimento e ficará disponível em breve.</p></div><a class="btn-cancel" href="#financeiro">Voltar ao Financeiro</a>`; return; }
     await finLoad(); const dq = t => { try { return decodeURIComponent(t); } catch { return t; } };
-    if (q === 'contas') { const n = new Date(); S.fc = { y: n.getFullYear(), m: n.getMonth(), sel: null }; app.innerHTML = '<h2>Contas a pagar</h2><div class="card" id="fcal"></div>'; contasPaint(); return; }
+    if (q === 'contas' || q.startsWith('contas&')) { const n = new Date(), da = dayArg(q); S.fc = da ? { y: da.y, m: da.m, sel: da.d, pin: !!da.d } : { y: n.getFullYear(), m: n.getMonth(), sel: null }; app.innerHTML = '<h2>Contas a pagar</h2><div class="card" id="fcal"></div>'; contasPaint(); if (da && da.d) pinScroll('#fcal'); return; }
     if (q === 'orcamentos') { app.innerHTML = orcView(); return; }
     if (q === 'orcnova') { app.innerHTML = orcForm(); orcFormInit(); return; }
     let m;
@@ -472,7 +474,7 @@ const views = {
     const { data } = await sb.from('images').select('*').eq('residence_id', S.cur.id).eq('kind', 'residence').order('created_at');
     S.media = data || []; S.casaTab = 'all'; app.innerHTML = `<h2>Mídias</h2><div id="mb">${mediaBlock() || '<p class="empty">Nenhuma mídia cadastrada ainda.</p>'}</div>`;
   },
-  async cronograma() { const ev = await calEvents(S.cur.id), n = new Date(); S.cal = { y: n.getFullYear(), m: n.getMonth(), ev }; app.innerHTML = '<h2>Cronograma</h2><div id="cal"></div>'; calPaint(); },
+  async cronograma() { const ev = await calEvents(S.cur.id), n = new Date(), da = dayArg(S.q); S.cal = da ? { y: da.y, m: da.m, ev, sel: da.d, pin: !!da.d } : { y: n.getFullYear(), m: n.getMonth(), ev }; app.innerHTML = '<h2>Cronograma</h2><div id="cal"></div>'; calPaint(); if (da && da.d) pinScroll('#cal'); },
   async detalhe() {
     const [k, id] = S.q.split(':'), tb = { man: 'maintenance_tasks', ast: 'service_requests', gar: 'warranties', gex: 'expenses' }[k], { data: r } = tb ? await sb.from(tb).select('*').eq('id', id).maybeSingle() : { data: null };
     if (!r) return app.innerHTML = '<p class="empty">Não foi possível encontrar este item.</p>';
@@ -618,7 +620,7 @@ app.addEventListener('click', async e => {
   if (d.xm && S.xm) { const x = new Date(S.xm.y, S.xm.m + +d.xm, 1); S.xm = { y: x.getFullYear(), m: x.getMonth() }; xPaint(); }
   { const sx = e.target.closest && e.target.closest('[data-subx]'); if (sx) { const row = sx.closest('.orow'), pn = row && row.nextElementSibling; if (pn && pn.classList.contains('opanel')) { const open = pn.hidden; pn.hidden = !open; sx.setAttribute('aria-expanded', String(open)); row.classList.toggle('open', open); } } }
   if (S.fc) { const fn = e.target.closest && e.target.closest('[data-fc]'); if (fn) { const x = new Date(S.fc.y, S.fc.m + +fn.dataset.fc, 1); S.fc.y = x.getFullYear(); S.fc.m = x.getMonth(); S.fc.sel = null; contasPaint(); }
-    const fd = e.target.closest && e.target.closest('[data-fcday]'); if (fd) { const n = +fd.dataset.fcday; S.fc.sel = !n || S.fc.sel === n ? null : n; contasPaint(); }
+    const fd = e.target.closest && e.target.closest('[data-fcday]'); if (fd) { const n = +fd.dataset.fcday; S.fc.pin = false; S.fc.sel = !n || S.fc.sel === n ? null : n; contasPaint(); }
     const pt = e.target.closest && e.target.closest('[data-paytgl]'); if (pt) { const i = S.inst.find(z => String(z.id) === pt.dataset.paytgl); if (i) { const v = i.paid_on ? null : todayIso(), { error } = await sb.from('expense_installments').update({ paid_on: v }).eq('id', i.id); if (error) return toast('Não foi possível atualizar a conta.', 1); i.paid_on = v; contasPaint(); toast(v ? 'Conta marcada como paga.' : 'Pagamento desfeito.'); } } }
   if (d.xview) location.hash = '#custos?ver=' + encodeURIComponent(d.xview);
   if (d.xedit) location.hash = '#custos?edit=' + encodeURIComponent(d.xedit);
@@ -626,8 +628,8 @@ app.addEventListener('click', async e => {
   if (d.gf) { const k = d.gf === 'all' ? null : d.gf; S.gf = S.gf === k ? null : k; gaPaint(); }
   { const ar = e.target.closest && e.target.closest('[data-avread]'); if (ar) { sb.rpc('mark_notifs_read', { p_ids: [ar.dataset.avread] }).then(refreshBell); } }
   if (d.avall !== undefined) { await sb.rpc('mark_notifs_read', { p_ids: (S.avl || []).map(x => x.id) }); route(); refreshBell(); }
-  if (d.cal && S.cal) { const x = new Date(S.cal.y, S.cal.m + +d.cal, 1); S.cal.y = x.getFullYear(); S.cal.m = x.getMonth(); S.cal.sel = null; calPaint(); }
-  { const cd = e.target.closest && e.target.closest('[data-calday]'); if (cd && S.cal) { const n = +cd.dataset.calday; S.cal.sel = !n || S.cal.sel === n ? null : n; calPaint(); } }
+  if (d.cal && S.cal) { const x = new Date(S.cal.y, S.cal.m + +d.cal, 1); S.cal.y = x.getFullYear(); S.cal.m = x.getMonth(); S.cal.sel = null; S.cal.pin = false; calPaint(); }
+  { const cd = e.target.closest && e.target.closest('[data-calday]'); if (cd && S.cal) { const n = +cd.dataset.calday; S.cal.pin = false; S.cal.sel = !n || S.cal.sel === n ? null : n; calPaint(); } }
   if (d.ct) { S.casaTab = d.ct; $('#mb').innerHTML = mediaBlock(); }
   if (d.lb) { const [g, i] = d.lb.split('|'); S.lb = { g, i: +i }; showLb(); }
   if (e.target.closest && e.target.closest('[data-out]')) sb.auth.signOut();
@@ -850,21 +852,21 @@ function calPaint() {
   const pre = y + '-' + String(m + 1).padStart(2, '0') + '-', first = new Date(y, m, 1).getDay(), nd = new Date(y, m + 1, 0).getDate(), t = new Date(), hoje = t.getFullYear() === y && t.getMonth() === m ? t.getDate() : 0;
   const by = {}; ev.filter(e => String(e.d).startsWith(pre)).forEach(e => (by[+String(e.d).slice(8, 10)] = by[+String(e.d).slice(8, 10)] || []).push(e));
   let cells = ''; for (let i = 0; i < first; i++) cells += '<span class="cd0"></span>';
-  for (let d = 1; d <= nd; d++) cells += by[d] ? `<button type="button" class="cday has${d === hoje ? ' hoje' : ''}${S.cal.sel === d ? ' sel' : ''}" data-calday="${d}" aria-pressed="${S.cal.sel === d}" aria-label="Dia ${d}: ${by[d].length} aviso(s)"><b>${d}</b><i class="dots2">${by[d].map(e => `<u class="${calCls(e)}"></u>`).join('')}</i></button>` : `<span class="cday${d === hoje ? ' hoje' : ''}" data-calday="0"><b>${d}</b></span>`;
-  if (S.cal.sel && !by[S.cal.sel]) S.cal.sel = null; const sel = S.cal.sel;
+  for (let d = 1; d <= nd; d++) cells += by[d] ? `<button type="button" class="cday has${d === hoje ? ' hoje' : ''}${S.cal.sel === d ? ' sel' : ''}" data-calday="${d}" aria-pressed="${S.cal.sel === d}" aria-label="Dia ${d}: ${by[d].length} aviso(s)"><b>${d}</b><i class="dots2">${by[d].map(e => `<u class="${calCls(e)}"></u>`).join('')}</i></button>` : `<span class="cday${d === hoje ? ' hoje' : ''}${S.cal.pin && S.cal.sel === d ? ' sel' : ''}" data-calday="0"><b>${d}</b></span>`;
+  if (S.cal.sel && !by[S.cal.sel] && !S.cal.pin) S.cal.sel = null; const sel = S.cal.sel;
   const list = Object.keys(by).map(Number).sort((a, b) => a - b).filter(d => !sel || d === sel).flatMap(d => by[d].map(e => ({ ...e, day: d })));
   const msg = e => { const dd = String(e.day).padStart(2, '0') + '/' + String(m + 1).padStart(2, '0'); const T = e.k === 'man' ? 'a manutenção' : 'a assistência'; if (e.s === 'exp') return `Dia <b>${dd}</b>: <b>EXPIRADA</b> a garantia de <b>${esc(e.t)}</b>.`; if (e.s === 'late') return `Dia <b>${dd}</b>: <b>ATRASADA</b> ${T} <b>${esc(e.t)}</b>.`; if (e.s === 'ok') return `Dia <b>${dd}</b>: <b>REALIZADA</b> ${T} <b>${esc(e.t)}</b>.`;
     return e.k === 'man' ? `Dia <b>${dd}</b>: deve ser feita a manutenção <b>${esc(e.t)}</b>.` : e.k === 'ast' ? `Dia <b>${dd}</b>: será atendida a assistência <b>${esc(e.t)}</b>.` : `Dia <b>${dd}</b>: expira a garantia de <b>${esc(e.t)}</b>.`; };
   el.innerHTML = `<div class="calhead"><button type="button" data-cal="-1" aria-label="Mês anterior">‹</button><b>${MESES[m]} ${y}</b><button type="button" data-cal="1" aria-label="Próximo mês">›</button></div>
   <div class="calgrid">${['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map(x => `<span class="cwd">${x}</span>`).join('')}${cells}</div>
   <div class="callegend">${[...new Map(Object.values(CAL_K).map(([l, c]) => [l, c]))].map(([l, c]) => `<span><u class="${c}"></u>${l}</span>`).join('')}</div>
-  <h3>${sel ? `Avisos do dia ${String(sel).padStart(2, '0')}/${String(m + 1).padStart(2, '0')}` : `Avisos de ${MESES[m].toLowerCase()}`}</h3>${list.length ? list.map(e => `<a class="card calnote" href="#detalhe?${e.k}:${e.id}"><u class="${calCls(e)}"></u><p>${msg(e)}</p>${ico(IC.chev)}</a>`).join('') : '<p class="empty">Nada agendado para este mês.</p>'}`;
+  <h3>${sel ? `Avisos do dia ${String(sel).padStart(2, '0')}/${String(m + 1).padStart(2, '0')}` : `Avisos de ${MESES[m].toLowerCase()}`}</h3>${list.length ? list.map(e => `<a class="card calnote" href="#detalhe?${e.k}:${e.id}"><u class="${calCls(e)}"></u><p>${msg(e)}</p>${ico(IC.chev)}</a>`).join('') : `<p class="empty">${sel ? 'Nada agendado para este dia.' : 'Nada agendado para este mês.'}</p>`}`;
 }
 const CR = { financeiro: [['', 'Financeiro']], custos: [['financeiro', 'Financeiro'], ['', 'Despesas']], avisos: [['', 'Avisos']], midias: [['casa', 'Minha Casa'], ['', 'Mídias']], cronograma: [['casa', 'Minha Casa'], ['', 'Cronograma']], casa: [['casa', 'Minha Casa']], estrutura: [['casa', 'Minha Casa'], ['', 'Estrutura']], sistemas: [['casa', 'Minha Casa'], ['', 'Instalações']], materiais: [['casa', 'Minha Casa'], ['', 'Materiais']], garantias: [['casa', 'Minha Casa'], ['', 'Garantias']], manutencao: [['casa', 'Minha Casa'], ['', 'Manutenção']], equipamentos: [['casa', 'Minha Casa'], ['', 'Equipamentos']], planta: [['casa', 'Minha Casa'], ['', 'Planta técnica']], documentos: [['casa', 'Minha Casa'], ['', 'Documentos']], assistencia: [['assistencia', 'Suporte']], mais: [['mais', 'Perfil']] };
 const PFT = { dados: 'Dados pessoais', notificacoes: 'Notificações', seguranca: 'Segurança', personalizacao: 'Personalização', atendimento: 'Atendimento', sobre: 'Sobre' };
 function crumbs(h) {
   const fq = h === 'financeiro' && S.q ? (() => { const dq = t => { try { return decodeURIComponent(t); } catch { return t; } }, F = ['financeiro', 'Financeiro'], O = ['financeiro?orcamentos', 'Orçamentos'], m1 = /^(cat|orcedit)=(.+)$/.exec(S.q), m2 = /^sub=([^&]+)&(.+)$/.exec(S.q);
-    return S.q === 'contas' ? [F, ['', 'Contas a pagar']] : S.q === 'orcamentos' ? [F, ['', 'Orçamentos']] : S.q === 'orcnova' ? [F, O, ['', 'Lançar orçamento']] : m1 ? (m1[1] === 'cat' ? [F, O, ['', esc(dq(m1[2]))]] : [F, O, ['financeiro?cat=' + m1[2], esc(dq(m1[2]))], ['', 'Editar orçamento']]) : m2 ? [F, O, ['financeiro?cat=' + m2[1], esc(dq(m2[1]))], ['', esc(dq(m2[2]))]] : null; })() : null;
+    return S.q === 'contas' || S.q.startsWith('contas&') ? [F, ['', 'Contas a pagar']] : S.q === 'orcamentos' ? [F, ['', 'Orçamentos']] : S.q === 'orcnova' ? [F, O, ['', 'Lançar orçamento']] : m1 ? (m1[1] === 'cat' ? [F, O, ['', esc(dq(m1[2]))]] : [F, O, ['financeiro?cat=' + m1[2], esc(dq(m1[2]))], ['', 'Editar orçamento']]) : m2 ? [F, O, ['financeiro?cat=' + m2[1], esc(dq(m2[1]))], ['', esc(dq(m2[2]))]] : null; })() : null;
   const c = fq ? fq : h === 'documentos' && DCATS[S.q] ? [['casa', 'Minha Casa'], ['documentos', 'Documentos'], ['', DCATS[S.q].l]] : h === 'custos' && (S.nova || S.xv) ? [['financeiro', 'Financeiro'], ['custos', 'Despesas'], ['', S.xv ? (S.xv.m === 'ver' ? 'Visualizar despesa' : 'Editar despesa') : 'Lançar despesa']] : h === 'mais' && S.q && PFT[S.q] ? [['mais', 'Perfil'], ['', PFT[S.q]]] : h === 'detalhe' ? [['casa', 'Minha Casa'], ['cronograma', 'Cronograma'], ['', 'Detalhe']] : h === 'assistencia' && S.nova ? [['assistencia', 'Suporte'], ['', 'Nova solicitação']] : CR[h]; if (!c || !app.firstElementChild || app.querySelector('.crumbs')) return;
   const last = c.length - 1, items = [['home', 'Início'], ...c].map(([href, t], i, a) => i === a.length - 1 ? `<li aria-current="page">${t}</li>` : `<li><a href="#${href}">${t}</a></li>`);
   app.insertAdjacentHTML('afterbegin', `<ol class="crumbs" aria-label="Você está em">${items.join('<li class="sep" aria-hidden="true">›</li>')}</ol>`);
@@ -1320,18 +1322,43 @@ const AS_NAV = [   // [expressão, destino, nome da tela] — do mais específic
   [/\b(instalacoes|sistemas|eletrica|hidraulica)\b/, '#sistemas', 'Instalações'], [/\bmateriais\b/, '#materiais', 'Materiais'], [/\bestrutura\b/, '#estrutura', 'Estrutura'],
   [/\b(midias?|fotos|videos?|imagens|galeria)\b/, '#midias', 'Mídias'], [/\b(cronograma|agenda|calendario|compromissos)\b/, '#cronograma', 'Cronograma'],
   [/\b(nova solicitacao|nova assistencia)\b/, '#assistencia?nova', 'Nova solicitação'], [/\b(assistencias?|suporte|chamados?|solicitacoes)\b/, '#assistencia', 'Assistência técnica'],
+  [/\b(configurar|configuracoes? de|preferencias de|ajustar) notificacoes\b/, '#mais?notificacoes', 'Notificações'], [/\b(relatorios?|graficos|indicadores)\b/, '#financeiro?relatorios', 'Relatórios'], [/\b(fale conosco|falar com a astell|contato da astell|canais de atendimento|atendimento da astell)\b/, '#mais?atendimento', 'Atendimento'], [/\b(sobre o app|sobre o aplicativo|versao do app|versao do aplicativo)\b/, '#mais?sobre', 'Sobre o app'],
   [/\b(avisos?|notificacoes?|sininho)\b/, '#avisos', 'Avisos'], [/\b(dados pessoais|meus dados)\b/, '#mais?dados', 'Dados pessoais'], [/\bseguranca\b|\btrocar senha\b|\balterar senha\b/, '#mais?seguranca', 'Segurança'], [/\b(personalizacao|tamanho do texto|tamanho da letra)\b/, '#mais?personalizacao', 'Personalização'],
   [/\b(perfil|configuracoes|minha conta)\b/, '#mais', 'Perfil'], [/\b(minha casa|dados da (casa|obra|residencia)|a casa)\b/, '#casa', 'Minha Casa'], [/\b(inicio|home|tela inicial|pagina inicial)\b/, '#home', 'Início']];
-const AS_VIEWV = /\b(ver|veja|visualizar|visualize|mostrar|mostre|mostra|exibir|exiba|abrir|abra|abre|acessar|acesse|ir para|ir pra|va para|vai para|me leve|me leva|levar|entrar|entre|navegar|quero ver|preciso ver|gostaria de ver|consultar|tela de|tela do|tela da|aba de|aba do|aba da|menu de|menu do|menu da)\b/;
+const AS_VIEWV = /\b(configurar|ajustar as|falar com|fale com|sobre o app|sobre o aplicativo|ver|veja|visualizar|visualize|mostrar|mostre|mostra|exibir|exiba|abrir|abra|abre|acessar|acesse|ir para|ir pra|va para|vai para|me leve|me leva|levar|entrar|entre|navegar|quero ver|preciso ver|gostaria de ver|consultar|tela de|tela do|tela da|aba de|aba do|aba da|menu de|menu do|menu da)\b/;
 const AS_QUAL = /\b(quanto|quantos|quantas|quais|qual|quando|vencimento|vencer|vence\w*|vencid\w*|proxim\w*|total|esta semana|este mes|ultim\w*|maior\w*|resumo|situacao|status)\b/;
 const AS_CRIAR = /\b(lanc\w*|regist\w*|cadastr\w*|adicion\w*|inclu\w*|anot\w*|inser\w*|cri(e|ar)|nova|novo|uma?|solicit\w*|preciso de|quero abrir)\b/;
+function asDayNav(t) {   // cronograma / contas a pagar em um dia (ou mês) específico → [null, hash, nome, rótulo, {iso|ym, k}]
+  const cr = /\b(cronograma|agenda|calendario|compromissos|avisos do dia)\b/.test(t) && !/\b(financeiro|contas|boletos?|parcelas?)\b/.test(t), ct = /\b(calendario financeiro|calendario de contas|contas a pagar|contas|boletos?|parcelas?|vencimentos?)\b/.test(t) && !/\b(despesas?|gastos?)\b/.test(t);
+  if (!cr && !ct) return null; const exp = /\b(calendario|cronograma|agenda|tela|selecion\w+)\b/.test(t);
+  if (!(AS_VIEWV.test(t) || exp) || (AS_QUAL.test(t) && !exp) || (AS_CRIAR.test(t) && !AS_VIEWV.test(t) && !exp)) return null;
+  const iso = asDate(t, false), now = new Date(todayIso() + 'T00:00'); let ym = null, m;
+  if (!iso) {
+    if (/\b(proximo mes|mes que vem)\b/.test(t)) { const x = new Date(now.getFullYear(), now.getMonth() + 1, 1); ym = x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0'); }
+    else if (/\b(mes passado|mes anterior)\b/.test(t)) { const x = new Date(now.getFullYear(), now.getMonth() - 1, 1); ym = x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0'); }
+    else if ((m = new RegExp('\\b(' + asMes.join('|') + ')(?:\\s+de\\s+(\\d{4}))?\\b').exec(t))) ym = (m[2] || now.getFullYear()) + '-' + String(asMes.indexOf(m[1]) + 1).padStart(2, '0');
+    if (!ym) return null;
+  }
+  const k = ct ? 'contas' : 'cron', base = ct ? '#financeiro?contas' : '#cronograma', nome = ct ? 'Contas a pagar' : 'Cronograma';
+  return [null, iso ? `${base}${ct ? '&' : '?'}dia=${iso}` : `${base}${ct ? '&' : '?'}mes=${ym}`, nome, iso ? 'dia ' + iso.slice(8) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4) : MESES[+ym.slice(5) - 1].toLowerCase() + ' de ' + ym.slice(0, 4), { iso, ym, k }];
+}
 function asNavMatch(t) {   // tela pedida pelo usuário, ou null
+  { const dn = asDayNav(t); if (dn) return dn; }
   if (!AS_VIEWV.test(t) || AS_QUAL.test(t)) return null; const h = AS_NAV.find(x => x[0].test(t)); if (!h) return null;
   if (h[1] === '#assistencia' && /\b(abrir|abra|abre)\b/.test(t) && !/\b(tela|suporte|minhas|lista|solicitacoes|chamados|menu|aba)\b/.test(t)) return null;   // “abrir assistência” = criar uma nova
   if (AS_CRIAR.test(t) && /\b(despesas?|gastos|assistencia|solicitacao|garantia|manutencao)\b/.test(t) && !/\b(tela|aba|menu|ver|mostrar|visualizar|exibir)\b/.test(t)) return null;
   return h;
 }
-function qNav(t) { const h = asNavMatch(t) || AS_NAV.find(x => x[0].test(t)); if (!h) return null; return rp(`Abrindo a tela **${h[2]}** para você.`, { go: h[1], ask: 'Se precisar de mais alguma coisa, é só pedir.' }); }
+async function qNav(t) {
+  const h = asNavMatch(t) || AS_NAV.find(x => x[0].test(t)); if (!h) return null;
+  if (h[4]) {   // dia/mês específico: conta o que há na data para já avisar
+    const x = h[4]; let n = 0;
+    try { if (x.k === 'contas') { await instLoad(); n = S.inst.filter(i => String(i.due_on).startsWith(x.iso || x.ym)).length; } else { const ev = await calEvents(S.cur.id); n = ev.filter(e => String(e.d).startsWith(x.iso || x.ym)).length; } } catch { n = -1; }
+    const un = x.k === 'contas' ? ['conta', 'contas'] : ['aviso', 'avisos'], quando = x.iso ? 'neste dia' : 'neste mês';
+    const info = n < 0 ? '' : n === 0 ? ` Não há ${un[1]} ${x.k === 'contas' ? 'com vencimento' : 'agendados'} ${quando}.` : ` Há ${asPlural(n, un[0], un[1])} ${quando}.`;
+    return rp(`Abrindo **${h[2]}** em **${h[3]}**.${x.iso ? ' Já deixei o dia selecionado para você ver o que está previsto.' : ''}${info}`, { go: h[1], ask: 'Quer ver outro dia ou outra tela?' });
+  }
+  return rp(`Abrindo a tela **${h[2]}** para você.`, { go: h[1], ask: 'Se precisar de mais alguma coisa, é só pedir.' }); }
 const qHelp = () => rp('Posso ajudar com tudo o que existe no app, nas suas residências:\n• **Consultar**: gastos, orçamento por categoria, contas a vencer, garantias, manutenções, assistências, cronograma e avisos da Astell.\n• **Cadastrar** (sempre com o seu OK antes de salvar): lançar despesas, abrir solicitação de assistência, marcar contas como pagas e definir orçamentos.\n\nPode falar ou digitar. Por onde quer começar?', { chips: [{ l: 'Quanto já gastamos?', t: 'quanto já gastamos com a construção' }, { l: 'Contas da semana', t: 'quais contas vencem esta semana' }, { l: 'Lançar despesa', t: 'lançar uma despesa' }, { l: 'Abrir assistência', t: 'abrir uma nova solicitação de assistência' }] });
 const qHowTo = t => /assistencia|chamado|solicitacao/.test(t)
   ? rp('É simples: no menu, toque em **Suporte** e depois em "Nova solicitação". Informe a categoria, o local da casa e descreva o problema (fotos e vídeos são opcionais).\n\nSe preferir, eu faço isso por você agora mesmo: é só me contar o que aconteceu.', { offer: { t: 'abrir uma nova solicitação de assistência', l: 'Abrir assistência agora' }, ask: 'Quer que eu abra a solicitação agora?', chips: [{ l: 'Abrir Suporte', go: '#assistencia' }] })
