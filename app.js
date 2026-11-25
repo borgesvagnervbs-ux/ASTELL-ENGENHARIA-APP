@@ -1172,6 +1172,17 @@ async function asData(ids, force) {
   AS.cache[key] = { t: Date.now(), d }; return d;
 }
 const asDrop = () => { AS.cache = {}; };
+/* ---------- IA (Gemini) — só reescreve a frase num comando padrão; quem executa é o app, com confirmação ---------- */
+const AS_AI = { on: true, n: 0, pause: 0 };
+async function asAI(raw, asking) {
+  try {
+    if (!AS_AI.on || Date.now() < AS_AI.pause || AS_AI.n >= 80 || !sb.functions || !navigator.onLine) return null; AS_AI.n++;
+    const r = await Promise.race([sb.functions.invoke('asti-nlu', { body: { text: String(raw).slice(0, 400), cats: (S.xcats && S.xcats.length ? S.xcats : XDEF), asking: asking || null, today: todayIso() } }), new Promise((_, rej) => setTimeout(() => rej(new Error('tempo esgotado')), 9000))]);
+    if (r.error || !r.data || !r.data.canonical) throw (r.error || new Error('vazio'));
+    const c = String(r.data.canonical).trim(); if (/^FORA_DO_ESCOPO/i.test(c)) return { off: true }; if (/^NAO_ENTENDI/i.test(c)) return null; return { text: c };
+  } catch (e) { AS_AI.pause = Date.now() + 120000; return null; }   // se falhar, o ASTI segue só com as regras locais
+}
+
 function asSplit(list, D) {
   const t = todayIso(); let pago = 0, comp = 0;
   list.forEach(e => { const ins = D.inst.filter(i => i.expense_id === e.id), tot = asSum(ins, i => i.amount), rest = Math.max(0, Number(e.amount) - tot);
@@ -1312,7 +1323,7 @@ function asDescSrv(raw) {
 }
 function asDescExp(raw, f) {
   let x = ' ' + raw + ' ';
-  x = x.replace(/r\$\s*[\d.,]+(\s*mil)?/ig, ' ').replace(/\b[\d.,]+\s*(reais|real|mil|conto|contos|k)\b/ig, ' ').replace(/\b\d{1,2}\/\d{1,2}(\/\d{2,4})?/g, ' ').replace(/\b(dia\s+\d{1,2}|hoje|ontem|anteontem|amanh[ãa])\b/ig, ' ');
+  x = x.replace(/\b(dia\s+)?\d{1,2}\/\d{1,2}(\/\d{2,4})?/g, ' ').replace(/r\$\s*[\d.,]+(\s*mil)?/ig, ' ').replace(/\b[\d.,]+\s*(reais|real|mil|conto|contos|k)\b/ig, ' ').replace(/\b\d{1,2}\/\d{1,2}(\/\d{2,4})?/g, ' ').replace(/\b(dia\s+\d{1,2}|hoje|ontem|anteontem|amanh[ãa])\b/ig, ' ');
   if (f.cat) x = x.replace(new RegExp('\\b(na |da |de |em |do )?(categoria\\s+)?(de\\s+)?' + f.cat.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'ig'), ' ');
   if (f.amount) x = x.replace(/\b\d[\d.,]*\b/g, m => { const n = asNum(m.replace(/[.,]$/, '')); return n === f.amount ? ' ' : m; });
   x = x.replace(/\b(pag[oa]s?|primeira parcela|1[ªa] parcela|1 parcela)\b/ig, ' ').replace(/\b(na |da |de |em )?subcategoria\s+\S+/ig, ' ').replace(/\b(na |da |de |em )?categoria\s+\S+/ig, ' ')
@@ -1433,7 +1444,7 @@ async function asDraftTurn(t, raw) {
     return asAdvance(d);
   }
   const before = JSON.stringify(d.f); asFill(d, t, raw, false, false);
-  if (before === JSON.stringify(d.f)) { if (asIntentOf(t, raw)) { AS.draft = null; return null; } const r = asAdvance(d); return { ...r, t: 'Desculpe, não consegui entender essa resposta. ' + r.t }; }
+  if (before === JSON.stringify(d.f)) { if (asIntentOf(t, raw)) { AS.draft = null; return null; } const ai = await asAI(raw, d.asking); if (ai && ai.text) { const tt = nrm(ai.text); asFill(d, tt, ai.text, false, false); if (before !== JSON.stringify(d.f)) return asAdvance(d); } const r = asAdvance(d); return { ...r, t: 'Desculpe, não consegui entender essa resposta. ' + r.t }; }
   return asAdvance(d);
 }
 async function asExec(d) {
@@ -1499,7 +1510,7 @@ function asIntentOf(t, raw) {   // devolve o nome do assunto ou null (usado tamb
   if (/\b(endereco|onde fica|area|metragem|entrega|prazo da obra|inicio da obra|responsavel tecnico|dados da (casa|obra|residencia))\b/.test(t)) return 'info';
   return null;
 }
-async function asHandle(raw) {
+async function asHandle(raw, viaAI) {
   const t = nrm(raw).replace(/(\d)([.,])(?=\d)/g, (m, d, s) => d + (s === '.' ? '\u0001' : '\u0002')).replace(/[!?.,;:()"]+/g, ' ').replace(/\u0001/g, '.').replace(/\u0002/g, ',').replace(/\s+/g, ' ').trim();
   if (!S.cur) return rp('Não encontrei nenhuma residência vinculada à sua conta. Fale com a Astell para liberar o acesso.');
   if (AS.draft) { const r = await asDraftTurn(t, raw); if (r) return r; }
@@ -1509,6 +1520,7 @@ async function asHandle(raw) {
   let D = null; try { D = await asData(Rr.list.map(r => r.id)); } catch (_) {}
   const list = asCatList(D), cat0 = asFindCat(t, list), sl = { res: Rr, cat: cat0 ? cat0.name : null, per: asPeriod(t), raw: t };
   if (!k && AS.ctx && (sl.cat || sl.per || Rr.all || Rr.named)) { const c = AS.ctx; k = c.k; sl.cat = sl.cat || c.cat; sl.per = sl.per || c.per; if (!Rr.all && !Rr.named) sl.res = c.res || Rr; }
+  if (!k && !viaAI) { const ai = await asAI(raw); if (ai && ai.off) k = 'off'; else if (ai && ai.text && nrm(ai.text) !== t) return asHandle(ai.text, true); }
   if (k === 'greet') return rp(`Olá${asFirst() ? ', ' + asFirst() : ''}! Como posso ajudar você hoje?`, { chips: asDefChips() });
   if (k === 'thanks') return rp('Por nada! Fico feliz em ajudar.', { ask: 'Há mais alguma coisa que eu possa fazer pela sua obra?', chips: asDefChips() });
   if (k === 'bye') return rp('Até mais! Estarei por aqui sempre que precisar.');
