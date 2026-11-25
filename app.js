@@ -1070,3 +1070,598 @@ addEventListener('keydown', e => {
 addEventListener('keydown', e => { if (e.target.matches && e.target.matches('input[data-nonneg]') && ['-', '+', 'e', 'E', '.', ','].includes(e.key)) e.preventDefault(); });
 addEventListener('input', e => { const t = e.target; if (t.matches && t.matches('input.tel')) t.value = telMask(t.value); });
 addEventListener('input', e => { const t = e.target; if (t.matches && t.matches('input[data-nonneg]') && t.value !== '' && !/^\d+$/.test(t.value)) t.value = t.value.replace(/\D/g, ''); });
+/* ===== ASTI — assistente virtual (início) ===== */
+// Conversa por texto ou voz, consultas e cadastros somente nas residências do usuário (o banco já filtra pelo acesso da conta).
+const AS = { cache: {}, msgs: [], draft: null, offer: null, ctx: null, welcomed: false, open: false, busy: false, uid: null, rec: null, listening: false };
+const asLs = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (_) {} return null; };
+const asCap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+const asFirst = () => { const n = String((S.profile && S.profile.name) || '').trim().split(/\s+/)[0] || ''; return n.includes('@') ? '' : asCap(n.toLowerCase()); };
+const asSum = (a, f = x => x) => a.reduce((s, x) => s + Number(f(x) || 0), 0);
+const asMes = ['janeiro', 'fevereiro', 'marco', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+const asPlural = (n, s, p) => n + ' ' + (n === 1 ? s : p);
+const asIc = {
+  bot: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="11" rx="4.5"/><path d="M12 8V5"/><circle cx="12" cy="4" r="1"/><path d="M2.5 13v2M21.5 13v2M9 12.5v2M15 12.5v2"/></svg>',
+  mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
+  send: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>',
+  spk: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>',
+  mute: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>',
+  x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>'
+};
+
+/* ---------- números, datas, categorias ---------- */
+function asNum(s) {
+  s = String(s).trim(); if (!s) return NaN;
+  if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) return parseFloat(s.replace(/\./g, '').replace(',', '.'));
+  if (s.includes(',')) return parseFloat(s.replace(/\./g, '').replace(',', '.'));
+  if (/^\d+\.\d{1,2}$/.test(s)) return parseFloat(s);
+  return parseFloat(s.replace(/\./g, ''));
+}
+function asMoney(t) {   // t: texto normalizado (minúsculas, sem acento)
+  let x = ' ' + t + ' ';
+  x = x.replace(/\d{1,2}\/\d{1,2}(\/\d{2,4})?/g, ' ').replace(/\bdia\s+\d{1,2}\b/g, ' ').replace(/\b\d+\s*(x|vezes|parcelas?|meses|mes|anos?|dias?|m2|m²)\b/g, ' ').replace(/\bparcelad[oa]s?\s+(em|de)\s+\d+/g, ' ').replace(/\b(19|20)\d{2}\b(?!\s*(reais|mil))/g, ' ');
+  let m;
+  if ((m = /r\$\s*([\d.,]+)(\s*(mil|k)\b)?/.exec(x))) { const n = asNum(m[1].replace(/[.,]$/, '')); if (n > 0) return m[2] ? n * 1000 : n; }
+  if ((m = /\b([\d.,]+)\s*(mil|k)\b/.exec(x))) { const n = asNum(m[1].replace(/[.,]$/, '')); if (n > 0) return n * 1000; }
+  if ((m = /\bmil e (\d+)/.exec(x))) return 1000 + Number(m[1]);
+  if ((m = /\b([\d.,]+)\s*(reais|real|conto|contos|pila|pilas)\b/.exec(x))) { const n = asNum(m[1].replace(/[.,]$/, '')); if (n > 0) return n; }
+  if (/\bmil (reais|real)\b/.test(x)) return 1000;
+  if ((m = /\b(\d[\d.,]*)\b/.exec(x))) { const n = asNum(m[1].replace(/[.,]$/, '')); if (n > 0) return n; }
+  return null;
+}
+function asDate(t, future) {   // devolve AAAA-MM-DD ou null
+  const now = new Date(todayIso() + 'T00:00'), Y = now.getFullYear(), M = now.getMonth(), D = now.getDate(), iso = (y, m, d) => xIso(new Date(y, m, d)); let m;
+  if (/\bhoje\b/.test(t)) return todayIso();
+  if (/\banteontem\b/.test(t)) return iso(Y, M, D - 2);
+  if (/\bontem\b/.test(t)) return iso(Y, M, D - 1);
+  if (/\bamanha\b/.test(t)) return iso(Y, M, D + 1);
+  if ((m = /\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/.exec(t))) { let y = m[3] ? +m[3] : Y; if (y < 100) y += 2000; const d = new Date(y, +m[2] - 1, +m[1]); if (d.getMonth() === +m[2] - 1) return xIso(d); }
+  if ((m = new RegExp('\\b(?:dia\\s+)?(\\d{1,2})\\s+de\\s+(' + asMes.join('|') + ')(?:\\s+de\\s+(\\d{4}))?').exec(t))) { const mi = asMes.indexOf(m[2]); let y = m[3] ? +m[3] : Y; if (!m[3] && future && new Date(y, mi, +m[1]) < now) y++; return iso(y, mi, +m[1]); }
+  if ((m = /\bdia\s+(\d{1,2})\b/.exec(t))) { const d = +m[1]; if (d >= 1 && d <= 31) { let mo = M; if (future && d < D) mo++; return iso(Y, mo, d); } }
+  return null;
+}
+function asPeriod(t) {   // período citado na frase
+  const now = new Date(todayIso() + 'T00:00'), Y = now.getFullYear(), M = now.getMonth(), D = now.getDate(), iso = (y, m, d) => xIso(new Date(y, m, d)); let m;
+  if (/\b(mes passado|ultimo mes|mes anterior)\b/.test(t)) return { k: 'lastmonth', from: iso(Y, M - 1, 1), to: iso(Y, M, 0), label: 'no mês passado' };
+  if (/\b(este mes|neste mes|mes atual|do mes|no mes|deste mes)\b/.test(t)) return { k: 'month', from: iso(Y, M, 1), to: iso(Y, M + 1, 0), label: 'neste mês' };
+  if (/\b(esta semana|nesta semana|essa semana|na semana|desta semana|proximos 7 dias|proximos sete dias)\b/.test(t)) return { k: 'week', from: iso(Y, M, D), to: iso(Y, M, D + 7), label: 'nos próximos 7 dias' };
+  if (/\bsemana que vem|proxima semana\b/.test(t)) return { k: 'nextweek', from: iso(Y, M, D + 7), to: iso(Y, M, D + 14), label: 'na semana que vem' };
+  if ((m = /\bproximos (\d{1,3}) dias\b/.exec(t))) return { k: 'days', from: iso(Y, M, D), to: iso(Y, M, D + +m[1]), label: `nos próximos ${m[1]} dias` };
+  if (/\b(este ano|neste ano|no ano)\b/.test(t)) return { k: 'year', from: iso(Y, 0, 1), to: iso(Y, 11, 31), label: 'neste ano' };
+  if (/\bhoje\b/.test(t)) return { k: 'today', from: todayIso(), to: todayIso(), label: 'hoje' };
+  if ((m = new RegExp('\\b(?:em|de|no mes de|durante)\\s+(' + asMes.join('|') + ')\\b').exec(t))) { const mi = asMes.indexOf(m[1]); return { k: 'named', from: iso(Y, mi, 1), to: iso(Y, mi + 1, 0), label: 'em ' + ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'][mi] }; }
+  return null;
+}
+const AS_SYN = {
+  'Acabamentos': ['tinta', 'pintura', 'piso', 'porcelanato', 'revestimento', 'azulejo', 'rejunte', 'gesso', 'forro', 'bancada', 'marmore', 'granito', 'cuba', 'metais', 'torneira', 'massa corrida', 'textura'],
+  'Mobiliário': ['sofa', 'mesa', 'cadeira', 'cama', 'armario', 'guarda roupa', 'estante', 'rack', 'colchao', 'movel', 'moveis', 'poltrona', 'marcenaria'],
+  'Eletrodomésticos': ['geladeira', 'fogao', 'microondas', 'micro ondas', 'maquina de lavar', 'lava loucas', 'cooktop', 'coifa', 'forno', 'lavadora', 'secadora', 'freezer', 'ar condicionado', 'ventilador'],
+  'Eletrônicos': ['tv', 'televisao', 'televisor', 'notebook', 'soundbar', 'celular', 'roteador', 'camera', 'alexa'],
+  'Área externa': ['piscina', 'jardim', 'paisagismo', 'grama', 'churrasqueira', 'portao', 'calcada', 'deck', 'muro'],
+  'Construção': ['cimento', 'tijolo', 'areia', 'brita', 'concreto', 'ferragem', 'ferro', 'aco', 'steel frame', 'madeira', 'laje', 'fundacao', 'alvenaria', 'pedreiro', 'drywall'],
+  'Serviços': ['servico', 'mao de obra', 'frete', 'taxa', 'projeto', 'arquiteto', 'engenheiro', 'diaria', 'instalacao']
+};
+const asRx = w => new RegExp('(^|[^a-z0-9])' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+') + '([^a-z0-9]|$)');
+const asCatList = D => xCats((D && D.cats) || [], (D && D.ex) || []);
+function asFindCat(t, list) {   // { name, isNew }
+  list = list || (S.xcats && S.xcats.length ? S.xcats : XDEF); let m;
+  if ((m = /\bcategoria\s+(?:de\s+|do\s+|da\s+)?([a-z0-9 ]{2,40}?)(?=\s+(?:subcategoria|no|na|em|com|valor|de|por|pago|paga|para|dia|hoje|ontem|forma|parcelad|a vista)\b|$)/.exec(t))) {
+    const w = m[1].trim(), hit = list.find(c => nrm(c) === w) || list.find(c => nrm(c).startsWith(w) || w.startsWith(nrm(c)));
+    if (hit) return { name: hit, isNew: false }; if (w && !/^(outr|nova|qualquer)/.test(w)) return { name: asCap(w), isNew: true };
+  }
+  const byLen = [...list].sort((a, b) => b.length - a.length), hit = byLen.find(c => asRx(nrm(c)).test(t));
+  if (hit) return { name: hit, isNew: false };
+  for (const [cat, words] of Object.entries(AS_SYN)) { const real = list.find(c => nrm(c) === nrm(cat)); if (real && words.some(w => asRx(w).test(t))) return { name: real, isNew: false, via: 'syn' }; }
+  return null;
+}
+function asRes(t) {   // residências citadas (ou a atual)
+  const all = S.res || [];
+  if (all.length > 1 && /\b(todas|todos)\b.*\b(residencias?|casas?|obras?|imoveis)\b|\b(em|nas|das)\s+todas\b|\bgeral das (casas|obras|residencias)\b/.test(t)) return { list: all, all: true };
+  const hit = all.filter(r => (r.name && nrm(r.name).length > 2 && t.includes(nrm(r.name))) || (r.code && t.includes(nrm(r.code))));
+  if (hit.length === 1 && all.length > 1) return { list: hit, named: true };
+  return { list: S.cur ? [S.cur] : [], cur: true };
+}
+const asResName = id => { const r = (S.res || []).find(x => x.id === id); return r ? (r.name || r.code) : ''; };
+
+/* ---------- dados (sempre pelas regras de acesso do banco) ---------- */
+async function asData(ids, force) {
+  const key = ids.slice().sort().join(','), c = AS.cache[key];
+  if (!force && c && Date.now() - c.t < 40000) return c.d;
+  const IN = tb => sb.from(tb).select('*').in('residence_id', ids);
+  const [ex, inst, cb, rs, wa, mt, sr, cs, ss] = await Promise.all([IN('expenses'), IN('expense_installments'), IN('category_budgets'), sb.from('residences').select('*').in('id', ids), IN('warranties'), IN('maintenance_tasks'), IN('service_requests'), sb.from('expense_categories').select('name'), sb.from('expense_subcategories').select('category,name')]);
+  const d = { ex: ex.data || [], inst: inst.data || [], cb: cb.data || [], rs: rs.data || [], wa: wa.data || [], mt: mt.data || [], sr: sr.data || [], cats: cs.data || [], subs: ss.data || [] };
+  AS.cache[key] = { t: Date.now(), d }; return d;
+}
+const asDrop = () => { AS.cache = {}; };
+function asSplit(list, D) {
+  const t = todayIso(); let pago = 0, comp = 0;
+  list.forEach(e => { const ins = D.inst.filter(i => i.expense_id === e.id), tot = asSum(ins, i => i.amount), rest = Math.max(0, Number(e.amount) - tot);
+    ins.forEach(i => { if (i.paid_on) pago += Number(i.amount); else comp += Number(i.amount); });
+    if (e.spent_on <= t) pago += rest; else comp += rest; });
+  return { pago, comp };
+}
+const asBudget = (D, rid) => Number(((D.rs || []).find(r => r.id === rid) || {}).budget || 0);
+const asBillSt = i => i.paid_on ? 'paid' : i.due_on < todayIso() ? 'late' : dayDiff(i.due_on) <= 15 ? 'soon' : 'ok';
+const asExName = (D, i) => { const e = D.ex.find(x => x.id === i.expense_id); return e ? e.description : 'Despesa'; };
+const asLimit = p => p > 100 ? ['ultrapassou o limite', 'r'] : p >= 80 ? ['atenção: perto do limite', 'g'] : ['dentro do limite', 'ok'];
+const asWhere = R => R.all ? 'em todas as suas residências' : (S.res.length > 1 ? `na residência ${R.list[0].name || R.list[0].code}` : '');
+
+/* ---------- respostas de consulta ---------- */
+const rp = (t, o = {}) => ({ t, ...o });
+async function qSpend(sl) {
+  const R = sl.res, D = await asData(R.list.map(r => r.id)); let list = D.ex;
+  if (sl.cat) list = list.filter(e => inCat(e, sl.cat));
+  if (sl.per) list = list.filter(e => e.spent_on >= sl.per.from && e.spent_on <= sl.per.to);
+  const total = asSum(list, e => e.amount), sp = asSplit(list, D), tag = [sl.cat ? `com **${sl.cat}**` : '', sl.per ? sl.per.label : '', asWhere(R)].filter(Boolean).join(' ');
+  if (!list.length) return rp(`Não encontrei despesas lançadas ${tag || 'até agora'}.`, { offer: { t: 'lançar uma despesa', l: 'Lançar uma despesa' }, ask: 'Quer lançar uma despesa agora?' });
+  let t = `O total lançado ${tag ? tag : 'até agora'} é **${brl(total)}** (${asPlural(list.length, 'despesa', 'despesas')}).\nDesse valor, ${brl(sp.pago)} já foi pago e ${brl(sp.comp)} ainda está a pagar.`;
+  if (R.all) { t += '\n\nPor residência:\n' + R.list.map(r => `• ${r.name || r.code}: ${brl(asSum(list.filter(e => e.residence_id === r.id), e => e.amount))}`).join('\n'); }
+  else {
+    const rid = R.list[0].id;
+    if (sl.cat) { const b = D.cb.find(x => x.residence_id === rid && nrm(x.category) === nrm(sl.cat)), gen = asBudget(D, rid), eff = b ? (b.pct != null ? gen * Number(b.pct) / 100 : Number(b.amount || 0)) : 0;
+      if (eff > 0 && !sl.per) { const used = asSum(D.ex.filter(e => inCat(e, sl.cat)), e => e.amount), p = pctN(used, eff); t += `\nO orçamento dessa categoria é ${brl(eff)}: ${p}% consumido, ${asLimit(p)[0]}${used < eff ? ` — restam ${brl(eff - used)}` : ''}.`; } }
+    else if (!sl.per) { const gen = asBudget(D, rid); if (gen > 0) { const p = pctN(total, gen); t += `\nDo orçamento geral de ${brl(gen)}, ${p}% já foi consumido, ${asLimit(p)[0]}${total < gen ? ` — restam ${brl(gen - total)}` : ''}.`; } }
+    if (!sl.cat) { const by = {}; list.forEach(e => by[e.category] = (by[e.category] || 0) + Number(e.amount)); const top = Object.entries(by).sort((a, b) => b[1] - a[1])[0]; if (top && Object.keys(by).length > 1) t += `\nA categoria com maior gasto é **${top[0]}** (${brl(top[1])}).`; }
+  }
+  return rp(t, { ctx: { k: 'spend', cat: sl.cat, per: sl.per, res: R }, offer: sl.cat ? { t: 'últimas despesas ' + (sl.cat ? 'de ' + sl.cat : ''), l: 'Ver últimas despesas' } : { t: 'orçamento por categoria', l: 'Ver orçamento por categoria' }, ask: sl.cat ? `Quer ver as últimas despesas de ${sl.cat}?` : 'Quer ver como está o orçamento de cada categoria?', chips: [{ l: 'Contas a vencer', t: 'quais contas vencem esta semana' }, { l: 'Lançar despesa', t: 'lançar uma despesa' }] });
+}
+async function qBudget(sl) {
+  const R = sl.res, D = await asData(R.list.map(r => r.id)); const out = [];
+  for (const r of R.list) {
+    const gen = asBudget(D, r.id), all = D.ex.filter(e => e.residence_id === r.id), tot = asSum(all, e => e.amount), cbs = D.cb.filter(b => b.residence_id === r.id);
+    let t = R.list.length > 1 ? `**${r.name || r.code}**\n` : '';
+    if (sl.cat) { const b = cbs.find(x => nrm(x.category) === nrm(sl.cat)), eff = b ? (b.pct != null ? gen * Number(b.pct) / 100 : Number(b.amount || 0)) : 0, used = asSum(all.filter(e => inCat(e, sl.cat)), e => e.amount);
+      t += eff > 0 ? `**${sl.cat}**: orçamento de ${brl(eff)}, já usou ${brl(used)} (${pctN(used, eff)}%) — ${asLimit(pctN(used, eff))[0]}${used < eff ? `. Restam ${brl(eff - used)}` : `. Excedeu ${brl(used - eff)}`}.` : `A categoria **${sl.cat}** ainda não tem orçamento definido (já foram lançados ${brl(used)}).`; }
+    else {
+      t += gen > 0 ? `Orçamento geral: **${brl(gen)}**. Já foi lançado ${brl(tot)} (${pctN(tot, gen)}%) — ${asLimit(pctN(tot, gen))[0]}${tot < gen ? `. Disponível: ${brl(gen - tot)}` : `. Excedeu ${brl(tot - gen)}`}.` : `O orçamento geral ainda não foi definido. Já foram lançados ${brl(tot)}.`;
+      if (cbs.length) t += '\n' + cbs.map(b => { const eff = b.pct != null ? gen * Number(b.pct) / 100 : Number(b.amount || 0), u = asSum(all.filter(e => inCat(e, b.category)), e => e.amount), p = pctN(u, eff); return `• ${b.category}: ${brl(u)} de ${brl(eff)} (${p}%)${p > 100 ? ' ⚠' : ''}`; }).join('\n');
+    }
+    out.push(t);
+  }
+  return rp(out.join('\n\n'), { ctx: { k: 'budget', cat: sl.cat, res: R }, offer: { t: 'quais contas vencem esta semana', l: 'Ver contas a vencer' }, ask: 'Quer conferir as contas que estão para vencer?', chips: [{ l: 'Definir orçamento', t: 'definir orçamento' }] });
+}
+async function qBills(sl, t0) {
+  const R = sl.res, D = await asData(R.list.map(r => r.id)); let L = D.inst.slice(), per = sl.per, tag = '';
+  const late = /\bvencid/.test(t0), paid = /\b(pagas?|pagos?|quitad)/.test(t0) && !/\ba pagar\b/.test(t0), ex = id => D.ex.find(x => x.id === id);
+  if (late) { L = L.filter(i => asBillSt(i) === 'late'); tag = 'vencidas'; }
+  else if (paid) { L = L.filter(i => i.paid_on); tag = 'pagas'; if (per) L = L.filter(i => i.paid_on >= per.from && i.paid_on <= per.to); }
+  else { L = L.filter(i => !i.paid_on); if (per) { L = L.filter(i => i.due_on >= per.from && i.due_on <= per.to); tag = 'em aberto ' + per.label; } else { L = L.filter(i => asBillSt(i) !== 'ok'); tag = 'vencidas ou que vencem em até 15 dias'; } }
+  if (sl.cat) L = L.filter(i => { const e = ex(i.expense_id); return e && inCat(e, sl.cat); });
+  L.sort((a, b) => (paid ? b.paid_on.localeCompare(a.paid_on) : a.due_on.localeCompare(b.due_on)));
+  if (!L.length) return rp(`Boa notícia: não encontrei contas ${tag || 'nesse filtro'} ${asWhere(R)}.`.replace(/\s+\./, '.'), { ctx: { k: 'bills', res: R }, ask: 'Quer ver todas as contas em aberto do mês?', offer: { t: 'contas deste mês', l: 'Contas deste mês' } });
+  const tot = asSum(L, i => i.amount), nLate = L.filter(i => asBillSt(i) === 'late').length;
+  const lines = L.slice(0, 6).map(i => { const e = ex(i.expense_id), st = asBillSt(i); return `• ${e ? e.description : 'Despesa'}${i.total > 1 ? ` (parcela ${i.num}/${i.total})` : ''} — ${brl(i.amount)} — ${i.paid_on ? 'paga em ' + fmt(i.paid_on) : (st === 'late' ? 'VENCIDA em ' : 'vence em ') + fmt(i.due_on)}`; });
+  let t = `Encontrei ${asPlural(L.length, 'conta', 'contas')} ${tag} ${asWhere(R)}, somando **${brl(tot)}**.\n` + lines.join('\n') + (L.length > 6 ? `\n… e mais ${L.length - 6}.` : '');
+  if (nLate && !late) t += `\n\nAtenção: ${asPlural(nLate, 'conta está vencida', 'contas estão vencidas')}.`;
+  return rp(t, { ctx: { k: 'bills', per, cat: sl.cat, res: R }, offer: !paid ? { t: 'marcar conta como paga', l: 'Marcar como paga' } : null, ask: !paid ? 'Quer que eu marque alguma dessas contas como paga?' : 'Posso mostrar também as contas em aberto, se quiser.', chips: [{ l: 'Abrir calendário', go: '#financeiro?contas' }] });
+}
+async function qWarr(sl) {
+  const R = sl.res, D = await asData(R.list.map(r => r.id)), W = [...D.wa.filter(w => w.visible !== false).map(w => ({ ...w, _r: w.residence_id })), ...D.ex.filter(e => e.warranty_months).map(e => ({ ...expWar(e), _r: e.residence_id }))];
+  if (!W.length) return rp('Ainda não há garantias cadastradas para a sua residência. Quando a equipe da Astell ou você cadastrar, eu aviso por aqui.', { ctx: { k: 'warr', res: R } });
+  const I = W.map(w => ({ w, i: wInfo(w) })), warn = I.filter(x => x.i.kind === 'warn'), bad = I.filter(x => x.i.kind === 'bad'), ok = I.filter(x => x.i.kind === 'ok'), only = /\b(proxim|vencer|vencimento)/.test(sl.raw || '');
+  let t = `Você tem ${asPlural(W.length, 'garantia', 'garantias')}: ${ok.length} vigente${ok.length === 1 ? '' : 's'}, ${warn.length} próxima${warn.length === 1 ? '' : 's'} do vencimento e ${bad.length} expirada${bad.length === 1 ? '' : 's'}.`;
+  if (warn.length) t += '\n\nPróximas do vencimento:\n' + warn.map(x => `• ${x.w.system} — vence em ${x.i.end.toLocaleDateString('pt-BR')} (faltam ${x.i.txt})`).join('\n');
+  else if (only) t += '\n\nNenhuma garantia está próxima do vencimento no momento.';
+  if (!only && bad.length) t += '\n\nExpiradas:\n' + bad.slice(0, 4).map(x => `• ${x.w.system} — expirou em ${x.i.end.toLocaleDateString('pt-BR')}`).join('\n');
+  return rp(t, { ctx: { k: 'warr', res: R }, offer: warn.length ? { t: 'abrir assistência técnica', l: 'Abrir assistência técnica' } : null, ask: warn.length ? 'Se precisar acionar alguma garantia, posso abrir uma solicitação de assistência. Quer?' : 'Quer saber das manutenções preventivas agendadas?', chips: [{ l: 'Abrir garantias', go: '#garantias' }] });
+}
+async function qServ(sl) {
+  const R = sl.res, D = await asData(R.list.map(r => r.id)), L = D.sr.slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+  if (!L.length) return rp('Você ainda não tem solicitações de assistência técnica.', { ask: 'Quer abrir uma agora?', offer: { t: 'abrir assistência técnica', l: 'Abrir assistência' } });
+  const open = L.filter(r => !/conclu|cancel/i.test(r.status || 'Recebida')); let t = `Você tem ${asPlural(L.length, 'solicitação', 'solicitações')} de assistência, ${open.length} em andamento.\n` + L.slice(0, 5).map(r => `• ${r.protocol} — ${r.category || 'Assistência'}${r.place ? ' (' + r.place + ')' : ''} — **${r.status || 'Recebida'}**${r.scheduled_for ? ` · atendimento previsto para ${fmt(r.scheduled_for)}` : ''}`).join('\n');
+  return rp(t, { ctx: { k: 'serv', res: R }, offer: { t: 'abrir assistência técnica', l: 'Abrir nova assistência' }, ask: 'Precisa abrir uma nova solicitação?', chips: [{ l: 'Abrir Suporte', go: '#assistencia' }] });
+}
+async function qMaint(sl) {
+  const R = sl.res, D = await asData(R.list.map(r => r.id)), L = D.mt.filter(m => m.next_due && !/cancel/i.test(m.status || '')).sort((a, b) => a.next_due.localeCompare(b.next_due));
+  if (!L.length) return rp('Não há manutenções preventivas com data prevista no momento.', { ctx: { k: 'maint', res: R } });
+  const t = `Próximas manutenções preventivas:\n` + L.slice(0, 5).map(m => { const d = dayDiff(m.next_due); return `• ${m.name} — ${fmt(m.next_due)} (${d < 0 ? `atrasada há ${asPlural(-d, 'dia', 'dias')}` : d === 0 ? 'hoje' : `em ${asPlural(d, 'dia', 'dias')}`})`; }).join('\n');
+  return rp(t, { ctx: { k: 'maint', res: R }, ask: 'Quer ver também as garantias próximas do vencimento?', offer: { t: 'garantias próximas do vencimento', l: 'Ver garantias' }, chips: [{ l: 'Abrir manutenção', go: '#manutencao' }] });
+}
+async function qAgenda(sl) {
+  const R = sl.res, D = await asData(R.list.map(r => r.id)), lim = xIso(new Date(Date.now() + 30 * 864e5)), E = [];
+  D.inst.filter(i => !i.paid_on && i.due_on <= lim).forEach(i => E.push([i.due_on, `Conta: ${asExName(D, i)} — ${brl(i.amount)}`]));
+  D.mt.filter(m => m.next_due && m.next_due <= lim && !/cancel/i.test(m.status || '')).forEach(m => E.push([m.next_due, `Manutenção: ${m.name}`]));
+  D.sr.filter(r => r.scheduled_for && r.scheduled_for >= todayIso() && r.scheduled_for <= lim).forEach(r => E.push([r.scheduled_for, `Atendimento ${r.protocol} (${r.category || 'assistência'})`]));
+  E.sort((a, b) => a[0].localeCompare(b[0]));
+  if (!E.length) return rp('Nada previsto nos próximos 30 dias: sem contas, manutenções ou atendimentos agendados.', { ctx: { k: 'agenda', res: R } });
+  return rp('Os próximos compromissos (30 dias):\n' + E.slice(0, 8).map(e => `• ${fmt(e[0])} — ${e[1]}`).join('\n'), { ctx: { k: 'agenda', res: R }, ask: 'Quer abrir o cronograma completo?', chips: [{ l: 'Abrir cronograma', go: '#cronograma' }] });
+}
+async function qLast(sl) {
+  const R = sl.res, D = await asData(R.list.map(r => r.id)); let L = D.ex.slice().sort((a, b) => String(b.spent_on).localeCompare(String(a.spent_on)) || String(b.created_at).localeCompare(String(a.created_at)));
+  if (sl.cat) L = L.filter(e => inCat(e, sl.cat)); const top = /\bmaior/.test(sl.raw || ''); if (top) L = L.slice().sort((a, b) => Number(b.amount) - Number(a.amount));
+  if (!L.length) return rp('Não encontrei despesas para mostrar.', { offer: { t: 'lançar uma despesa', l: 'Lançar uma despesa' }, ask: 'Quer lançar uma?' });
+  return rp(`${top ? 'Maiores despesas' : 'Últimas despesas'}${sl.cat ? ' em **' + sl.cat + '**' : ''}:\n` + L.slice(0, 5).map(e => `• ${fmt(e.spent_on)} — ${e.description} (${e.category}) — ${brl(e.amount)}`).join('\n'), { ctx: { k: 'last', cat: sl.cat, res: R }, ask: 'Quer lançar uma nova despesa?', offer: { t: 'lançar uma despesa', l: 'Lançar despesa' }, chips: [{ l: 'Abrir despesas', go: '#custos' }] });
+}
+async function qInfo(sl) {
+  const r = sl.res.list[0]; if (!r) return rp('Não encontrei uma residência vinculada à sua conta.');
+  const p = [['Residência', r.name || r.code], ['Endereço', r.address], ['Área', r.area_m2 ? r.area_m2 + ' m²' : ''], ['Pavimentos', r.floors], ['Sistema construtivo', r.build_system], ['Início da obra', r.start_date ? fmt(r.start_date) : ''], ['Previsão de entrega', r.delivery_date ? fmt(r.delivery_date) : ''], ['Responsável técnico', r.tech_lead]].filter(x => x[1]);
+  return rp(p.map(x => `• ${x[0]}: ${x[1]}`).join('\n'), { ctx: { k: 'info', res: sl.res }, ask: 'Posso ajudar com mais alguma informação sobre a obra?' });
+}
+async function qNews(sl) {
+  const L = await avLoad(); if (!L.length) return rp('Não há atualizações recentes cadastradas pela equipe da Astell nos últimos 60 dias.', { ask: 'Quer que eu confira as contas a vencer?', offer: { t: 'quais contas vencem esta semana', l: 'Contas a vencer' } });
+  const un = L.filter(x => x.unread);
+  const t = (un.length ? `Você tem ${asPlural(un.length, 'aviso novo', 'avisos novos')}. ` : 'Você está em dia com os avisos. ') + 'As últimas atualizações da sua residência:\n' + L.slice(0, 5).map(n => `• ${fmt(String(n.updated_at).slice(0, 10))} — ${avMsg(n)}${n.unread ? ' (novo)' : ''}`).join('\n');
+  return rp(t, { ctx: { k: 'news' }, ask: 'Quer abrir a central de avisos?', chips: [{ l: 'Abrir avisos', go: '#avisos' }, ...(L[0] && AV[L[0].kind] && AV[L[0].kind][3] ? [{ l: 'Ver o mais recente', go: AV[L[0].kind][3] }] : [])] });
+}
+async function qSummary(sl) {
+  const R = sl.res, D = await asData(R.list.map(r => r.id)), rid = R.list[0].id, gen = asBudget(D, rid), tot = asSum(D.ex.filter(e => e.residence_id === rid), e => e.amount), late = D.inst.filter(i => asBillSt(i) === 'late'), soon = D.inst.filter(i => asBillSt(i) === 'soon'), war = [...D.wa, ...D.ex.filter(e => e.warranty_months).map(expWar)].filter(w => wInfo(w).kind === 'warn'), op = D.sr.filter(r => !/conclu|cancel/i.test(r.status || ''));
+  const t = `Resumo de **${R.list[0].name || R.list[0].code}**:\n• Gastos lançados: ${brl(tot)}${gen > 0 ? ` (${pctN(tot, gen)}% do orçamento de ${brl(gen)})` : ''}\n• Contas vencidas: ${late.length}${late.length ? ' (' + brl(asSum(late, i => i.amount)) + ')' : ''}\n• Contas vencendo em até 15 dias: ${soon.length}\n• Garantias próximas do vencimento: ${war.length}\n• Assistências em andamento: ${op.length}`;
+  return rp(t, { ctx: { k: 'summary', res: R }, ask: 'Quer detalhar algum desses pontos?', chips: [{ l: 'Contas a vencer', t: 'contas a vencer' }, { l: 'Garantias', t: 'garantias próximas do vencimento' }, { l: 'Assistências', t: 'minhas assistências' }] });
+}
+const AS_NAV = [[/\bfinanceiro\b/, '#financeiro', 'Financeiro'], [/\b(despesas?|custos)\b/, '#custos', 'Despesas'], [/\bcontas a pagar|calendario financeiro\b/, '#financeiro?contas', 'Contas a pagar'], [/\bgarantias?\b/, '#garantias', 'Garantias'], [/\bdocumentos?\b/, '#documentos', 'Documentos'], [/\b(suporte|assistencia)\b/, '#assistencia', 'Suporte'], [/\bmanutenc/, '#manutencao', 'Manutenção'], [/\bcronograma|agenda\b/, '#cronograma', 'Cronograma'], [/\bplantas?\b/, '#planta', 'Plantas técnicas'], [/\b(fotos|videos?|midias?|imagens)\b/, '#midias', 'Mídias'], [/\bequipamentos?\b/, '#equipamentos', 'Equipamentos'], [/\bavisos|notificacoes\b/, '#avisos', 'Avisos'], [/\b(minha casa)\b/, '#casa', 'Minha Casa'], [/\bperfil\b/, '#mais', 'Perfil'], [/\b(inicio|home|tela inicial)\b/, '#home', 'Início']];
+function qNav(t) { const h = AS_NAV.find(x => x[0].test(t)); if (!h) return null; return rp(`Pronto, abrindo **${h[2]}** para você.`, { go: h[1], ask: 'Precisa de mais alguma coisa por aqui?' }); }
+const qHelp = () => rp('Posso ajudar com tudo o que existe no app, nas suas residências:\n• **Consultar**: gastos, orçamento por categoria, contas a vencer, garantias, manutenções, assistências, cronograma e avisos da Astell.\n• **Cadastrar** (sempre com o seu OK antes de salvar): lançar despesas, abrir solicitação de assistência, marcar contas como pagas e definir orçamentos.\n\nPode falar ou digitar. Por onde quer começar?', { chips: [{ l: 'Quanto já gastamos?', t: 'quanto já gastamos com a construção' }, { l: 'Contas da semana', t: 'quais contas vencem esta semana' }, { l: 'Lançar despesa', t: 'lançar uma despesa' }, { l: 'Abrir assistência', t: 'abrir assistência técnica' }] });
+const qHowTo = t => /assistencia|chamado|solicitacao/.test(t)
+  ? rp('É simples: no menu, toque em **Suporte** e depois em "Nova solicitação". Informe a categoria, o local da casa e descreva o problema (fotos e vídeos são opcionais).\n\nSe preferir, eu faço isso por você agora mesmo: é só me contar o que aconteceu.', { offer: { t: 'abrir assistência técnica', l: 'Abrir assistência agora' }, ask: 'Quer que eu abra a solicitação agora?', chips: [{ l: 'Abrir Suporte', go: '#assistencia' }] })
+  : /despesa|gasto|compra/.test(t)
+    ? rp('Vá em **Financeiro › Despesas** e toque em lançar. Informe valor, descrição, categoria e a forma de pagamento.\n\nOu me diga aqui, por exemplo: "lançar despesa de 350 reais com tinta no Pix", e eu monto o lançamento para você confirmar.', { offer: { t: 'lançar uma despesa', l: 'Lançar despesa agora' }, ask: 'Quer lançar uma despesa agora?' })
+    : qHelp();
+
+/* ---------- cadastros com confirmação (rascunho → resumo → confirmar) ---------- */
+const AS_PAYM = [['pix', 'Pix'], ['debito', 'Débito'], ['credito', 'Crédito'], ['cartao', 'Crédito'], ['boleto', 'Boleto']];
+const asPayM = t => { for (const [k, v] of AS_PAYM) if (asRx(k).test(t)) return v; return null; };
+const asCond = t => /\ba vista\b|\bavista\b/.test(t) ? 'avista' : /parcel|\b\d{1,2}\s*(x|vezes)\b/.test(t) ? 'parcelado' : null;
+const asParcN = t => { const m = /\b(\d{1,2})\s*(x|vezes|parcelas?)\b/.exec(t) || /parcelad[oa]s?\s+(?:em|de)\s+(\d{1,2})\b/.exec(t); return m ? +m[1] : null; };
+const AS_PLACES = ['banheiro', 'cozinha', 'sala', 'quarto', 'suíte', 'garagem', 'varanda', 'lavanderia', 'área de serviço', 'escritório', 'corredor', 'telhado', 'jardim', 'fachada', 'área externa', 'sacada', 'closet', 'escada', 'piscina', 'churrasqueira', 'lavabo', 'hall', 'teto', 'sótão'];
+const AS_REQSYN = { 'Hidráulica': ['vazamento', 'vazando', 'vaza', 'torneira', 'cano', 'encanamento', 'infiltracao', 'registro', 'descarga', 'entupid', 'ralo', 'caixa d agua', 'chuveiro', 'pia', 'sifao'], 'Elétrica': ['tomada', 'luz', 'disjuntor', 'curto', 'fiacao', 'lampada', 'energia', 'interruptor', 'quadro de luz', 'choque', 'fio'], 'Cobertura': ['telhado', 'goteira', 'calha', 'telha', 'cobertura', 'rufo', 'laje'], 'Esquadrias': ['janela', 'porta', 'vidro', 'fechadura', 'esquadria', 'persiana', 'trinco', 'dobradica'], 'Revestimentos': ['piso', 'azulejo', 'revestimento', 'rejunte', 'porcelanato', 'ceramica', 'descolando'], 'Pintura': ['pintura', 'mofo', 'tinta', 'descascando', 'bolhas', 'mancha', 'rachadura', 'trinca', 'fissura'], 'Steel Frame': ['steel', 'estrutura', 'drywall', 'placa cimenticia'], 'Equipamentos': ['ar condicionado', 'aquecedor', 'forno', 'cooktop', 'coifa', 'equipamento', 'automacao', 'interfone', 'portao eletronico'] };
+const asReqCat = t => { for (const [c, w] of Object.entries(AS_REQSYN)) if (w.some(x => asRx(x).test(t))) return c; const m = REQ_CATS.find(c => asRx(nrm(c)).test(t)); return m || null; };
+const asPlace = raw => { const n = nrm(raw); const p = AS_PLACES.find(x => asRx(nrm(x)).test(n)); return p ? asCap(p) : null; };
+const AS_STRIP = /\b(abrir|abra|abre|criar|crie|cadastrar|cadastre|registrar|registre|solicitar|solicite|fazer|faca|quero|queria|gostaria de|gostaria|preciso de|preciso|precisamos de|necessito de|uma|um|nova|novo|a|o|de|do|da|por favor|pra mim|assistencia tecnica|assistencia|chamado|solicitacao|sobre|para|pra)\b/gi;
+function asDescSrv(raw) {
+  let x = raw.replace(/\b(abrir|abra|criar|crie|cadastrar|cadastre|registrar|registre|solicitar|solicite|quero|queria|gostaria de|gostaria|preciso de|preciso|precisamos de|necessito de)\b\s*(uma?\s+)?(nova\s+)?(solicita[cç][aã]o\s+de\s+)?(assist[eê]ncia\s+t[eé]cnica|assist[eê]ncia|chamado|solicita[cç][aã]o)?\s*(para|pra|sobre|de|do|da|porque|pois|:)?\s*/i, '').replace(/^[\s,.:;-]+/, '').trim();
+  if (x.length < 4 || /^(assist|uma?\b|nova|tecnic)/i.test(x) && x.split(/\s+/).length < 3) return null; return asCap(x);
+}
+function asDescExp(raw, f) {
+  let x = ' ' + raw + ' ';
+  x = x.replace(/r\$\s*[\d.,]+(\s*mil)?/ig, ' ').replace(/\b[\d.,]+\s*(reais|real|mil|conto|contos|k)\b/ig, ' ').replace(/\b\d{1,2}\/\d{1,2}(\/\d{2,4})?/g, ' ').replace(/\b(dia\s+\d{1,2}|hoje|ontem|anteontem|amanh[ãa])\b/ig, ' ');
+  if (f.cat) x = x.replace(new RegExp('\\b(na |da |de |em |do )?(categoria\\s+)?(de\\s+)?' + f.cat.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'ig'), ' ');
+  if (f.amount) x = x.replace(/\b\d[\d.,]*\b/g, m => { const n = asNum(m.replace(/[.,]$/, '')); return n === f.amount ? ' ' : m; });
+  x = x.replace(/\b(pag[oa]s?|primeira parcela|1[ªa] parcela|1 parcela)\b/ig, ' ').replace(/\b(na |da |de |em )?subcategoria\s+\S+/ig, ' ').replace(/\b(na |da |de |em )?categoria\s+\S+/ig, ' ')
+    .replace(/\b(lan[cç]ar|lance|lan[cç]o|registrar|registre|cadastrar|cadastre|adicionar|adicione|incluir|inclua|anotar|anote|inserir|insira|criar|crie|quero|gostaria de|gostaria|preciso|despesas?|gastos?|compras?|pagamentos?|paguei|comprei|gastei|pagamos|compramos|gastamos|por favor|nova|novo|uma|um|pra mim)\b/ig, ' ')
+    .replace(/\b(no|na|em|via|com|pelo|pela|de|por)?\s*(pix|d[ée]bito|cr[ée]dito|cart[aã]o|boleto)\b/ig, ' ').replace(/\b([àa] vista|parcelad[oa]s?(\s+(em|de))?|\d+\s*(x|vezes|parcelas?))\b/ig, ' ')
+    .replace(/\b(vence|vencimento|vencendo)\b.*$/i, ' ').replace(/\bgarantia\s+de\s+\d+\s*\w+/ig, ' ').replace(/\b(fornecedor|loja|empresa)\s+\S+(\s+\S+)?/ig, ' ')
+    .replace(/\s+/g, ' ').trim();
+  for (let i = 0; i < 4; i++) x = x.replace(/^(de|do|da|dos|das|com|para|pra|em|no|na|nos|nas|o|a|os|as|por|e|referente a|ref\.?|sobre)(\s+|$)/i, '').replace(/(^|\s+)(de|do|da|com|para|em|no|na|e|por)$/i, '').trim();
+  x = x.replace(/[.,;:]+$/, '').trim(); return x.length >= 2 ? asCap(x) : null;
+}
+const asYes = t => /^(sim|s|isso|isso mesmo|confirmo|confirmar|confirma|pode|pode sim|pode ser|ok|okay|certo|claro|quero|quero sim|manda|mande|vamos|positivo|com certeza|por favor|bora|fechado|perfeito|exato|tudo certo|ta bom|esta bom|uhum|aham)( por favor| obrigad[oa]| pode| confirmo)?$/.test(t) || (/^sim\b/.test(t) && t.length < 28);
+const asNo = t => /^(nao|n|nao obrigad[oa]|nao quero|cancela\w*|cancelar|deixa|deixa pra la|esquece|desisto|melhor nao|negativo|nada|so isso|so isso mesmo|era so isso|por enquanto nao|agora nao|nao precisa|nao pode)\b/.test(t) && !/^nao (e|era|foi|ficou)\b/.test(t);
+const asCancelW = t => /^(cancela\w*|cancelar|deixa( pra la)?|esquece|desisto|melhor nao|nao quero( mais)?|parar|chega|sair)\b/.test(t) || asNo(t) && t.length < 14;
+
+function asFill(d, t, raw, fix, first) {
+  const f = d.f, a = d.asking, set = (k, v, nn) => { if (v != null && (f[k] === undefined || fix || a === k)) { f[k] = v; if (nn) Object.assign(f, nn); } };
+  if (d.type === 'expense') {
+    const list = (S.xcats && S.xcats.length ? S.xcats : XDEF), money = asMoney(t);
+    if (money && (f.amount == null || fix || a === 'amount')) f.amount = money;
+    const venc = /\b(venc\w*|primeira parcela|1a parcela|1 parcela|boleto para|boleto pro)\b/.test(t), dt = asDate(t, venc);
+    if (dt) { if (venc || a === 'due') set('due', asDate(t, true)); else if (a !== 'n') set('date', dt); }
+    const pm = asPayM(t); if (pm) set('method', pm); const cd = asCond(t); if (cd) set('cond', cd); const n = asParcN(t); if (n >= 2 && n <= 60) { set('n', n); set('cond', 'parcelado'); }
+    const cat = asFindCat(t, list); if (cat && (f.cat == null || fix || a === 'cat')) { f.cat = cat.name; f.catNew = !!cat.isNew; }
+    let m = /\bsubcategoria\s+([a-z0-9 ]{2,30}?)(?=\s+(?:no|na|em|com|valor|de|por|pago|paga|para|dia|hoje|ontem|forma)\b|$)/.exec(t); if (m) set('sub', asCap(m[1].trim()));
+    m = /\b(?:fornecedor|loja|empresa)\s+([^\s,.]+(?:\s+[^\s,.]+)?)/i.exec(raw); if (m) set('supplier', asCap(m[1].replace(/\s+(com|de|no|na|valor|por|dia|hoje|ontem)$/i, '').trim()));
+    m = /garantia\s+de\s+(\d+)\s*(anos?|meses|mes)/.exec(t); if (m) set('warranty', +m[1] * (/^ano/.test(m[2]) ? 12 : 1));
+    if (first && !f.desc) { const x = asDescExp(raw, f); if (x) f.desc = x; }
+    if (a === 'desc' && !f.desc && !asLooksQuery(t)) { const x = AS_INSV.test(t) ? asDescExp(raw, f) : asCap(raw.trim().replace(/[.!]+$/, '')); if (x && x.length <= 90) f.desc = x; }
+    if (a === 'cat' && !f.cat && raw.trim().length <= 30 && !asLooksQuery(t)) { f.cat = asCap(raw.trim().replace(/[.!]+$/, '')); f.catNew = !list.some(c => nrm(c) === nrm(f.cat)); }
+    if (a === 'method' && /^(pular|pula|nao|sem|nenhum|depois|nao sei|nao informar|deixa|n\/a|tanto faz)\b/.test(t)) f.method = null;
+    if (a === 'n' && f.n == null) { const mm = /\b(\d{1,2})\b/.exec(t); if (mm && +mm[1] >= 2 && +mm[1] <= 60) { f.n = +mm[1]; f.cond = 'parcelado'; } }
+    if (a === 'due' && !f.due) { const mm = /^\s*(?:dia\s+)?(\d{1,2})\s*$/.exec(t); if (mm && +mm[1] >= 1 && +mm[1] <= 31) { const dd = asDate('dia ' + mm[1], true); if (dd) f.due = dd; } }
+  } else if (d.type === 'service') {
+    const c = asReqCat(t); if (c && (f.cat == null || fix || a === 'cat')) f.cat = c;
+    const p = asPlace(raw); if (p && (f.place == null || fix || a === 'place')) f.place = p;
+    if (first && !f.desc) { const x = asDescSrv(raw); if (x) f.desc = x; }
+    if (a === 'desc' && !f.desc && raw.trim().length >= 4 && !asLooksQuery(t)) f.desc = asCap(raw.trim());
+    if (a === 'cat' && !f.cat) f.cat = REQ_CATS.find(x => nrm(x) === t) || (/^(outr|nao sei|qualquer|sei la)/.test(t) ? 'Outros' : null);
+    if (a === 'place' && !f.place && raw.trim().length <= 40 && !asLooksQuery(t)) f.place = asCap(raw.trim().replace(/[.!]+$/, ''));
+    const dt = asDate(t, true); if (dt && /\b(dia|data|prefer|melhor|quando|amanha)\b/.test(t) && !f.date) f.date = dt;
+    if (/\b(gas|fogo|incendio|choque|faisca|cheiro de queimado)\b/.test(t)) d.alert = true;
+  } else if (d.type === 'pay') {
+    const m = /^inst:(.+)$/.exec(t); if (m) f.inst = m[1];
+    else if (a === 'inst' && f.cands) { const num = /^\s*(\d)\s*$/.exec(t), idx = num ? +num[1] - 1 : /\bprimeira\b/.test(t) ? 0 : /\bsegunda\b/.test(t) ? 1 : /\bterceira\b/.test(t) ? 2 : -1; if (f.cands[idx]) f.inst = f.cands[idx].id; }
+  } else if (d.type === 'budget') {
+    const money = asMoney(t); if (money && (f.amount == null || fix || a === 'amount')) f.amount = money;
+    const list = (S.xcats && S.xcats.length ? S.xcats : XDEF), cat = asFindCat(t, list);
+    if (/\b(geral|total|da obra|da casa|da construcao|do projeto)\b/.test(t) && !cat) { f.scope = 'geral'; f.cat = null; }
+    else if (cat && !/\bgeral\b/.test(t)) { f.scope = 'cat'; f.cat = cat.name; f.catNew = !!cat.isNew; }
+    if (a === 'scope' && !f.scope && raw.trim().length <= 30) { f.scope = 'cat'; f.cat = asCap(raw.trim()); f.catNew = !list.some(c => nrm(c) === t); }
+  }
+}
+const asLooksQuery = t => /\b(quanto|quantos|quantas|quais|qual|me mostre|mostrar|ver|garantia|vencem|vence)\b/.test(t) && t.split(' ').length > 3;
+
+const brlN = v => brl(v);
+const asChipsCats = list => list.slice(0, 9).map(c => ({ l: c, t: c }));
+function asAdvance(d) {
+  const f = d.f; d.stage = 'ask'; d.asking = null; const q = (field, text, chips) => { d.asking = field; return rp(text, { chips: [...(chips || []), { l: 'Cancelar', t: 'cancelar', ghost: 1 }] }); };
+  if (d.type === 'expense') {
+    if (!(f.amount > 0)) return q('amount', 'Certo, vamos lançar uma despesa. Qual foi o **valor**?');
+    if (!f.desc) return q('desc', `Valor de ${brl(f.amount)}. E o que foi essa despesa? (por exemplo: tinta, mão de obra do pedreiro, geladeira)`);
+    if (!f.cat) return q('cat', 'Em qual **categoria** devo lançar?', asChipsCats((S.xcats && S.xcats.length ? S.xcats : XDEF)));
+    if (f.method === undefined) return q('method', 'Como foi o **pagamento**? Assim já organizo o seu controle financeiro.', [...['Pix', 'Débito', 'Crédito', 'Boleto'].map(x => ({ l: x, t: x })), { l: 'Pular', t: 'pular' }]);
+    if (f.method === 'Pix' || f.method === 'Débito') f.cond = f.cond || 'avista';
+    if (f.method && f.cond === undefined) return q('cond', `${f.method}: foi **à vista** ou **parcelado**?`, [{ l: 'À vista', t: 'à vista' }, { l: 'Parcelado', t: 'parcelado' }]);
+    if (f.cond === 'parcelado' && !f.n) return q('n', 'Em quantas **parcelas**? (de 2 a 60)');
+    if (f.cond === 'parcelado' && !f.due) return q('due', 'Qual a data de **vencimento da 1ª parcela**? (por exemplo: 10/12 ou dia 10)');
+    if (f.cond === 'avista' && f.method === 'Boleto' && !f.due) return q('due', 'Qual o **vencimento do boleto**? (por exemplo: 10/12 ou dia 10)');
+    f.date = f.date || todayIso();
+    let pay = 'Não informado'; if (f.method) { pay = f.method + ' · ' + (f.cond === 'parcelado' ? `parcelado em ${f.n}x de ${brl(Math.floor(f.amount / f.n * 100) / 100)} (1ª em ${fmt(f.due)})` : 'à vista' + (f.due ? ` (vence em ${fmt(f.due)})` : '')); }
+    const rows = [d.multi ? ['Residência', d.rname] : null, ['Descrição', f.desc], ['Valor', brl(f.amount)], ['Data', fmt(f.date)], ['Categoria', f.cat + (f.catNew ? ' (nova categoria)' : '')], ['Subcategoria', f.sub || 'Outros'], ['Pagamento', pay], f.supplier ? ['Fornecedor', f.supplier] : null, f.warranty ? ['Garantia', f.warranty + ' meses'] : null].filter(Boolean);
+    return asConfirm(d, 'Vou lançar esta despesa:', rows);
+  }
+  if (d.type === 'service') {
+    if (!f.desc) return q('desc', d.alert ? 'Em risco imediato (gás, fogo, choque), afaste-se e ligue 193 ou 192. Depois me conte o que aconteceu.' : 'Claro! Conte o que aconteceu: o que é o problema, onde e desde quando.');
+    if (!f.cat) return q('cat', 'Qual a **categoria** da assistência?', REQ_CATS.map(c => ({ l: c, t: c })));
+    if (!f.place) return q('place', 'Em qual **local da casa** está o problema?', ['Banheiro', 'Cozinha', 'Sala', 'Quarto', 'Garagem', 'Área externa'].map(c => ({ l: c, t: c })));
+    const rows = [d.multi ? ['Residência', d.rname] : null, ['Categoria', f.cat], ['Local', f.place], ['Descrição', f.desc], f.date ? ['Melhor data', fmt(f.date)] : null, ['Urgência', 'Média (a equipe avalia)']].filter(Boolean);
+    return asConfirm(d, (d.alert ? 'Em risco imediato (gás, fogo, choque), afaste-se e ligue 193 ou 192. ' : '') + 'Vou abrir esta solicitação de assistência:', rows);
+  }
+  if (d.type === 'pay') {
+    if (!f.inst) { if (f.cands.length === 1) f.inst = f.cands[0].id; else { d.asking = 'inst'; return rp('Encontrei mais de uma conta. Qual delas devo marcar como **paga**?', { chips: [...f.cands.slice(0, 6).map(c => ({ l: c.label, t: 'inst:' + c.id })), { l: 'Cancelar', t: 'cancelar', ghost: 1 }] }); } }
+    const c = f.cands.find(x => x.id === f.inst); return asConfirm(d, 'Vou marcar esta conta como paga (com a data de hoje):', [['Conta', c.label], ['Valor', brl(c.amount)], ['Vencimento', fmt(c.due)], ['Paga em', fmt(todayIso())]]);
+  }
+  if (d.type === 'budget') {
+    if (!f.scope) return q('scope', 'O orçamento é **geral** da residência ou de uma **categoria**? Se for de categoria, diga qual.', [{ l: 'Geral', t: 'geral' }, ...asChipsCats((S.xcats && S.xcats.length ? S.xcats : XDEF)).slice(0, 7)]);
+    if (!(f.amount > 0)) return q('amount', f.scope === 'geral' ? 'Qual o **valor** do orçamento geral?' : `Qual o **valor** do orçamento de ${f.cat}?`);
+    return asConfirm(d, 'Vou atualizar o orçamento:', [d.multi ? ['Residência', d.rname] : null, ['Orçamento', f.scope === 'geral' ? 'Geral da residência' : f.cat + (f.catNew ? ' (nova categoria)' : '')], ['Novo valor', brl(f.amount)]].filter(Boolean));
+  }
+  return null;
+}
+function asConfirm(d, head, rows) { d.stage = 'confirm'; d.asking = null; return rp(head + '\n' + rows.map(r => `• ${r[0]}: **${r[1]}**`).join('\n') + '\n\nPosso confirmar?', { confirm: true }); }
+
+async function asStart(type, t, raw, sl) {
+  const R = sl.res.list[0]; if (!R) return rp('Não encontrei uma residência vinculada à sua conta para fazer o cadastro.');
+  const d = { type, rid: R.id, rname: R.name || R.code, multi: (S.res || []).length > 1, f: {}, stage: 'ask', asking: null };
+  AS.draft = d; AS.offer = null;
+  if (type === 'pay') { const D = await asData([R.id], true); const un = D.inst.filter(i => !i.paid_on), words = t.split(' ').filter(w => w.length > 3 && !/^(marcar|marque|conta|parcela|como|paga|pago|pagas|pagos|baixa|dar|boleto|quitar|quitada|minha|esta|essa|paguei|pagamento|confirmar)$/.test(w));
+    let c = un.filter(i => words.some(w => nrm(asExName(D, i)).includes(w)));
+    if (!c.length && /\b(vencid|atrasad)/.test(t)) c = un.filter(i => asBillSt(i) === 'late');
+    if (!c.length && /\b(proxima|mais antiga|primeira)\b/.test(t)) c = un.slice().sort((a, b) => a.due_on.localeCompare(b.due_on)).slice(0, 1);
+    if (!c.length && /\b(a pagar|em aberto|pendentes?)\b|\b(qual|alguma)\b/.test(t)) c = un.slice().sort((a, b) => a.due_on.localeCompare(b.due_on)).slice(0, 6);
+    if (!c.length) { AS.draft = null; if (!un.length) return rp('Não há contas em aberto para marcar como pagas.'); c = un.slice().sort((a, b) => a.due_on.localeCompare(b.due_on)).slice(0, 6); }
+    c = c.slice().sort((a, b) => a.due_on.localeCompare(b.due_on)); AS.draft = d;
+    d.f.cands = c.map(i => ({ id: i.id, amount: i.amount, due: i.due_on, label: `${asExName(D, i)}${i.total > 1 ? ` ${i.num}/${i.total}` : ''} · ${fmt(i.due_on)} · ${brl(i.amount)}` })); return asAdvance(d); }
+  asFill(d, t, raw, false, true); return asAdvance(d);
+}
+async function asDraftTurn(t, raw) {
+  const d = AS.draft; if (/^inst:/.test(raw)) t = raw;
+  if (/\b(quanto|quantos|quantas|quais|qual|me mostre|mostre|mostra)\b/.test(t) && t.split(' ').length >= 3 && !asCancelW(t)) { AS.draft = null; AS.pre = 'Deixei o cadastro anterior de lado: nada foi salvo.'; return null; }
+  if (asCancelW(t)) { AS.draft = null; return rp('Tudo bem, cancelei. Nada foi salvo.', { ask: 'Posso ajudar com mais alguma coisa?' }); }
+  if (d.stage === 'confirm') {
+    if (asYes(t)) return asExec(d);
+    if (asNo(t)) { AS.draft = null; return rp('Combinado, não salvei nada.', { ask: 'Posso ajudar com mais alguma coisa?' }); }
+    if (/^(corrig\w*|alter\w*|edit\w*|mud\w*|troc\w*|ajust\w*|errado|esta errado|nao esta certo)$/.test(t)) return rp('Claro! O que você quer corrigir? Diga, por exemplo: “o valor é R$ 400”, “categoria Acabamentos” ou “foi no Pix”.');
+    const before = JSON.stringify(d.f); asFill(d, t, raw, true, false);
+    if (before === JSON.stringify(d.f)) { if (asIntentOf(t, raw)) { AS.draft = null; return null; } return { ...asAdvance(d), t: 'Não entendi o que ajustar. Diga, por exemplo, “o valor é R$ 400” ou “categoria Acabamentos”, ou toque em Confirmar/Cancelar.\n\n' + asAdvance(d).t }; }
+    return asAdvance(d);
+  }
+  const before = JSON.stringify(d.f); asFill(d, t, raw, false, false);
+  if (before === JSON.stringify(d.f)) { if (asIntentOf(t, raw)) { AS.draft = null; return null; } const r = asAdvance(d); return { ...r, t: 'Desculpe, não consegui entender essa resposta. ' + r.t }; }
+  return asAdvance(d);
+}
+async function asExec(d) {
+  const f = d.f, rid = d.rid; AS.draft = null; let err = null, msg = '';
+  try {
+    if (d.type === 'expense') {
+      if (f.catNew) { const r = await sb.from('expense_categories').insert({ name: f.cat }); if (r.error && !/duplicate|unique/i.test(r.error.message)) throw r.error; }
+      const sub = f.sub || 'Outros'; if (nrm(sub) !== 'outros') { const r = await sb.from('expense_subcategories').insert({ category: f.cat, name: sub }); if (r.error && !/duplicate|unique/i.test(r.error.message)) throw r.error; }
+      const amt = f.amount; let plan = [];
+      if (f.cond === 'parcelado') { const n = f.n, pv = Math.floor(amt / n * 100) / 100, last = Math.round((amt - pv * (n - 1)) * 100) / 100; plan = Array.from({ length: n }, (_, i) => ({ num: i + 1, total: n, due_on: addMonIso(f.due, i), amount: i === n - 1 ? last : pv })); }
+      else if (f.cond === 'avista' && f.due) plan = [{ num: 1, total: 1, due_on: f.due, amount: amt }];
+      const row = { pay_method: f.method || null, pay_cond: f.method ? f.cond : null, description: f.desc, amount: amt, spent_on: f.date || todayIso(), category: f.cat, subcategory: sub, supplier: f.supplier || null, notes: 'Lançado pelo assistente ASTI', media: [], warranty_months: f.warranty || null };
+      const r = await sb.from('expenses').insert({ residence_id: rid, ...row }).select('id').single(); if (r.error) throw r.error;
+      if (plan.length && r.data) { const ii = await sb.from('expense_installments').insert(plan.map(p => ({ ...p, expense_id: r.data.id, residence_id: rid, paid_on: null }))); if (ii.error) throw ii.error; }
+      msg = `Pronto! Lancei **${f.desc}** de ${brl(amt)} em **${f.cat}**${plan.length > 1 ? `, em ${plan.length} parcelas` : ''}.`;
+    } else if (d.type === 'service') {
+      const row = { category: f.cat, place: f.place, description: f.desc, urgency: 'Média', media: [], residence_id: rid, protocol: 'AST-' + Date.now().toString(36).toUpperCase(), preferred_date: f.date || null };
+      const r = await sb.from('service_requests').insert(row); if (r.error) throw r.error;
+      msg = `Pronto! Abri a solicitação **${row.protocol}** (${f.cat} · ${f.place}). A equipe da Astell vai analisar e você será avisado por aqui e no sininho quando houver resposta.`;
+    } else if (d.type === 'pay') {
+      const r = await sb.from('expense_installments').update({ paid_on: todayIso() }).eq('id', f.inst); if (r.error) throw r.error; const c = f.cands.find(x => x.id === f.inst); msg = `Feito! Marquei como paga: **${c.label}**.`;
+    } else if (d.type === 'budget') {
+      if (f.scope === 'geral') { const r = await sb.rpc('set_residence_budget', { p_id: rid, p_value: f.amount }); if (r.error) throw r.error; msg = `Orçamento geral atualizado para **${brl(f.amount)}**.`; }
+      else { if (f.catNew) { await sb.from('expense_categories').insert({ name: f.cat }); } const D = await asData([rid], true), ex = D.cb.find(b => nrm(b.category) === nrm(f.cat));
+        const r = ex ? await sb.from('category_budgets').update({ amount: f.amount, pct: null }).eq('id', ex.id) : await sb.from('category_budgets').insert({ residence_id: rid, category: f.cat, amount: f.amount, pct: null }); if (r.error) throw r.error; msg = `Orçamento de **${f.cat}** atualizado para **${brl(f.amount)}**.`; }
+    }
+  } catch (e) { err = e; }
+  if (err) return rp('Não consegui salvar agora: ' + (err.message || 'erro desconhecido') + '. Nada foi gravado. Quer tentar de novo?', { ask: null });
+  asDrop(); try { toast('Salvo pelo assistente.'); route(); } catch (_) {}
+  const more = d.type === 'expense' ? { ask: 'Deseja lançar outra despesa ou ver quanto já foi gasto em ' + f.cat + '?', offer: { t: 'quanto gastamos com ' + f.cat, l: 'Ver gastos de ' + f.cat }, chips: [{ l: 'Lançar outra', t: 'lançar uma despesa' }, { l: 'Ver contas a vencer', t: 'contas a vencer' }] }
+    : d.type === 'service' ? { ask: 'Quer anexar fotos ou vídeos? Isso é feito pela tela Suporte. Posso ajudar com mais alguma coisa?', chips: [{ l: 'Abrir Suporte', go: '#assistencia' }, { l: 'Minhas assistências', t: 'minhas assistências' }] }
+      : d.type === 'pay' ? { ask: 'Quer ver as próximas contas a vencer?', offer: { t: 'contas a vencer', l: 'Ver contas a vencer' } }
+        : { ask: 'Quer ver como ficou o orçamento por categoria?', offer: { t: 'orçamento por categoria', l: 'Ver orçamento' } };
+  return rp(msg, more);
+}
+
+/* ---------- entendimento da frase ---------- */
+const AS_INSV = /\b(lanc\w*|regist\w*|cadastr\w*|adicion\w*|inclu\w*|anot\w*|inser\w*|cri(e|ar)|abr(a|e|ir)|solicit\w*|fazer|faca|abrir)\b/;
+const AS_PROB = /\b(vazando|vazamento|vaza|infiltracao|goteira|curto circuito|queimou|quebrou|quebrado|entupid\w*|mofo|rachadura|trinca\w*|fissura|descascando|sem energia|sem luz|nao funciona|parou de funcionar|estragou|pingando|cheiro de gas)\b/;
+function asIntentOf(t, raw) {   // devolve o nome do assunto ou null (usado também para sair de um cadastro em andamento)
+  const q = /\b(quanto|quantos|quantas|quais|qual|quem|onde|mostre|mostra|mostrar|me (diga|fale|conte|mostre)|consult\w+|listar|liste)\b/.test(t);
+  if (/^(oi|ola|bom dia|boa tarde|boa noite|e ai|opa|hello|oie)\b/.test(t) && t.split(' ').length <= 5) return 'greet';
+  if (/\b(obrigad[oa]|valeu|agradec\w+)\b/.test(t)) return 'thanks';
+  if (/\b(tchau|ate mais|ate logo|encerrar)\b/.test(t)) return 'bye';
+  if (/\b(clima|previsao do tempo|futebol|piada|receita de|noticias?|presidente|bitcoin|filme|musica|horoscopo|loteria|politica)\b/.test(t)) return 'off';
+  if (/\b(como|onde|de que (forma|jeito)|qual o passo|me ensina\w*)\b/.test(t) && /(cadastr|abrir|lanc|regist|criar|fazer|solicit|mandar|enviar|usar)/.test(t) && !/\b(quanto)\b/.test(t)) return 'howto';
+  if (/\b(o que (voce|vc) (faz|sabe|pode)|ajuda|como funciona|o que posso (perguntar|fazer)|funcionalidades|comandos)\b/.test(t)) return 'help';
+  if (/\b(marc\w+|baix\w+|dar baixa|quit\w+|confirm\w+)\b.*\b(pag[ao]s?|paga|quitad\w+)\b/.test(t) || /\bpaguei\b.*\b(parcela|conta|boleto|fatura)\b/.test(t)) return 'pay';
+  if (/\b(defin\w+|alter\w+|ajust\w+|mud\w+|atualiz\w+|cri\w+|coloc\w+|aument\w+|diminu\w+|estabele\w+|fix\w+)\b.*\borcamento/.test(t) || (/\borcamento\b/.test(t) && !q && !/\b(como esta|quanto|qual|quais)\b/.test(t) && asMoney(t))) return 'setbudget';
+  if ((AS_INSV.test(t) && /\b(assistencia|chamado|solicitacao|reparo|conserto)\b/.test(t)) || (/\b(preciso|precisamos|quero|queria|gostaria|necessito)\b/.test(t) && /\b(assistencia|reparo|conserto|tecnico)\b/.test(t)) || (AS_PROB.test(t) && !q && !/\bgarantia\b/.test(t))) return 'service';
+  if ((AS_INSV.test(t) && /\b(despesa|gasto|compra|pagamento|nota fiscal|lancamento)\b/.test(t)) || (/\b(paguei|comprei|gastei|pagamos|compramos|gastamos)\b/.test(t) && asMoney(t) && !q) || /\b(nova despesa|uma despesa)\b/.test(t) && !q) return 'expense';
+  if (/\b(abrir|abra|ir para|va para|vai para|me leve|levar|mostrar a tela|abrir a tela)\b/.test(t) && AS_NAV.some(x => x[0].test(t))) return 'nav';
+  if (/\b(novidades?|atualizacoes|avisos|notificac\w+|o que mudou|o que (a astell|a equipe) (fez|atualizou|postou)|o que ha de novo)\b/.test(t)) return 'news';
+  if (/\b(resumo|situacao geral|panorama|visao geral|como esta (a )?(obra|minha casa|tudo))\b/.test(t)) return 'summary';
+  if (/\bgarantias?\b/.test(t)) return 'warr';
+  if (/\bmanutenc\w+|inspec\w+/.test(t)) return 'maint';
+  if (/\b(cronograma|agenda|compromissos|proximos eventos|proximos compromissos|o que (tenho|ha) (para|pra) (fazer|esta semana|este mes))\b/.test(t)) return 'agenda';
+  if (/\b(assistencias?|chamados?|solicitacoes?|protocolos?)\b/.test(t)) return 'serv';
+  if (/\b(contas?|vence\w*|vencid\w*|vencer|boletos?|parcelas?|a pagar|pagar|faturas?)\b/.test(t) && !/\b(gast\w+|despesas?)\b/.test(t)) return 'bills';
+  if (/\b(orcamentos?|limite|saldo|disponivel|sobra|quanto (falta|resta|sobra)|restante)\b/.test(t)) return 'budget';
+  if (/\b(ultimas?|ultimos|maiores|maior|recentes)\b.*\b(despesas?|gastos?|compras?|lancamentos?)\b|\b(despesas?|gastos?)\b.*\b(recentes|ultim\w+|maior\w*)\b/.test(t)) return 'last';
+  if (/\b(gast\w+|despesas?|custo\w*|custou|paguei|pagamos|investi\w*|total|quanto (ja )?(foi|saiu|deu))\b/.test(t)) return 'spend';
+  if (/\b(endereco|onde fica|area|metragem|entrega|prazo da obra|inicio da obra|responsavel tecnico|dados da (casa|obra|residencia))\b/.test(t)) return 'info';
+  return null;
+}
+async function asHandle(raw) {
+  const t = nrm(raw).replace(/(\d)([.,])(?=\d)/g, (m, d, s) => d + (s === '.' ? '\u0001' : '\u0002')).replace(/[!?.,;:()"]+/g, ' ').replace(/\u0001/g, '.').replace(/\u0002/g, ',').replace(/\s+/g, ' ').trim();
+  if (!S.cur) return rp('Não encontrei nenhuma residência vinculada à sua conta. Fale com a Astell para liberar o acesso.');
+  if (AS.draft) { const r = await asDraftTurn(t, raw); if (r) return r; }
+  if (AS.offer) { const o = AS.offer; AS.offer = null; if (asYes(t)) return asHandle(o.t); if (asNo(t)) return rp('Tudo bem! Se precisar de mais alguma coisa, é só me chamar.', { chips: asDefChips() }); }
+  if (!t) return rp('Pode falar ou digitar o que precisa.');
+  let k = asIntentOf(t, raw); const Rr = asRes(t);
+  let D = null; try { D = await asData(Rr.list.map(r => r.id)); } catch (_) {}
+  const list = asCatList(D), cat0 = asFindCat(t, list), sl = { res: Rr, cat: cat0 ? cat0.name : null, per: asPeriod(t), raw: t };
+  if (!k && AS.ctx && (sl.cat || sl.per || Rr.all || Rr.named)) { const c = AS.ctx; k = c.k; sl.cat = sl.cat || c.cat; sl.per = sl.per || c.per; if (!Rr.all && !Rr.named) sl.res = c.res || Rr; }
+  if (k === 'greet') return rp(`Olá${asFirst() ? ', ' + asFirst() : ''}! Como posso ajudar você hoje?`, { chips: asDefChips() });
+  if (k === 'thanks') return rp('Por nada! Fico feliz em ajudar.', { ask: 'Há mais alguma coisa que eu possa fazer pela sua obra?', chips: asDefChips() });
+  if (k === 'bye') return rp('Até mais! Estarei por aqui sempre que precisar.');
+  if (k === 'off') return rp('Eu só consigo ajudar com assuntos do aplicativo Astell Home e das suas residências, como gastos, contas, garantias, manutenções e assistências.', { chips: asDefChips() });
+  if (k === 'help') return qHelp(); if (k === 'howto') return qHowTo(t);
+  if (k === 'nav') return qNav(t);
+  if (k === 'expense') return asStart('expense', t, raw, sl);
+  if (k === 'service') return asStart('service', t, raw, sl);
+  if (k === 'pay') return asStart('pay', t, raw, sl);
+  if (k === 'setbudget') return asStart('budget', t, raw, sl);
+  const Q = { spend: qSpend, budget: qBudget, bills: s => qBills(s, t), warr: qWarr, maint: qMaint, agenda: qAgenda, serv: qServ, last: qLast, info: qInfo, news: qNews, summary: qSummary }[k];
+  if (Q) return Q(sl);
+  return rp('Hum, não tenho certeza de ter entendido. Posso consultar gastos, orçamento, contas, garantias, manutenções e assistências, ou fazer cadastros (despesas, assistências, pagamentos). Pode reformular?', { chips: asDefChips() });
+}
+const asDefChips = () => [{ l: 'Quanto já gastamos?', t: 'quanto já gastamos com a construção' }, { l: 'Contas da semana', t: 'quais contas vencem esta semana' }, { l: 'Garantias', t: 'quais garantias estão próximas do vencimento' }, { l: 'Lançar despesa', t: 'lançar uma despesa' }];
+
+/* ---------- voz: leitura em voz alta (feminina/masculina) e ditado ---------- */
+const AS_FEM = new Set(['beatriz', 'raquel', 'ester', 'isabel', 'carmen', 'miriam', 'ruth', 'iris', 'lais', 'thais', 'elis', 'alice', 'rute', 'nair', 'dulce', 'inez', 'ines', 'rosangela', 'solange', 'simone', 'michele', 'michelle', 'denise', 'eliane', 'viviane', 'josiane', 'luciane', 'adriane', 'daiane', 'tatiane', 'cristiane', 'fabiane', 'suzane', 'jaqueline', 'jacqueline', 'aline', 'caroline', 'karoline', 'carolina', 'angelica', 'lidiane', 'rosane', 'rosemeire', 'ivone', 'ivete', 'noemi', 'rebeca', 'rebecca', 'abigail', 'maite']);
+const AS_MAS = new Set(['luca', 'joshua', 'nikita', 'mica', 'jonas', 'elias', 'tobias', 'matias', 'lucas', 'andre', 'jose', 'felipe', 'guilherme', 'henrique', 'rodrigo', 'cassio', 'dante', 'jorge', 'vitor', 'davi', 'gabriel', 'daniel', 'rafael', 'miguel', 'samuel', 'emanuel', 'joao', 'caue', 'moises', 'noe', 'josue', 'ezequiel', 'zacarias', 'mateus', 'tomas', 'thomas', 'jesse', 'bruno', 'diego', 'alexandre', 'leandro', 'wesley', 'ney', 'ary', 'rui', 'claudio']);
+function asGender() {
+  const pref = asLs('astell_asti_voice'); if (pref === 'f' || pref === 'm') return pref;
+  const p = S.profile || {}, g = nrm(p.gender || p.sex || p.sexo || p.genero || ''); if (/^(f|fem)/.test(g)) return 'f'; if (/^(m|masc)/.test(g)) return 'm';
+  const n = nrm(asFirst()); if (!n) return 'f'; if (AS_FEM.has(n)) return 'f'; if (AS_MAS.has(n)) return 'm';
+  return /(a|ane|ine|ice|ise|ele|elle|ete|ede|ila|ia)$/.test(n) ? 'f' : 'm';
+}
+const asVoiceMode = () => asLs('astell_asti_voice') || 'auto';
+function asVoice(g) {
+  const vs = (window.speechSynthesis && speechSynthesis.getVoices()) || [], pt = vs.filter(v => /^pt([-_]BR)?/i.test(v.lang)), br = pt.filter(v => /BR/i.test(v.lang)), pool = br.length ? br : pt;
+  const fem = /maria|francisca|luciana|fernanda|vit[oó]ria|camila|ana\b|female|feminin|google portugu[eê]s do brasil|helena|joana|leticia|let[ií]cia/i, mas = /daniel|felipe|ant[oô]nio|ricardo|male\b|masculin|jorge|thiago|donato|jos[eé]|marcos/i;
+  const hit = pool.find(v => (g === 'f' ? fem : mas).test(v.name) && !(g === 'm' ? fem : mas).test(v.name));
+  return { v: hit || pool[0] || null, exact: !!hit };
+}
+function asSpokenText(t) {
+  const mes = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  return String(t).replace(/\*\*/g, '').replace(/[•⚠]/g, ' ').replace(/R\$\s*([\d.]+),(\d{2})/g, (m, a, b) => b === '00' ? a.replace(/\./g, '') + ' reais' : a.replace(/\./g, '') + ' reais e ' + b + ' centavos').replace(/R\$\s*([\d.]+)/g, (m, a) => a.replace(/\./g, '') + ' reais')
+    .replace(/\b(\d{2})\/(\d{2})\/(\d{4})\b/g, (m, d, mo, y) => `${+d} de ${mes[+mo - 1] || mo} de ${y}`).replace(/\b(\d{2})\/(\d{2})\b/g, (m, d, mo) => `${+d} de ${mes[+mo - 1] || mo}`).replace(/(\d+)%/g, '$1 por cento').replace(/\bm²/g, ' metros quadrados').replace(/(\d)x\b/g, '$1 vezes').replace(/\n+/g, '. ').replace(/\s+—\s+/g, ', ').replace(/([.!?])\s*\.+/g, '$1').replace(/\s+/g, ' ').trim();
+}
+let asSpeakTok = 0;
+function asStopSpeak() { asSpeakTok++; try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (_) {} }
+function asSpeak(text) {
+  if (asVoiceMode() === 'off' || !window.speechSynthesis || !text) return; asStopSpeak(); const tok = asSpeakTok;
+  const g = asGender(), { v, exact } = asVoice(g), parts = asSpokenText(text).match(/[^.!?]+[.!?]*/g) || [];
+  const chunks = []; let cur = ''; parts.forEach(p => { if ((cur + p).length > 180 && cur) { chunks.push(cur); cur = p; } else cur += p; }); if (cur.trim()) chunks.push(cur);
+  chunks.forEach(c => { const u = new SpeechSynthesisUtterance(c.trim()); u.lang = 'pt-BR'; if (v) u.voice = v; u.rate = 1.02; u.pitch = exact ? 1 : (g === 'f' ? 1.15 : 0.78); u.onend = u.onerror = () => {}; if (tok === asSpeakTok) speechSynthesis.speak(u); });
+}
+if (window.speechSynthesis) { try { speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged = () => {}; } catch (_) {} }
+function asMic() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition, inp = $('#asIn');
+  if (AS.listening && AS.rec) { try { AS.rec.stop(); } catch (_) {} return; }
+  if (!SR) return asNote('Este aparelho não libera o reconhecimento de voz dentro do app. Você pode usar o microfone do teclado para ditar a mensagem e depois tocar em enviar.');
+  asStopSpeak(); let fin = '', err = '';
+  const r = new SR(); AS.rec = r; r.lang = 'pt-BR'; r.interimResults = true; r.continuous = false; r.maxAlternatives = 1;
+  r.onstart = () => { AS.listening = true; asPaintMic(); inp.placeholder = 'Ouvindo…'; };
+  r.onresult = ev => { let s = ''; for (let i = 0; i < ev.results.length; i++) s += ev.results[i][0].transcript; inp.value = s; if (ev.results[ev.results.length - 1].isFinal) fin = s; };
+  r.onerror = ev => { err = ev.error || ''; };
+  r.onend = () => { AS.listening = false; asPaintMic(); inp.placeholder = 'Digite sua pergunta...';
+    if (err === 'not-allowed' || err === 'service-not-allowed') return asNote('Preciso da permissão do microfone para ouvir você. Libere nas configurações do aparelho e tente de novo.');
+    if (err === 'no-speech' || err === 'aborted') { if (!fin) return toast('Não ouvi nada. Toque no microfone e fale novamente.', 1); }
+    else if (err && !fin) return toast('Não consegui ouvir agora (' + err + '). Tente digitar.', 1);
+    const txt = (fin || inp.value).trim(); if (txt) { inp.value = ''; asSend(txt); } };
+  try { r.start(); } catch (e) { AS.listening = false; asPaintMic(); }
+}
+const asPaintMic = () => { const b = $('#asMic'); if (b) { b.classList.toggle('on', AS.listening); b.setAttribute('aria-pressed', AS.listening ? 'true' : 'false'); } };
+
+/* ---------- tela de diálogo ---------- */
+const asHtml = t => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>');
+const AS_SUG = ['Quanto já gastamos com a construção?', 'Quais contas vencem esta semana?', 'Quais garantias estão próximas do vencimento?', 'Como faço para cadastrar uma assistência técnica?', 'Lançar uma despesa'];
+function asBuild() {
+  if ($('#asti')) return;
+  const el = document.createElement('div'); el.id = 'asti'; el.hidden = true; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', 'Assistente ASTI');
+  el.innerHTML = `<div class="as-card"><div class="as-head"><span class="as-ava">${asIc.bot}</span><div class="as-ttl"><b>ASTI</b><small>Assistente inteligente ASTELL</small></div><span class="as-on">Online</span><button type="button" class="as-ib" id="asVoice" aria-label="Voz do assistente"></button><button type="button" class="as-ib" id="asClose" aria-label="Fechar">${asIc.x}</button><div class="as-menu" id="asMenu" hidden></div></div>
+  <div class="as-msgs" id="asMsgs" aria-live="polite"></div>
+  <form class="as-comp" id="asForm" autocomplete="off"><input id="asIn" type="text" placeholder="Digite sua pergunta..." enterkeyhint="send" aria-label="Mensagem para o ASTI"><button type="button" class="as-rb" id="asMic" aria-label="Falar" aria-pressed="false">${asIc.mic}</button><button type="submit" class="as-rb as-send" aria-label="Enviar">${asIc.send}</button></form>
+  <p class="as-foot">O ASTI só acessa as residências vinculadas à sua conta e sempre pede a sua confirmação antes de salvar.</p></div>`;
+  document.body.appendChild(el); asPaintVoiceBtn();
+}
+function asPaintVoiceBtn() { const b = $('#asVoice'); if (b) b.innerHTML = asVoiceMode() === 'off' ? asIc.mute : asIc.spk; }
+function asRender() {
+  const box = $('#asMsgs'); if (!box) return; const started = AS.msgs.some(m => m.role === 'me'), last = AS.msgs[AS.msgs.length - 1], nm = asFirst();
+  let h = `<div class="as-welcome"><h3>Olá${nm ? ', ' + esc(nm) : ''}! Eu sou o ASTI.</h3><p>Estou aqui para ajudar você a encontrar informações sobre sua obra, consultar despesas, acompanhar serviços e utilizar as funcionalidades do aplicativo.</p></div>`;
+  AS.msgs.forEach((m, i) => { const isLast = m === last;
+    h += `<div class="as-m ${m.role}"><div class="as-b">${asHtml(m.t)}</div>`;
+    if (m.role === 'bot' && isLast && !AS.busy) { if (m.confirm && AS.draft && AS.draft.stage === 'confirm') h += `<div class="as-act"><button type="button" class="as-yes" data-asy>Confirmar</button><button type="button" class="as-fix" data-asf>Corrigir</button><button type="button" class="as-no" data-asn>Cancelar</button></div>`;
+      else if (m.chips && m.chips.length) h += `<div class="as-chips">${m.chips.map((c, j) => `<button type="button" class="${c.ghost ? 'ghost' : ''}" data-chip="${j}">${esc(c.l)}</button>`).join('')}</div>`; }
+    h += '</div>'; });
+  if (AS.busy) h += '<div class="as-m bot"><div class="as-b as-typing"><i></i><i></i><i></i></div></div>';
+  if (!started) h += `<div class="as-welcome"><p class="as-sl">Experimente perguntar</p><ul class="as-sug">${AS_SUG.map((s, i) => `<li><button type="button" data-sug="${i}">${esc(s)}</button></li>`).join('')}</ul></div>`;
+  box.innerHTML = h; box.scrollTop = box.scrollHeight;
+}
+function asPush(role, r) { const m = { role, t: r.t, chips: r.chips, confirm: r.confirm }; AS.msgs.push(m); return m; }
+function asNote(text) { asPush('bot', rp(text)); asRender(); asSpeak(text); }
+async function asSend(text, shown) {
+  text = String(text || '').trim(); if (!text || AS.busy) return; asStopSpeak();
+  AS.msgs.push({ role: 'me', t: shown || text }); AS.busy = true; asRender();
+  let r; try { r = await asHandle(text); } catch (e) { console.error(e); r = rp('Tive um problema para concluir isso agora. Pode tentar de novo em instantes?'); }
+  if (!r) r = await asHandle(text).catch(() => rp('Não consegui entender. Pode reformular?'));
+  AS.busy = false;
+  let full = (AS.pre ? AS.pre + '\n\n' : '') + r.t + (r.ask ? '\n\n' + r.ask : ''); AS.pre = ''; const chips = [...(r.offer && !r.confirm ? [{ l: r.offer.l || 'Sim, por favor', t: r.offer.t }] : []), ...(r.chips || [])];
+  AS.offer = r.offer && !r.confirm ? r.offer : null; if (r.ctx) AS.ctx = r.ctx; if (r.confirm) AS.offer = null;
+  asPush('bot', { t: full, chips, confirm: r.confirm }); asRender(); asSpeak(full);
+  if (r.go) setTimeout(() => { asClose(true); location.hash = r.go; }, 700);
+}
+async function asInsights() {
+  try {
+    const ids = (S.res || []).map(r => r.id), D = await asData(ids.length ? ids : [S.cur.id]), p = [];
+    const late = D.inst.filter(i => asBillSt(i) === 'late'), wk = D.inst.filter(i => !i.paid_on && i.due_on >= todayIso() && dayDiff(i.due_on) <= 7), war = [...D.wa, ...D.ex.filter(e => e.warranty_months).map(expWar)].filter(w => wInfo(w).kind === 'warn');
+    if (late.length) p.push(`${asPlural(late.length, 'conta vencida', 'contas vencidas')} (${brl(asSum(late, i => i.amount))})`); if (wk.length) p.push(`${asPlural(wk.length, 'conta vencendo', 'contas vencendo')} nos próximos 7 dias`); if (war.length) p.push(`${asPlural(war.length, 'garantia próxima', 'garantias próximas')} do vencimento`);
+    let news = 0; try { news = (await avLoad()).filter(x => x.unread).length; } catch (_) {} if (news) p.push(`${asPlural(news, 'aviso novo', 'avisos novos')} da equipe Astell`);
+    const chips = []; if (late.length || wk.length) chips.push({ l: 'Ver contas', t: late.length ? 'contas vencidas' : 'quais contas vencem esta semana' }); if (war.length) chips.push({ l: 'Ver garantias', t: 'garantias próximas do vencimento' }); if (news) chips.push({ l: 'Ver novidades', t: 'o que mudou no app' });
+    return p.length ? { t: `Dei uma olhada na sua residência e vi: ${p.join(', ')}.`, ask: 'Quer que eu detalhe algum desses pontos?', chips } : { t: 'Está tudo em dia por aqui: sem contas vencidas, garantias a vencer ou avisos novos.', ask: 'Em que posso ajudar hoje?', chips: asDefChips() };
+  } catch (_) { return { t: '', ask: 'Em que posso ajudar hoje?', chips: asDefChips() }; }
+}
+async function asWelcome() {
+  AS.welcomed = true; AS.busy = true; asRender(); const r = await asInsights(); AS.busy = false;
+  const hello = `Olá${asFirst() ? ', ' + asFirst() : ''}! Eu sou o ASTI, o assistente da Astell.`, full = [r.t, r.ask].filter(Boolean).join('\n\n');
+  asPush('bot', { t: full, chips: r.chips }); asRender(); asSpeak(hello + ' ' + full);
+}
+function asOpen() {
+  if (!S.profile) return; asBuild();
+  if (AS.uid !== S.profile.id) { AS.uid = S.profile.id; AS.msgs = []; AS.draft = null; AS.offer = null; AS.ctx = null; AS.welcomed = false; AS.cache = {}; }
+  $('#asti').hidden = false; AS.open = true; document.body.classList.add('as-open'); try { history.pushState({ asti: 1 }, ''); } catch (_) {}
+  asRender(); if (!AS.welcomed) asWelcome();
+}
+function asClose(keepSpeech, fromPop) {
+  if (!AS.open) return; AS.open = false; const el = $('#asti'); if (el) el.hidden = true; document.body.classList.remove('as-open'); if (!keepSpeech) asStopSpeak();
+  if (AS.listening && AS.rec) { try { AS.rec.abort(); } catch (_) {} } const m = $('#asMenu'); if (m) m.hidden = true;
+  if (!fromPop && history.state && history.state.asti) { try { history.back(); } catch (_) {} }
+}
+window.addEventListener('popstate', () => { if (AS.open) asClose(false, true); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && AS.open) asClose(); });
+function asMenu() {
+  const m = $('#asMenu'), cur = asVoiceMode(), g = asGender(); m.hidden = !m.hidden; if (m.hidden) return;
+  const o = [['auto', `Automática (voz ${g === 'f' ? 'feminina' : 'masculina'})`], ['f', 'Voz feminina'], ['m', 'Voz masculina'], ['off', 'Sem leitura em voz alta']];
+  m.innerHTML = '<b>Leitura das respostas</b>' + o.map(x => `<button type="button" data-vm="${x[0]}" class="${cur === x[0] ? 'on' : ''}">${x[1]}</button>`).join('');
+}
+document.addEventListener('click', e => {
+  const tg = e.target.closest ? e.target : e.target.parentElement; if (!tg || !tg.closest) return;
+  if (tg.closest('#astiBtn')) { e.preventDefault(); return asOpen(); }
+  const root = tg.closest('#asti'); if (!root) return;
+  if (tg.closest('#asClose')) return asClose();
+  if (tg.closest('#asVoice')) return asMenu();
+  if (tg.closest('#asMic')) return asMic();
+  const vm = tg.closest('[data-vm]'); if (vm) { asLs('astell_asti_voice', vm.dataset.vm); $('#asMenu').hidden = true; asPaintVoiceBtn(); asStopSpeak(); if (vm.dataset.vm !== 'off') asSpeak('Olá! Esta é a minha voz. Vou ler as respostas para você.'); else toast('Leitura em voz alta desligada.'); return; }
+  if (!tg.closest('.as-menu') && !tg.closest('#asVoice')) { const m = $('#asMenu'); if (m) m.hidden = true; }
+  const sg = tg.closest('[data-sug]'); if (sg) return asSend(AS_SUG[+sg.dataset.sug]);
+  const ch = tg.closest('[data-chip]'); if (ch) { const last = AS.msgs[AS.msgs.length - 1], c = last && last.chips && last.chips[+ch.dataset.chip]; if (!c) return; if (c.go) { asClose(); location.hash = c.go; return; } return asSend(c.t, c.l); }
+  if (tg.closest('[data-asy]')) return asSend('sim', 'Confirmar');
+  if (tg.closest('[data-asn]')) return asSend('não', 'Cancelar');
+  if (tg.closest('[data-asf]')) { AS.msgs.push({ role: 'me', t: 'Corrigir' }); asPush('bot', rp('Claro! O que você quer corrigir? Diga, por exemplo: “o valor é R$ 400”, “categoria Acabamentos” ou “foi no Pix”.')); const l = AS.msgs[AS.msgs.length - 1]; l.chips = []; asRender(); asSpeak(l.t); return; }
+});
+document.addEventListener('submit', e => { if (e.target.id !== 'asForm') return; e.preventDefault(); const i = $('#asIn'), v = i.value; i.value = ''; asSend(v); });
+document.addEventListener('input', e => { if (e.target.id === 'asIn' && window.speechSynthesis && speechSynthesis.speaking) asStopSpeak(); });
+
+/* ---------- ícone do assistente no centro do menu ---------- */
+(function () { const nav = $('#nav'); if (!nav || $('#astiBtn')) return; const b = document.createElement('button'); b.id = 'astiBtn'; b.type = 'button'; b.className = 'nav-asti'; b.setAttribute('aria-label', 'Abrir o assistente ASTI'); b.innerHTML = `<span class="nai">${asIc.bot}</span><em>ASTI</em>`; nav.insertBefore(b, nav.children[2] || null); })();
+/* ===== fim do ASTI ===== */
