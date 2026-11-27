@@ -30,7 +30,7 @@ function ask(msg, ok = 'Excluir') {
   });
 }
 
-const APP_VERSION = '2026.10.21-65'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
+const APP_VERSION = '2026.10.21-66'; // mostrada no Perfil; acompanha o ?v= dos arquivos no index.html
 // Dentro do aplicativo (Median/WebView) o Google bloqueia o login por OAuth; lá o acesso é por e-mail e senha.
 let REC_FLOW = /[#&]type=recovery/.test(location.hash);   // aberto pelo link de recuperação de senha
 const IN_APP = /median|gonative/i.test(navigator.userAgent);
@@ -106,7 +106,7 @@ const DOC_CATS = ['Projeto arquitetônico','Projeto estrutural','Projeto elétri
 
 const PT_CATS = ['Elétrica','Hidráulica','Gás','Climatização','Estrutura','Paredes','Equipamentos'];
 const ico = (d, c = '') => `<svg class="ico ${c}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d.split('|').map(p => `<path d="${p}"/>`).join('')}</svg>`;
-const IC = { estrada: 'M4 21L8 3|M20 21L16 3|M12 4v3|M12 11v3|M12 18v3', prefeitura: 'M3 21h18|M5 10v11|M9 10v11|M15 10v11|M19 10v11|M2 10l10-7 10 7z', banco: 'M2 6h20v12H2z|M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z|M6 12h.01|M18 12h.01', capacete: 'M10 10V5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v5|M14 6a6 6 0 0 1 6 6v3|M4 15v-3a6 6 0 0 1 6-6|M3 15h18v4H3z', regua: 'M3 17L17 3l4 4L7 21z|M14 6l2 2|M11 9l2 2|M8 12l2 2|M5 15l2 2', compasso: 'M12 2.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z|M11 5.5L5 21|M13 5.5L19 21|M8 15h8', wallet: 'M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1|M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4', calclock: 'M16 2v4|M8 2v4|M3 10h18|M21 11V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h6|M17 17.5a4.5 4.5 0 1 0 9 0 4.5 4.5 0 1 0-9 0|M21.5 15.5v2l1.2.8', trend: 'M3 3v16a2 2 0 0 0 2 2h16|M7 16V9|M12 16V5|M17 16v-5', alert: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z|M12 8v4|M12 16h.01', pie: 'M21 12c.55 0 1.02-.45.95-1A10 10 0 0 0 13 2.05c-.55-.07-1 .4-1 .95v8a1 1 0 0 0 1 1z|M21.21 15.89A10 10 0 1 1 8 2.83', receipt: 'M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z|M8 8h8|M8 12h8|M8 16h5', lock: 'M5 11h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2z|M7 11V7a5 5 0 0 1 10 0v4|M12 15.5v2', palette: 'M12 22a10 10 0 1 1 10-10c0 3-2 4-4 4h-2a2 2 0 0 0-1 3.7c.6.5.4 2.3-3 2.3z|M7.5 11.5h.01|M10.5 7.5h.01|M15.5 8h.01|M17.5 12h.01', info: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z|M12 16v-4|M12 8h.01', out: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4|M16 17l5-5-5-5|M21 12H9', home: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z|M9 22V12h6v10', casa: 'M4 21V8l8-5 8 5v13|M9 21v-6h6v6', drop: 'M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z', layers: 'M12 2L2 7l10 5 10-5-10-5z|M2 17l10 5 10-5|M2 12l10 5 10-5', shield: 'M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z|M9 12l2 2 4-4', wrench: 'M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z', phones: 'M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3', doc: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z|M14 2v6h6|M8 13h8|M8 17h8', user: 'M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2|M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', chev: 'M9 18l6-6-6-6', check: 'M22 11.08V12a10 10 0 1 1-5.93-9.14|M22 4L12 14.01l-3-3', bell: 'M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9|M10.3 21a1.94 1.94 0 0 0 3.4 0', pin: 'M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0|M12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5', chevd: 'M6 9l6 6 6-6', bolt: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z', image: 'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z|M8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3|M21 15l-5-5L5 21', calendar: 'M8 2v4|M16 2v4|M3 10h18|M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z|M8 14h.01|M12 14h.01|M16 14h.01|M8 18h.01|M12 18h.01', dl: 'M12 3v12|M7 11l5 5 5-5|M5 21h14', folder: 'M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z', usr: 'M20 21a8 8 0 0 0-16 0|M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8', tick: 'M5 12.5l4.5 4.5L19 7.5', dollar: 'M12 2v20|M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6' };
+const IC = { cubo: 'M12 2l9 5v10l-9 5-9-5V7z|M12 22V12|M21 7l-9 5-9-5', estrada: 'M4 21L8 3|M20 21L16 3|M12 4v3|M12 11v3|M12 18v3', prefeitura: 'M3 21h18|M5 10v11|M9 10v11|M15 10v11|M19 10v11|M2 10l10-7 10 7z', banco: 'M2 6h20v12H2z|M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z|M6 12h.01|M18 12h.01', capacete: 'M10 10V5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v5|M14 6a6 6 0 0 1 6 6v3|M4 15v-3a6 6 0 0 1 6-6|M3 15h18v4H3z', regua: 'M3 17L17 3l4 4L7 21z|M14 6l2 2|M11 9l2 2|M8 12l2 2|M5 15l2 2', compasso: 'M12 2.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z|M11 5.5L5 21|M13 5.5L19 21|M8 15h8', wallet: 'M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1|M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4', calclock: 'M16 2v4|M8 2v4|M3 10h18|M21 11V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h6|M17 17.5a4.5 4.5 0 1 0 9 0 4.5 4.5 0 1 0-9 0|M21.5 15.5v2l1.2.8', trend: 'M3 3v16a2 2 0 0 0 2 2h16|M7 16V9|M12 16V5|M17 16v-5', alert: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z|M12 8v4|M12 16h.01', pie: 'M21 12c.55 0 1.02-.45.95-1A10 10 0 0 0 13 2.05c-.55-.07-1 .4-1 .95v8a1 1 0 0 0 1 1z|M21.21 15.89A10 10 0 1 1 8 2.83', receipt: 'M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z|M8 8h8|M8 12h8|M8 16h5', lock: 'M5 11h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2z|M7 11V7a5 5 0 0 1 10 0v4|M12 15.5v2', palette: 'M12 22a10 10 0 1 1 10-10c0 3-2 4-4 4h-2a2 2 0 0 0-1 3.7c.6.5.4 2.3-3 2.3z|M7.5 11.5h.01|M10.5 7.5h.01|M15.5 8h.01|M17.5 12h.01', info: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z|M12 16v-4|M12 8h.01', out: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4|M16 17l5-5-5-5|M21 12H9', home: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z|M9 22V12h6v10', casa: 'M4 21V8l8-5 8 5v13|M9 21v-6h6v6', drop: 'M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z', layers: 'M12 2L2 7l10 5 10-5-10-5z|M2 17l10 5 10-5|M2 12l10 5 10-5', shield: 'M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z|M9 12l2 2 4-4', wrench: 'M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z', phones: 'M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3', doc: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z|M14 2v6h6|M8 13h8|M8 17h8', user: 'M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2|M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', chev: 'M9 18l6-6-6-6', check: 'M22 11.08V12a10 10 0 1 1-5.93-9.14|M22 4L12 14.01l-3-3', bell: 'M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9|M10.3 21a1.94 1.94 0 0 0 3.4 0', pin: 'M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0|M12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5', chevd: 'M6 9l6 6 6-6', bolt: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z', image: 'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z|M8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3|M21 15l-5-5L5 21', calendar: 'M8 2v4|M16 2v4|M3 10h18|M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z|M8 14h.01|M12 14h.01|M16 14h.01|M8 18h.01|M12 18h.01', dl: 'M12 3v12|M7 11l5 5 5-5|M5 21h14', folder: 'M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z', usr: 'M20 21a8 8 0 0 0-16 0|M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8', tick: 'M5 12.5l4.5 4.5L19 7.5', dollar: 'M12 2v20|M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6' };
 const TILES = [['estrutura', 'Estrutura', 'Steel Frame', 'layers'], ['sistemas', 'Sistemas', 'Elétrica e hidráulica', 'bolt'], ['garantias', 'Garantias', 'Prazos e condições', 'shield'], ['manutencao', 'Manutenção', 'Cuidados da sua casa', 'wrench']];
 const BCAT = { estrutura: 'Estrutura', materiais: 'Materiais', sistemas: 'Sistemas', infraestrutura: 'Infraestrutura' };   // valor gravado em building_items.category (igual ao painel admin)
 const BCARDS = [['estrutura', 'Estruturas', 'home'], ['materiais', 'Materiais', 'layers'], ['sistemas', 'Sistemas', 'drop'], ['infraestrutura', 'Infraestrutura', 'estrada']], BLAB = Object.fromEntries(BCARDS.map(x => [x[0], x[1]]));   // mesmos 4 cards do painel admin
@@ -222,7 +222,7 @@ function contasPaint() {   // calendário financeiro (mesmo layout do cronograma
   (list.map(i => { const e = ex(i.expense_id), st = instSt(i);
     return `<div class="card cpay"><div class="xtop"><b>${esc(e.description || 'Despesa')}</b><strong>${brl(i.amount)}</strong></div><p class="mute"><u class="${INST_C[st]}"></u><b class="cst ${st}">${INST_T[st]}</b> · Vence em ${fmt(i.due_on)}${i.paid_on ? ` · paga em ${fmt(i.paid_on)}` : ''}</p><p class="mute">${i.total > 1 ? `Parcela ${i.num} de ${i.total}` : 'Pagamento único'}${e.pay_method ? ' · ' + esc(e.pay_method) : ''}</p><div class="xact"><button type="button" class="link" data-paytgl="${i.id}">${i.paid_on ? 'Desfazer pagamento' : 'Marcar como paga'}</button><button type="button" class="link" data-xview="${esc(i.expense_id)}">Ver despesa</button></div></div>`; }).join('') || `<p class="empty">${sel ? 'Nenhuma conta com vencimento neste dia.' : 'Nenhuma conta com vencimento neste período.'}</p>`);
 }
-const NAV = [['home', 'Início', 'home', ['home']], ['casa', 'Minha Casa', 'layers', ['casa', 'construcao', 'estrutura', 'sistemas', 'materiais', 'infraestrutura', 'garantias', 'manutencao', 'equipamentos', 'planta', 'midias', 'cronograma', 'detalhe', 'documentos']], ['financeiro', 'Financeiro', 'dollar', ['financeiro', 'custos']], ['assistencia', 'Suporte', 'phones', ['assistencia']]];
+const NAV = [['home', 'Início', 'home', ['home']], ['casa', 'Minha Casa', 'layers', ['casa', 'casa3d', 'construcao', 'estrutura', 'sistemas', 'materiais', 'infraestrutura', 'garantias', 'manutencao', 'equipamentos', 'planta', 'midias', 'cronograma', 'detalhe', 'documentos']], ['financeiro', 'Financeiro', 'dollar', ['financeiro', 'custos']], ['assistencia', 'Suporte', 'phones', ['assistencia']]];
 $('#nav').innerHTML = NAV.map(([h, l, i, g]) => `<a href="#${h}" data-g="${g.join(' ')}">${ico(IC[i])}<span>${l}</span></a>`).join('');
 $('#top .bico').innerHTML = ico(IC.casa, 'brandico'); $('#bell').innerHTML = ico(IC.bell); $('#avatar').innerHTML = ico(IC.usr);
 function paintAvatar() { const el = $('#avatar'), v = S.profile && S.profile.avatar; if (el) { el.innerHTML = v ? `<img class="avimg" src="${v}" alt="Perfil">` : ico(IC.usr); el.classList.toggle('hasimg', !!v); } }
@@ -447,6 +447,7 @@ const views = {
     const { data: im0 } = await sb.from('images').select('*').eq('residence_id', S.cur.id).eq('kind', 'residence').order('created_at');
     const r = S.cur, rows = [['Código', r.code], ['Endereço', r.address], ['Área construída', r.area_m2 && r.area_m2 + ' m²'], ['Pavimentos', r.floors], ['Sistema construtivo', r.build_system], ['Nº do projeto', r.project_no], ['Início da obra', fmt(r.start_date)], ['Entrega', fmt(r.delivery_date)], ['Responsável técnico', r.tech_lead], ['Observações', r.notes]];
     const CARDS = [['documentos', 'Documentos', 'doc'], ['midias', 'Mídias', 'image'], ['construcao', 'Construção', 'home'], ['garantias', 'Garantias', 'shield'], ['manutencao', 'Manutenções', 'wrench'], ['assistencia', 'Assistências', 'phones'], ['cronograma', 'Cronograma', 'calendar'], ['financeiro', 'Financeiro', 'dollar']];
+    const { data: hm } = await sb.from('house_models').select('id').eq('residence_id', S.cur.id).eq('published', true); if ((hm || []).length) CARDS.splice(3, 0, ['casa3d', 'Casa 3D', 'cubo']);
     app.innerHTML = `<h2>${esc(r.name)}</h2><div class="card">${rows.map(([a, b]) => `<p><span class="mute">${a}</span><br>${esc(b || '—')}</p>`).join('')}</div><div class="cgrid">${CARDS.map(([h, t, i]) => `<a class="card ccard" href="#${h}">${ico(IC[i])}<b>${t}</b></a>`).join('')}</div>`;
   },
   async financeiro() {
@@ -476,6 +477,13 @@ const views = {
     S.media = data || []; S.casaTab = 'all'; app.innerHTML = `<h2>Mídias</h2><div id="mb">${mediaBlock() || '<p class="empty">Nenhuma mídia cadastrada ainda.</p>'}</div>`;
   },
   async construcao() { app.innerHTML = `<h2>Construção</h2><div class="cgrid">${BCARDS.map(([h, t, i]) => `<a class="card ccard" href="#${h}">${ico(IC[i])}<b>${t}</b></a>`).join('')}</div>`; },
+  async casa3d() {
+    const { data } = await sb.from('house_models').select('*').eq('residence_id', S.cur.id).eq('published', true), row = (data || [])[0];
+    if (!row) { app.innerHTML = '<h2>Casa 3D</h2><p class="empty">A Astell ainda não publicou a casa 3D desta residência.</p>'; return; }
+    const m = C3.norm(row.data), by = {}; m.rooms.forEach(r => { if (r.name) by[r.name] = (by[r.name] || 0) + C3.area(r); }); const tot = Object.values(by).reduce((a, b) => a + b, 0), f = v => String(Math.round(v * 100) / 100).replace('.', ',');
+    app.innerHTML = `<h2>Casa 3D</h2><p class="mute">Toque e arraste para girar a casa; use a pinça para aproximar. Em "Planta (topo)" você vê a casa de cima.</p><div id="c3host" class="c3h"></div><p class="notice">Imagem ilustrativa, montada a partir da planta técnica. Medidas, esquadrias e acabamentos finais podem variar.</p><h3>Cômodos</h3><div class="card">${Object.entries(by).map(([n, a]) => `<p class="c3row"><span>${esc(n)}</span><b>${f(a)} m²</b></p>`).join('')}<p class="c3row c3tot"><span>Soma dos cômodos</span><b>${f(tot)} m²</b></p></div>`;
+    S.c3 = C3.mount($('#c3host'), m);
+  },
   async cronograma() { const ev = await calEvents(S.cur.id), n = new Date(), da = dayArg(S.q); S.cal = da ? { y: da.y, m: da.m, ev, sel: da.d, pin: !!da.d } : { y: n.getFullYear(), m: n.getMonth(), ev }; app.innerHTML = '<h2>Cronograma</h2><div id="cal"></div>'; calPaint(); if (da && da.d) pinScroll('#cal'); },
   async detalhe() {
     const [k, id] = S.q.split(':'), tb = { man: 'maintenance_tasks', ast: 'service_requests', gar: 'warranties', gex: 'expenses' }[k], { data: r } = tb ? await sb.from(tb).select('*').eq('id', id).maybeSingle() : { data: null };
@@ -652,7 +660,7 @@ app.addEventListener('click', async e => {
 
 function route() {
   if (!S.profile) return;
-  clearInterval(S.carTimer);
+  clearInterval(S.carTimer); if (S.c3) { try { S.c3.destroy(); } catch { } S.c3 = null; }
   const [h, q] = (location.hash.slice(1) || 'home').split('?'); S.nova = q === 'nova'; S.q = q || ''; { const mm = /^(ver|edit)=(.+)$/.exec(q || ''); S.xv = mm ? { m: mm[1], id: decodeURIComponent(mm[2]) } : null; }
   document.querySelectorAll('nav a').forEach(a => a.classList.toggle('on', (a.dataset.g || '').split(' ').includes(h)));
   $('#avatar').classList.toggle('on', h === 'mais'); refreshBell();
@@ -864,7 +872,7 @@ function calPaint() {
   <div class="callegend">${[...new Map(Object.values(CAL_K).map(([l, c]) => [l, c]))].map(([l, c]) => `<span><u class="${c}"></u>${l}</span>`).join('')}</div>
   <h3>${sel ? `Avisos do dia ${String(sel).padStart(2, '0')}/${String(m + 1).padStart(2, '0')}` : `Avisos de ${MESES[m].toLowerCase()}`}</h3>${list.length ? list.map(e => `<a class="card calnote" href="#detalhe?${e.k}:${e.id}"><u class="${calCls(e)}"></u><p>${msg(e)}</p>${ico(IC.chev)}</a>`).join('') : `<p class="empty">${sel ? 'Nada agendado para este dia.' : 'Nada agendado para este mês.'}</p>`}`;
 }
-const CR = { financeiro: [['', 'Financeiro']], custos: [['financeiro', 'Financeiro'], ['', 'Despesas']], avisos: [['', 'Avisos']], midias: [['casa', 'Minha Casa'], ['', 'Mídias']], cronograma: [['casa', 'Minha Casa'], ['', 'Cronograma']], casa: [['casa', 'Minha Casa']], construcao: [['casa', 'Minha Casa'], ['', 'Construção']], infraestrutura: [['casa', 'Minha Casa'], ['construcao', 'Construção'], ['', 'Infraestrutura']], estrutura: [['casa', 'Minha Casa'], ['construcao', 'Construção'], ['', 'Estruturas']], sistemas: [['casa', 'Minha Casa'], ['construcao', 'Construção'], ['', 'Sistemas']], materiais: [['casa', 'Minha Casa'], ['construcao', 'Construção'], ['', 'Materiais']], garantias: [['casa', 'Minha Casa'], ['', 'Garantias']], manutencao: [['casa', 'Minha Casa'], ['', 'Manutenção']], equipamentos: [['casa', 'Minha Casa'], ['', 'Equipamentos']], planta: [['casa', 'Minha Casa'], ['', 'Planta técnica']], documentos: [['casa', 'Minha Casa'], ['', 'Documentos']], assistencia: [['assistencia', 'Suporte']], mais: [['mais', 'Perfil']] };
+const CR = { financeiro: [['', 'Financeiro']], custos: [['financeiro', 'Financeiro'], ['', 'Despesas']], avisos: [['', 'Avisos']], midias: [['casa', 'Minha Casa'], ['', 'Mídias']], cronograma: [['casa', 'Minha Casa'], ['', 'Cronograma']], casa: [['casa', 'Minha Casa']], casa3d: [['casa', 'Minha Casa'], ['', 'Casa 3D']], construcao: [['casa', 'Minha Casa'], ['', 'Construção']], infraestrutura: [['casa', 'Minha Casa'], ['construcao', 'Construção'], ['', 'Infraestrutura']], estrutura: [['casa', 'Minha Casa'], ['construcao', 'Construção'], ['', 'Estruturas']], sistemas: [['casa', 'Minha Casa'], ['construcao', 'Construção'], ['', 'Sistemas']], materiais: [['casa', 'Minha Casa'], ['construcao', 'Construção'], ['', 'Materiais']], garantias: [['casa', 'Minha Casa'], ['', 'Garantias']], manutencao: [['casa', 'Minha Casa'], ['', 'Manutenção']], equipamentos: [['casa', 'Minha Casa'], ['', 'Equipamentos']], planta: [['casa', 'Minha Casa'], ['', 'Planta técnica']], documentos: [['casa', 'Minha Casa'], ['', 'Documentos']], assistencia: [['assistencia', 'Suporte']], mais: [['mais', 'Perfil']] };
 const PFT = { dados: 'Dados pessoais', notificacoes: 'Notificações', seguranca: 'Segurança', personalizacao: 'Personalização', atendimento: 'Atendimento', sobre: 'Sobre' };
 function crumbs(h) {
   const fq = h === 'financeiro' && S.q ? (() => { const dq = t => { try { return decodeURIComponent(t); } catch { return t; } }, F = ['financeiro', 'Financeiro'], O = ['financeiro?orcamentos', 'Orçamentos'], m1 = /^(cat|orcedit)=(.+)$/.exec(S.q), m2 = /^sub=([^&]+)&(.+)$/.exec(S.q);
@@ -1315,6 +1323,7 @@ async function qSummary(sl) {
   return rp(t, { ctx: { k: 'summary', res: R }, ask: 'Quer detalhar algum desses pontos?', chips: [{ l: 'Contas a vencer', t: 'contas a vencer' }, { l: 'Garantias', t: 'garantias próximas do vencimento' }, { l: 'Assistências', t: 'minhas assistências' }] });
 }
 const AS_NAV = [   // [expressão, destino, nome da tela] — do mais específico para o mais geral
+  [/\b(casa (em )?3d|3d da casa|maquete|visita virtual|modelo 3d da casa)\b/, '#casa3d', 'Casa 3D'],
   [/\bmanual do proprietario\b/, '#documentos?cons', 'Manual do Proprietário'], [/\bplantas? tecnicas?\b/, '#documentos?plan', 'Plantas Técnicas'], [/\bdocumentos? (gerais|geral)\b/, '#documentos?geral', 'Documentos gerais'],
   [/\b(documentos?|pastas?) (da |de |das )?(prefeitura)\b|\bprefeitura\b/, '#documentos?pref', 'Documentos da Prefeitura'], [/\b(documentos?|pastas?) (de |dos |do )?bancos?\b|\bbancos\b/, '#documentos?banc', 'Documentos de Bancos'],
   [/\bconstrutoras?\b/, '#documentos?cons', 'Construtoras'], [/\barquitetura\b/, '#documentos?arq', 'Arquitetura'], [/\b(planta interativa|pontos da planta|planta da casa)\b/, '#planta', 'Planta técnica'],
@@ -1744,3 +1753,145 @@ document.addEventListener('input', e => { if (e.target.id === 'asIn' && window.s
 /* ---------- ícone do assistente no centro do menu ---------- */
 (function () { const nav = $('#nav'); if (!nav || $('#astiBtn')) return; const b = document.createElement('button'); b.id = 'astiBtn'; b.type = 'button'; b.className = 'nav-asti'; b.setAttribute('aria-label', 'Abrir o assistente ASTI'); b.innerHTML = `<span class="nai">${asIc.bot}</span><em>ASTI</em>`; nav.insertBefore(b, nav.children[2] || null); })();
 /* ===== fim do ASTI ===== */
+/* ===== CASA3D (início) — motor 3D leve em canvas, sem bibliotecas. Mesmo código no app e no painel admin. ===== */
+const C3 = (() => {
+  const T = 0.15, CUT = 0.35, SILL = 0.9, HEAD = 2.1, FOV = 0.8;   // espessura da parede, altura da parede "cortada", peitoril, verga, abertura da câmera (rad)
+  const PAL = ['#2f5d6e', '#35634f', '#4f4f7a', '#6b5a43', '#42607f', '#566b3f', '#7a4f5f', '#3f6663'];
+  const WALLN = { N: 'Norte (topo da planta)', S: 'Sul (base da planta)', O: 'Oeste (esquerda)', L: 'Leste (direita)' };
+  const num = (v, d = 0) => { const n = parseFloat(String(v).replace(',', '.')); return isFinite(n) ? n : d; };
+  const r2 = v => Math.round(v * 100) / 100;
+
+  function norm(d) {   // aceita qualquer coisa vinda do banco/IA e devolve um modelo limpo
+    d = d && typeof d === 'object' ? d : {};
+    const rooms = (Array.isArray(d.rooms) ? d.rooms : []).map(r => ({
+      name: String(r.name || '').slice(0, 40), x: r2(num(r.x)), y: r2(num(r.y)), w: r2(num(r.w)), d: r2(num(r.d)),
+      op: (Array.isArray(r.op) ? r.op : []).map(o => ({ t: o.t === 'janela' ? 'janela' : 'porta', wall: ['N', 'S', 'O', 'L'].includes(o.wall) ? o.wall : 'N', at: r2(num(o.at)), w: r2(num(o.w, o.t === 'janela' ? 1.2 : 0.8)) }))
+    }));
+    return { v: 1, h: Math.min(4.5, Math.max(2, num(d.h, 2.7))), rooms };
+  }
+  function validate(m) {   // { err: [...], warn: [...] }
+    const err = [], warn = [];
+    if (!m.rooms.length) err.push('Cadastre pelo menos um cômodo.');
+    m.rooms.forEach((r, i) => {
+      const n = r.name || 'Cômodo ' + (i + 1);
+      if (!r.name) warn.push(`Cômodo ${i + 1} está sem nome.`);
+      if (!(r.w >= 0.5 && r.d >= 0.5)) err.push(`${n}: largura e profundidade precisam ser de pelo menos 0,5 m.`);
+      if (r.w > 40 || r.d > 40) err.push(`${n}: medidas acima de 40 m — confira se estão em metros.`);
+      r.op.forEach((o, j) => { const L = o.wall === 'N' || o.wall === 'S' ? r.w : r.d; if (!(o.w >= 0.3)) err.push(`${n}: abertura ${j + 1} muito estreita.`); else if (o.at < -0.01 || o.at + o.w > L + 0.01) err.push(`${n}: ${o.t} ${j + 1} passa do tamanho da parede (${String(L).replace('.', ',')} m).`); });
+      for (let k = i + 1; k < m.rooms.length; k++) { const q = m.rooms[k], ix = Math.min(r.x + r.w, q.x + q.w) - Math.max(r.x, q.x), iy = Math.min(r.y + r.d, q.y + q.d) - Math.max(r.y, q.y); if (ix > 0.05 && iy > 0.05 && ix * iy > 0.1) warn.push(`"${n}" e "${q.name || 'Cômodo ' + (k + 1)}" estão sobrepostos (${String(r2(ix * iy)).replace('.', ',')} m²).`); }
+    });
+    return { err, warn };
+  }
+  const area = r => r2(r.w * r.d);
+
+  function build(m) {   // paredes (uma só por linha compartilhada) cortadas pelas aberturas, em pedaços curtos para ordenar bem
+    const lines = {}, key = (ax, c) => ax + '|' + (Math.round(c * 20) / 20);
+    m.rooms.forEach(r => {
+      [['N', 'H', r.y, r.x, r.x + r.w], ['S', 'H', r.y + r.d, r.x, r.x + r.w], ['O', 'V', r.x, r.y, r.y + r.d], ['L', 'V', r.x + r.w, r.y, r.y + r.d]].forEach(([wl, ax, c, a, b]) => {
+        const k = key(ax, c), L = lines[k] || (lines[k] = { ax, c, iv: [], op: [] }); L.iv.push([a, b]);
+        r.op.filter(o => o.wall === wl).forEach(o => L.op.push([a + o.at, a + o.at + o.w, o.t]));
+      });
+    });
+    const out = [];
+    Object.values(lines).forEach(L => {
+      const iv = L.iv.slice().sort((p, q) => p[0] - q[0]), mg = [];
+      iv.forEach(s => { const l = mg[mg.length - 1]; if (l && s[0] <= l[1] + 0.02) l[1] = Math.max(l[1], s[1]); else mg.push(s.slice()); });
+      mg.forEach(([a, b]) => {
+        const ops = L.op.filter(o => o[1] > a && o[0] < b).map(o => [Math.max(a, o[0]), Math.min(b, o[1]), o[2]]).sort((p, q) => p[0] - q[0]);
+        const push = (s, e, y0, y1, glass) => { if (e - s < 0.01 || y1 - y0 < 0.01) return; const n = Math.max(1, Math.ceil((e - s) / 1.2)); for (let i = 0; i < n; i++) out.push({ ax: L.ax, c: L.c, a: s + (e - s) * i / n, b: s + (e - s) * (i + 1) / n, y0, y1, glass: !!glass, ext: L.ax === 'H' }); };
+        let cur = a;
+        ops.forEach(o => { push(cur, o[0], 0, m.h); if (o[2] === 'janela') { push(o[0], o[1], 0, SILL); push(o[0], o[1], SILL, HEAD, true); } push(o[0], o[1], HEAD, m.h); cur = Math.max(cur, o[1]); });
+        push(cur, b, 0, m.h);
+      });
+    });
+    return out;
+  }
+
+  function mount(host, model, opt) {
+    opt = Object.assign({ cut: true, labels: true, bar: true }, opt || {});
+    if (!document.getElementById('c3css')) {
+      const st = document.createElement('style'); st.id = 'c3css';
+      st.textContent = '.c3{position:relative;border:1px solid var(--line,#24384a);border-radius:14px;overflow:hidden;background:#0d1b29;touch-action:none;user-select:none;-webkit-user-select:none}.c3 canvas{display:block;width:100%;height:100%;cursor:grab}.c3 canvas:active{cursor:grabbing}' +
+        '.c3bar{position:absolute;left:8px;right:8px;bottom:8px;display:flex;flex-wrap:wrap;gap:6px;justify-content:center;pointer-events:none}.c3bar button{pointer-events:auto;margin:0;min-height:34px;padding:0 12px;border-radius:17px;font-size:.78rem;font-weight:600;background:#12202fe6;color:#dfe9ee;border:1px solid #2c4258;cursor:pointer}.c3bar button.on{background:var(--gold,#3dc08c);color:#06231a;border-color:transparent}' +
+        '.c3hint{position:absolute;left:10px;top:8px;font-size:.72rem;color:#8da3b3;pointer-events:none}.c3empty[hidden]{display:none}.c3empty{position:absolute;inset:0;display:grid;place-items:center;color:#8da3b3;font-size:.9rem;text-align:center;padding:20px;pointer-events:none}';
+      document.head.appendChild(st);
+    }
+    host.classList.add('c3'); host.innerHTML = '';
+    const cv = document.createElement('canvas'), ctx = cv.getContext('2d'); host.appendChild(cv);
+    const hint = document.createElement('div'); hint.className = 'c3hint'; hint.textContent = 'Arraste para girar · pinça para aproximar'; host.appendChild(hint);
+    const empty = document.createElement('div'); empty.className = 'c3empty'; empty.hidden = true; empty.textContent = 'Cadastre os cômodos para ver a casa.'; host.appendChild(empty);
+    let bar = null, M = norm(model), walls = [], R = 5, ctr = [0, 0], bb = [0, 0, 0, 0], W = 300, H = 300, DPR = 1, cam = { yaw: 0.6, pitch: 0.95, dist: 20 }, raf = 0, dead = false;
+
+    function fit() {
+      const rs = M.rooms.filter(r => r.w > 0 && r.d > 0);
+      if (!rs.length) { R = 5; ctr = [0, 0]; empty.hidden = false; return; } empty.hidden = true;
+      const x0 = Math.min(...rs.map(r => r.x)), x1 = Math.max(...rs.map(r => r.x + r.w)), y0 = Math.min(...rs.map(r => r.y)), y1 = Math.max(...rs.map(r => r.y + r.d));
+      bb = [x0, x1, y0, y1]; ctr = [(x0 + x1) / 2, (y0 + y1) / 2]; R = Math.max(2, Math.hypot(x1 - x0, y1 - y0, M.h) / 2);
+    }
+    function reset(plan) { cam = plan ? { yaw: 0, pitch: 1.55, dist: R * 1.05 / Math.sin(FOV / 2) } : { yaw: 0.6, pitch: 0.95, dist: R * 1.15 / Math.sin(FOV / 2) }; draw(); }
+    function setModel(m, keep) { const had = M.rooms.some(r => r.w > 0 && r.d > 0); M = norm(m); walls = build(M); fit(); if (keep && had) draw(); else reset(false); }
+    function resize() { const b = host.getBoundingClientRect(); W = Math.max(120, b.width); H = Math.max(120, b.height); DPR = Math.min(2, window.devicePixelRatio || 1); cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); draw(); }
+    function sched() { if (!raf && !dead) raf = requestAnimationFrame(() => { raf = 0; draw(); }); }
+
+    function draw() {
+      if (dead) return; ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#13283a'); g.addColorStop(1, '#0a1520'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      if (!M.rooms.some(r => r.w > 0 && r.d > 0)) return;
+      const cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch), E = [ctr[0] + cam.dist * cp * Math.sin(cam.yaw), cam.dist * sp, ctr[1] + cam.dist * cp * Math.cos(cam.yaw)];
+      let f = [ctr[0] - E[0], 0 - E[1], ctr[1] - E[2]]; const fl0 = Math.hypot(...f); f = f.map(v => v / fl0);
+      let rt = [-f[2], 0, f[0]]; const rl = Math.hypot(...rt); rt = rt.map(v => v / rl);   // direita = f × up
+      const up = [rt[1] * f[2] - rt[2] * f[1], rt[2] * f[0] - rt[0] * f[2], rt[0] * f[1] - rt[1] * f[0]], FL = 0.5 * Math.min(W, H) / Math.tan(FOV / 2);
+      const P = p => { const d = [p[0] - E[0], p[1] - E[1], p[2] - E[2]], z = d[0] * f[0] + d[1] * f[1] + d[2] * f[2]; return [W / 2 + FL * (d[0] * rt[0] + d[1] * rt[1] + d[2] * rt[2]) / z, H / 2 - FL * (d[0] * up[0] + d[1] * up[1] + d[2] * up[2]) / z, z]; };
+      const Ld = [-0.35, 0.8, 0.5], Ll = Math.hypot(...Ld), shade = n => 0.5 + 0.5 * Math.max(0, (n[0] * Ld[0] + n[1] * Ld[1] + n[2] * Ld[2]) / Ll);
+      const mul = (hex, k) => { const n = parseInt(hex.slice(1), 16); return `rgb(${Math.min(255, (n >> 16) * k) | 0},${Math.min(255, (n >> 8 & 255) * k) | 0},${Math.min(255, (n & 255) * k) | 0})`; };
+      // chão
+      M.rooms.forEach((r, i) => { if (!(r.w > 0 && r.d > 0)) return; const q = [[r.x, 0, r.y], [r.x + r.w, 0, r.y], [r.x + r.w, 0, r.y + r.d], [r.x, 0, r.y + r.d]].map(P); if (q.some(p => p[2] < 0.1)) return; ctx.beginPath(); q.forEach((p, k) => k ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath(); ctx.fillStyle = PAL[i % PAL.length]; ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,.08)'; ctx.lineWidth = 1; ctx.stroke(); });
+      // paredes
+      const faces = [], near = w => { const cp2 = w.ax === 'H' ? E[2] : E[0], cen = w.ax === 'H' ? ctr[1] : ctr[0]; return Math.abs(w.c - cen) > 0.05 && (cp2 - w.c) * (w.c - cen) > 0; };
+      const cutOn = opt.cut && cam.pitch > 0.35;
+      walls.forEach(w => {
+        const inner = w.ax === 'H' ? (w.c > bb[2] + 0.1 && w.c < bb[3] - 0.1) : (w.c > bb[0] + 0.1 && w.c < bb[1] - 0.1), cut = cutOn && (inner || near(w)); let y1 = w.y1; if (cut) { if (w.glass) return; y1 = Math.min(y1, CUT); } if (y1 - w.y0 < 0.01) return;
+        const x0 = w.ax === 'H' ? w.a - (w.ext ? T / 2 : 0) : w.c - T / 2, x1 = w.ax === 'H' ? w.b + (w.ext ? T / 2 : 0) : w.c + T / 2, z0 = w.ax === 'H' ? w.c - T / 2 : w.a, z1 = w.ax === 'H' ? w.c + T / 2 : w.b;
+        const col = w.glass ? '#9fd4ee' : '#e4e9ee';
+        const add = (pts, n, base, alpha) => { const c = [0, 1, 2].map(k => (pts[0][k] + pts[1][k] + pts[2][k] + pts[3][k]) / 4); if (!alpha && (n[0] * (E[0] - c[0]) + n[1] * (E[1] - c[1]) + n[2] * (E[2] - c[2])) <= 0) return; faces.push({ pts, d: (E[0] - c[0]) ** 2 + (E[1] - c[1]) ** 2 + (E[2] - c[2]) ** 2, col: alpha ? 'rgba(150,205,235,.38)' : mul(base, shade(n)), line: alpha ? 'rgba(190,225,245,.7)' : 'rgba(10,20,30,.35)' }); };
+        if (w.glass) { const zc = w.ax === 'H' ? [[w.a, w.y0, w.c], [w.b, w.y0, w.c], [w.b, y1, w.c], [w.a, y1, w.c]] : [[w.c, w.y0, w.a], [w.c, w.y0, w.b], [w.c, y1, w.b], [w.c, y1, w.a]]; add(zc, [0, 0, 1], col, true); return; }
+        add([[x0, y1, z0], [x1, y1, z0], [x1, y1, z1], [x0, y1, z1]], [0, 1, 0], '#f4f7fa');
+        add([[x0, w.y0, z0], [x1, w.y0, z0], [x1, y1, z0], [x0, y1, z0]], [0, 0, -1], col); add([[x1, w.y0, z1], [x0, w.y0, z1], [x0, y1, z1], [x1, y1, z1]], [0, 0, 1], col);
+        add([[x0, w.y0, z1], [x0, w.y0, z0], [x0, y1, z0], [x0, y1, z1]], [-1, 0, 0], col); add([[x1, w.y0, z0], [x1, w.y0, z1], [x1, y1, z1], [x1, y1, z0]], [1, 0, 0], col);
+      });
+      faces.sort((a, b) => b.d - a.d);
+      faces.forEach(fc => { const q = fc.pts.map(P); if (q.some(p => p[2] < 0.1)) return; ctx.beginPath(); q.forEach((p, k) => k ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath(); ctx.fillStyle = fc.col; ctx.fill(); ctx.strokeStyle = fc.line; ctx.lineWidth = 0.6; ctx.stroke(); });
+      // nomes
+      if (opt.labels) {
+        const seen = {}; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+        M.rooms.forEach(r => { if (!(r.w > 0 && r.d > 0) || !r.name || seen[r.name]) return; seen[r.name] = 1; const p = P([r.x + r.w / 2, 0.02, r.y + r.d / 2]); if (p[2] < 0.1) return;
+          const px = Math.max(10, Math.min(20, FL * 0.3 / p[2])), nm = r.name, ar = String(area(r)).replace('.', ',') + ' m²';
+          ctx.font = `700 ${px}px system-ui,sans-serif`; ctx.lineWidth = 3.5; ctx.strokeStyle = 'rgba(8,16,24,.85)'; ctx.strokeText(nm, p[0], p[1]); ctx.fillStyle = '#fff'; ctx.fillText(nm, p[0], p[1]);
+          ctx.font = `500 ${px * 0.78}px system-ui,sans-serif`; ctx.strokeText(ar, p[0], p[1] + px * 1.05); ctx.fillStyle = '#cfe6dc'; ctx.fillText(ar, p[0], p[1] + px * 1.05); });
+      }
+    }
+
+    // gestos: 1 dedo gira, 2 dedos aproximam; roda do mouse aproxima; toque duplo restaura
+    const ptr = new Map(); let pinch = 0, lastTap = 0;
+    cv.addEventListener('pointerdown', e => { cv.setPointerCapture(e.pointerId); ptr.set(e.pointerId, [e.clientX, e.clientY]); if (ptr.size === 2) { const a = [...ptr.values()]; pinch = Math.hypot(a[0][0] - a[1][0], a[0][1] - a[1][1]); } hint.style.opacity = 0; const t = Date.now(); if (ptr.size === 1 && t - lastTap < 300) reset(false); lastTap = t; });
+    cv.addEventListener('pointermove', e => { const p = ptr.get(e.pointerId); if (!p) return; const dx = e.clientX - p[0], dy = e.clientY - p[1]; ptr.set(e.pointerId, [e.clientX, e.clientY]);
+      if (ptr.size === 1) { cam.yaw -= dx * 0.008; cam.pitch = Math.max(0.2, Math.min(1.55, cam.pitch + dy * 0.006)); }
+      else if (ptr.size === 2) { const a = [...ptr.values()], d = Math.hypot(a[0][0] - a[1][0], a[0][1] - a[1][1]); if (pinch > 0) cam.dist = Math.max(R * 0.7, Math.min(R * 6, cam.dist * pinch / d)); pinch = d; }
+      sched(); });
+    const up = e => { ptr.delete(e.pointerId); pinch = 0; }; cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+    cv.addEventListener('wheel', e => { e.preventDefault(); cam.dist = Math.max(R * 0.7, Math.min(R * 6, cam.dist * (e.deltaY > 0 ? 1.1 : 0.9))); sched(); }, { passive: false });
+
+    if (opt.bar) {
+      bar = document.createElement('div'); bar.className = 'c3bar';
+      const mk = (txt, fn, tgl, on) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = txt; if (tgl) b.classList.toggle('on', on()); b.addEventListener('click', () => { fn(); if (tgl) b.classList.toggle('on', on()); }); bar.appendChild(b); return b; };
+      mk('Vista 3D', () => reset(false)); mk('Planta (topo)', () => reset(true));
+      mk('Paredes baixas', () => { opt.cut = !opt.cut; draw(); }, true, () => opt.cut); mk('Nomes', () => { opt.labels = !opt.labels; draw(); }, true, () => opt.labels);
+      host.appendChild(bar);
+    }
+    const ro = window.ResizeObserver ? new ResizeObserver(() => resize()) : null; if (ro) ro.observe(host); else window.addEventListener('resize', resize);
+    walls = build(M); fit(); resize(); reset(false);
+    return { setModel, reset, redraw: draw, destroy() { dead = true; if (ro) ro.disconnect(); host.innerHTML = ''; host.classList.remove('c3'); }, get model() { return M; }, _cam: () => cam };
+  }
+  return { mount, norm, validate, area, WALLN, build };
+})();
+/* ===== fim do CASA3D ===== */
